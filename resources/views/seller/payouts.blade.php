@@ -13,7 +13,7 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon icon-sales">₱</div>
-            <div class="stat-label">Total Revenue</div>
+            <div class="stat-label">Total Revenue (Gross)</div>
             <div class="stat-value">PHP {{ number_format($totalSales, 2) }}</div>
         </div>
         <div class="stat-card">
@@ -22,11 +22,20 @@
             <div class="stat-value">{{ $totalOrders }}</div>
         </div>
         <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#D98A5E,#B85C3B);">−10%</div>
+            <div class="stat-label">Platform Commission</div>
+            <div class="stat-value">PHP {{ number_format($platformCommission, 2) }}</div>
+        </div>
+        <div class="stat-card">
             <div class="stat-icon icon-products">💰</div>
             <div class="stat-label">Available Balance</div>
             <div class="stat-value">PHP {{ number_format($availableBalance, 2) }}</div>
         </div>
     </div>
+
+    <p style="font-size:13px; color:var(--text-muted); margin:-10px 0 20px;">
+        Lumora takes a 10% commission on every sale. Your earnings after commission: <strong>PHP {{ number_format($sellerEarnings, 2) }}</strong>.
+    </p>
 
     {{-- Current payout method --}}
     @if ($payoutMethod)
@@ -115,7 +124,7 @@
         <div class="modal-box">
             <h2>Request Payout</h2>
             <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:14px;">
-                Available balance: <strong>PHP {{ number_format($availableBalance, 2) }}</strong>
+                Available balance (after 10% commission): <strong>PHP {{ number_format($availableBalance, 2) }}</strong>
             </p>
             <form action="{{ route('seller.payouts.request') }}" method="POST" class="modal-form">
                 @csrf

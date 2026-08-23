@@ -47,6 +47,9 @@
         .btn-outline { background:#fff; border-color:var(--border); color:var(--text-dark); }
         .btn-outline:hover { background:var(--bg); }
         .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; color:#fff; }
+        .mismatch-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; background:#fbeee8; color:var(--terra-2); }
+        .match-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; background:#eef3ec; color:var(--sage-2); }
+        .muted-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:500; background:#f2ecee; color:var(--text-muted); }
         @media (max-width:900px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
     </style>
 </head>
@@ -56,6 +59,11 @@
     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
     <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">Users</a>
     <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications') ? 'active' : '' }}">Applications</a>
+    <a href="{{ route('admin.compliance') }}" class="nav-link {{ request()->routeIs('admin.compliance') ? 'active' : '' }}">Compliance</a>
+    <a href="{{ route('admin.complaints') }}" class="nav-link {{ request()->routeIs('admin.complaints') ? 'active' : '' }}">Complaints</a>
+    <a href="{{ route('admin.chat.index') }}" class="nav-link {{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">Messages</a>
+    <a href="{{ route('admin.commission') }}" class="nav-link {{ request()->routeIs('admin.commission') ? 'active' : '' }}">Commission</a>
+<a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Settings</a>
     <form method="POST" action="{{ route('logout') }}" class="logout-form">
         @csrf
         <button type="submit" class="logout-btn">Logout</button>

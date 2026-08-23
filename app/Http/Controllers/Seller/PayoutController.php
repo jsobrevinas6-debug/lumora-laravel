@@ -9,17 +9,24 @@ use Illuminate\Support\Facades\DB;
 
 class PayoutController extends Controller
 {
+    // Platform takes 10% commission on every sale; seller keeps 90%.
+    const COMMISSION_RATE = 0.10;
+
     public function index()
     {
         $sellerId = Auth::id();
 
-        // Same total sales calc as the dashboard
+        // Gross sales (before commission) — same calc as the dashboard
         $totalSales = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
             ->where('o.status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
+
+        // Platform commission taken off the top, and what the seller actually earns
+        $platformCommission = $totalSales * self::COMMISSION_RATE;
+        $sellerEarnings     = $totalSales - $platformCommission;
 
         $totalOrders = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
@@ -37,7 +44,8 @@ class PayoutController extends Controller
             ->where('status', 'pending')
             ->sum('amount');
 
-        $availableBalance = $totalSales - $totalPaidOut - $pendingAmount;
+        // Available balance is now based on seller's 90% share, not the gross sale amount
+        $availableBalance = $sellerEarnings - $totalPaidOut - $pendingAmount;
 
         $payoutMethod = DB::table('seller_payout_methods')->where('seller_id', $sellerId)->first();
 
@@ -47,8 +55,8 @@ class PayoutController extends Controller
             ->get();
 
         return view('seller.payouts', compact(
-            'totalSales', 'totalOrders', 'totalPaidOut', 'pendingAmount',
-            'availableBalance', 'payoutMethod', 'payoutHistory'
+            'totalSales', 'platformCommission', 'sellerEarnings', 'totalOrders',
+            'totalPaidOut', 'pendingAmount', 'availableBalance', 'payoutMethod', 'payoutHistory'
         ));
     }
 
@@ -98,12 +106,14 @@ class PayoutController extends Controller
             ->where('o.status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
 
+        $sellerEarnings = $totalSales * (1 - self::COMMISSION_RATE);
+
         $alreadyOut = DB::table('payout_requests')
             ->where('seller_id', $sellerId)
             ->whereIn('status', ['approved', 'paid', 'pending'])
             ->sum('amount');
 
-        $available = $totalSales - $alreadyOut;
+        $available = $sellerEarnings - $alreadyOut;
 
         if ($request->amount > $available) {
             return back()->with('error', 'Requested amount exceeds your available balance.');

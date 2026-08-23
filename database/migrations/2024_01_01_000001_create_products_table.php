@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('seller_id')->constrained('users')->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->decimal('price', 10, 2)->default(0);
+            $table->decimal('price', 8, 2)->default(0);
             $table->integer('stock')->default(0);
             $table->string('image')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');

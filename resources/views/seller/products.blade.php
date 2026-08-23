@@ -26,6 +26,9 @@
                 </div>
                 <div class="product-body">
                     <div class="product-name">{{ $product->name }}</div>
+                    @if ($product->category)
+                        <div class="product-category" style="font-size:.75rem; color:#8B7A80; margin-bottom:4px;">{{ $product->category }}</div>
+                    @endif
                     <div class="product-price">₱{{ number_format($product->price, 2) }}</div>
                     <div class="product-stock">
                         Stock:
@@ -52,6 +55,12 @@
             <form action="{{ route('seller.products.store') }}" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
                 @csrf
                 <input type="text" name="name" placeholder="Product name" required class="stock-input" style="width:100%;">
+                <select name="category" required class="stock-input" style="width:100%;">
+                    <option value="">Select category</option>
+                    @foreach (config('categories') as $cat)
+                        <option value="{{ $cat }}">{{ $cat }}</option>
+                    @endforeach
+                </select>
                 <textarea name="description" placeholder="Description (optional)" class="stock-input" style="width:100%; height:70px;"></textarea>
                 <input type="number" name="price" placeholder="Price" step="0.01" min="0" required class="stock-input" style="width:100%;">
                 <input type="number" name="stock" placeholder="Initial stock" min="0" required class="stock-input" style="width:100%;">

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumora | Shop</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -483,6 +484,10 @@
         <p>Step into something beautiful.</p>
         <p>&copy; {{ date('Y') }} Lumora. All rights reserved.</p>
     </footer>
+
+    @auth
+        @include('components.chat-widget')
+    @endauth
 
 </body>
 </html>

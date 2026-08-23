@@ -20,6 +20,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'name'        => ['required', 'string', 'max:255'],
+            'category'    => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price'       => ['required', 'numeric', 'min:0'],
             'stock'       => ['required', 'integer', 'min:0'],
@@ -34,6 +35,7 @@ class ProductController extends Controller
         DB::table('products')->insert([
             'seller_id'   => Auth::id(),
             'name'        => $request->name,
+            'category'    => $request->category,
             'description' => $request->description,
             'price'       => $request->price,
             'stock'       => $request->stock,
