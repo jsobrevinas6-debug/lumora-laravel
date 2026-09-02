@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class PayoutController extends Controller
 {
@@ -132,5 +134,119 @@ class PayoutController extends Controller
         ]);
 
         return back()->with('success', 'Payout request submitted.');
+    }
+
+    private function resolveDateRange(Request $request): array
+    {
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $start = Carbon::parse($request->start_date)->startOfDay();
+            $end   = Carbon::parse($request->end_date)->endOfDay();
+        } else {
+            $days = (int) $request->input('range', 7);
+            if ($days <= 0) $days = 7;
+            $end   = now()->endOfDay();
+            $start = now()->subDays($days - 1)->startOfDay();
+        }
+
+        return [$start, $end];
+    }
+
+    public function financialReportPdf(Request $request)
+    {
+        [$start, $end] = $this->resolveDateRange($request);
+        $sellerId = Auth::id();
+
+        $grossSales = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('p.seller_id', $sellerId)
+            ->where('o.status', 'paid')
+            ->whereBetween('o.created_at', [$start, $end])
+            ->sum(DB::raw('oi.price * oi.quantity'));
+
+        $commission = $grossSales * self::COMMISSION_RATE;
+        $netEarnings = $grossSales - $commission;
+
+        $totalOrders = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('p.seller_id', $sellerId)
+            ->where('o.status', 'paid')
+            ->whereBetween('o.created_at', [$start, $end])
+            ->distinct('oi.order_id')
+            ->count('oi.order_id');
+
+        $payouts = DB::table('payout_requests')
+            ->where('seller_id', $sellerId)
+            ->whereBetween('created_at', [$start, $end])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $shopName = $this->currentShopName();
+
+        $pdf = Pdf::loadView('seller.reports.financial-pdf', compact(
+            'grossSales', 'commission', 'netEarnings', 'totalOrders', 'payouts', 'shopName', 'start', 'end'
+        ));
+
+        return $pdf->download('financial-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    public function performanceReportPdf(Request $request)
+    {
+        [$start, $end] = $this->resolveDateRange($request);
+        $sellerId = Auth::id();
+
+        $totalSales = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('p.seller_id', $sellerId)
+            ->where('o.status', 'paid')
+            ->whereBetween('o.created_at', [$start, $end])
+            ->sum(DB::raw('oi.price * oi.quantity'));
+
+        $totalOrders = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('p.seller_id', $sellerId)
+            ->where('o.status', 'paid')
+            ->whereBetween('o.created_at', [$start, $end])
+            ->distinct('oi.order_id')
+            ->count('oi.order_id');
+
+        $avgOrderValue = $totalOrders > 0 ? $totalSales / $totalOrders : 0;
+
+        $topProducts = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('p.seller_id', $sellerId)
+            ->where('o.status', 'paid')
+            ->whereBetween('o.created_at', [$start, $end])
+            ->select(
+                'p.name as product_name',
+                DB::raw('SUM(oi.quantity) as units_sold'),
+                DB::raw('SUM(oi.price * oi.quantity) as revenue')
+            )
+            ->groupBy('p.id', 'p.name')
+            ->orderByDesc('revenue')
+            ->limit(10)
+            ->get();
+
+        $shopName = $this->currentShopName();
+
+        $pdf = Pdf::loadView('seller.reports.performance-pdf', compact(
+            'totalSales', 'totalOrders', 'avgOrderValue', 'topProducts', 'shopName', 'start', 'end'
+        ));
+
+        return $pdf->download('performance-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function currentShopName(): string
+    {
+        $app = DB::table('seller_applications')
+            ->where('user_id', Auth::id())
+            ->where('status', 'approved')
+            ->first();
+
+        return $app->business_name ?? Auth::user()->name;
     }
 }

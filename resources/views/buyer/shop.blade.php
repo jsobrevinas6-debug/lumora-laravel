@@ -21,6 +21,11 @@
             --ink:#3A2E30;
             --muted:#8A7B7E;
             --line:#EBDDD8;
+            --flow-bg:#B9827C;
+            --flow-bg-deep:#A96E6B;
+            --flow-text:#FFF8F4;
+            --flow-line:rgba(255,248,244,.28);
+            --flow-gold:#F2C98E;
         }
         *{ box-sizing:border-box; }
         body{
@@ -217,13 +222,212 @@
             .grid{ grid-template-columns:repeat(2,1fr); }
             .search{ display:none; }
         }
+
+        /* ---------- account dropdown ---------- */
+        .account-menu-wrap { position:relative; }
+        .account-trigger { display:flex; align-items:center; gap:10px; border:0; background:transparent; padding:0; color:inherit; cursor:pointer; text-align:left; }
+        .account-trigger:focus-visible { outline:2px solid var(--orange); outline-offset:4px; border-radius:8px; }
+        .account-chevron { width:13px; height:13px; color:var(--muted); transition:transform .18s ease; }
+        .account-menu-wrap.open .account-chevron { transform:rotate(180deg); }
+        .account-dropdown { display:none; position:absolute; top:calc(100% + 12px); right:0; width:258px; padding:8px; background:var(--cream); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 34px rgba(61,27,61,.16); z-index:50; }
+        .account-menu-wrap.open .account-dropdown { display:block; }
+        .account-dropdown-head { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+        .account-dropdown-head .avatar { flex:0 0 auto; width:42px; height:42px; font-size:15px; }
+        .account-dropdown-name { color:var(--ink); font-size:13px; font-weight:600; }
+        .account-mode { display:flex; align-items:center; gap:5px; margin-top:3px; color:var(--muted); font-size:11px; }
+        .buyer-badge { padding:2px 7px; border-radius:999px; background:#f3d8de; color:var(--plum); font-size:10px; font-weight:700; }
+        .account-menu-link, .account-menu-button { width:100%; display:flex; align-items:center; gap:10px; padding:10px; border:0; border-radius:10px; background:transparent; color:var(--ink); font:inherit; font-size:13px; text-align:left; text-decoration:none; cursor:pointer; }
+        .account-menu-link:hover, .account-menu-button:hover { background:var(--blush-1); color:var(--plum); }
+        .account-menu-button.switch-seller { border:1px solid var(--plum); color:var(--plum); margin:4px 0; }
+        .account-menu-button.switch-seller:hover { background:var(--plum); color:#fff; }
+        .account-menu-icon { width:18px; text-align:center; font-size:16px; }
+        .account-menu-divider { height:1px; margin:6px 2px; background:var(--line); }
+        .account-menu-button.logout-menu { color:var(--muted); }
+        @media (max-width:900px) { .account-dropdown { right:-4px; } }
+
+        /* ---------- hidden vertical collection menu ---------- */
+        .flow-menu-trigger { width:38px; height:38px; border:1px solid var(--line); border-radius:50%; background:var(--cream); color:var(--plum); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:all .18s ease; }
+        .flow-menu-trigger:hover, .flow-menu-trigger[aria-expanded="true"] { background:var(--plum); color:#fff; }
+        .flow-menu-trigger svg { width:18px; height:18px; }
+        .flow-menu-trigger.left-menu-trigger { display:flex; flex:0 0 auto; }
+        .flow-menu-trigger.right-menu-trigger { display:none; }
+        .flow-menu-trigger.left-menu-trigger:hover, .flow-menu-trigger.left-menu-trigger[aria-expanded="true"] { background:var(--plum); color:#fff; }
+        .flow-menu-item.has-image::before { background-color:#FFF8F4; background-image:linear-gradient(90deg, rgba(255,253,251,.88), rgba(255,253,251,.12)), var(--category-image); background-size:auto 100%, 220px 100%; background-position:left center, right center; background-repeat:no-repeat; }
+        .flow-menu-item.has-image:hover::before { background-position:left center, right center; }
+        .flow-menu-subitem.has-image { position:relative; overflow:hidden; isolation:isolate; }
+        .flow-menu-subitem.has-image::before { content:""; position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,rgba(255,253,251,.92),rgba(255,253,251,.12)),var(--category-image); background-size:auto 100%,220px 100%; background-position:left center,right center; background-repeat:no-repeat; transform:translateY(105%); transition:transform .22s ease; }
+        .flow-menu-subitem.has-image:hover::before { transform:translateY(0); }
+        .flow-menu-item.is-makeup .flow-menu-item-icon { color:var(--orange); }
+        .flow-menu-backdrop { display:block; position:fixed; inset:0; z-index:40; background:rgba(61,27,61,.34); opacity:0; visibility:hidden; pointer-events:none; transition:opacity .32s ease, visibility .32s ease; }
+        .flow-menu-backdrop.open { opacity:1; visibility:visible; }
+        .flow-menu-drawer { position:fixed; top:0; left:0; z-index:41; width:min(360px, 92vw); height:100vh; padding:28px 18px; background:linear-gradient(180deg,var(--flow-bg) 0%,var(--flow-bg-deep) 100%); color:var(--flow-text); overflow-y:auto; transform:translateX(-105%); transition:transform .42s cubic-bezier(.22,.61,.36,1); box-shadow:8px 0 26px rgba(61,27,61,.18); }
+        .flow-menu-drawer.open { transform:translateX(0); }
+        .flow-menu-head { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 18px; border-bottom:1px solid var(--flow-line); }
+        .flow-menu-brand { display:flex; align-items:center; gap:8px; margin:0 6px 16px; color:var(--flow-text); font-family:'Playfair Display',serif; font-size:20px; font-weight:700; letter-spacing:.4px; }
+        .flow-menu-brand-mark { width:25px; height:25px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(255,248,244,.65); border-radius:7px; color:var(--flow-text); font-family:'Inter',sans-serif; font-size:12px; }
+        .flow-menu-head h2 { margin:0; color:var(--flow-text); font-family:'Playfair Display',serif; font-size:24px; font-weight:600; }
+        .flow-menu-close { width:34px; height:34px; border:1px solid rgba(255,255,255,.35); border-radius:50%; background:transparent; color:#fff; font-size:22px; line-height:1; cursor:pointer; }
+        .flow-menu-close:hover { background:rgba(255,255,255,.12); }
+        .flow-menu-list { display:flex; flex-direction:column; margin-top:8px; }
+        .flow-menu-item { position:relative; isolation:isolate; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:53px; padding:8px 7px; border-bottom:1px solid var(--flow-line); color:var(--flow-text); text-decoration:none; overflow:hidden; transform:translateX(0); transition:color .28s ease, transform .28s ease, background-color .28s ease; }
+        .flow-menu-item::before { content:""; position:absolute; inset:0; background:var(--cream); transform:translateY(105%); transition:transform .22s ease; z-index:-1; }
+        .flow-menu-item:hover { color:var(--plum); transform:translateX(5px); }
+        .flow-menu-item:hover::before { transform:translateY(0); }
+        .flow-menu-item:hover .flow-menu-item-icon { transform:scale(1.08); }
+        .flow-menu-item-left { display:flex; align-items:center; gap:13px; min-width:0; position:relative; z-index:1; }
+        .flow-menu-item-icon { width:22px; height:22px; flex:0 0 22px; color:var(--orange); }
+        .flow-menu-item-icon svg { display:block; width:100%; height:100%; }
+        .flow-menu-item-icon { transition:transform .28s ease, color .28s ease; }
+        .flow-menu-item-label { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .flow-menu-arrow { color:var(--flow-gold); font-size:20px; line-height:1; position:relative; z-index:1; transition:transform .22s ease; }
+        .flow-menu-item:hover .flow-menu-arrow { transform:translateX(4px); }
+        .flow-menu-badge { min-width:22px; padding:3px 6px; border:1px solid rgba(255,255,255,.26); border-radius:999px; color:rgba(255,248,244,.88); font-size:10px; line-height:1; text-align:center; position:relative; z-index:1; transition:background .22s ease, color .22s ease, border-color .22s ease; }
+        .flow-menu-item:hover .flow-menu-badge { background:#F2D7C9; color:var(--plum); border-color:transparent; }
+        .flow-menu-item-right { display:flex; align-items:center; gap:10px; position:relative; z-index:1; }
+        .flow-menu-parent { width:100%; border:0; font:inherit; text-align:left; background:transparent; }
+        .flow-menu-chevron { color:var(--flow-gold); font-size:18px; line-height:1; transition:transform .25s ease; }
+        .flow-menu-group.open > .flow-menu-parent .flow-menu-chevron { transform:rotate(180deg); }
+        .flow-menu-submenu { max-height:0; overflow:hidden; opacity:0; padding-left:18px; transition:max-height .35s ease, opacity .25s ease, padding .35s ease; }
+        .flow-menu-group.open > .flow-menu-submenu { max-height:520px; opacity:1; padding-top:3px; padding-bottom:5px; }
+        .flow-menu-subitem { min-height:40px; padding:8px 8px 8px 15px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-bottom:1px solid rgba(255,248,244,.16); color:rgba(255,248,244,.88); font-size:13px; transition:color .2s ease, background .2s ease, padding-left .2s ease; }
+        .flow-menu-subitem:hover { color:var(--plum); background:#FFF8F4; padding-left:20px; }
+        .flow-menu-subitem-label { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .flow-menu-submenu-nested { padding-left:12px; }
+        .flow-menu-nested-group.open > .flow-menu-submenu { max-height:260px; }
+        .flow-menu-note { margin:18px 6px 0; color:rgba(255,248,244,.78); font-size:11px; text-align:center; }
+        .flow-menu-item:nth-child(1) { --item-delay: .02s; }
+        .flow-menu-item:nth-child(2) { --item-delay: .04s; }
+        .flow-menu-item:nth-child(3) { --item-delay: .06s; }
+        .flow-menu-item:nth-child(4) { --item-delay: .08s; }
+        .flow-menu-item:nth-child(5) { --item-delay: .10s; }
+        .flow-menu-item:nth-child(6) { --item-delay: .12s; }
+        .flow-menu-item:nth-child(7) { --item-delay: .14s; }
+        .flow-menu-item:nth-child(8) { --item-delay: .16s; }
+        .flow-menu-item:nth-child(9) { --item-delay: .18s; }
+        .flow-menu-item:nth-child(10) { --item-delay: .20s; }
+        .flow-menu-item:nth-child(11) { --item-delay: .22s; }
+        .flow-menu-item:nth-child(12) { --item-delay: .24s; }
+        .flow-menu-item:nth-child(13) { --item-delay: .26s; }
+        .flow-menu-drawer.open .flow-menu-item { animation:flowMenuItemIn .28s ease both; animation-delay:var(--item-delay); }
+        @keyframes flowMenuItemIn { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:translateX(0); } }
+        @media (prefers-reduced-motion: reduce) { .flow-menu-drawer, .flow-menu-backdrop, .flow-menu-item, .flow-menu-item::before, .flow-menu-arrow, .flow-menu-badge { transition:none; animation:none !important; } }
+        .categories { display:none; }
+        .topbar-inner, .guest-banner, .hero, .section, footer { margin-left:auto; margin-right:auto; max-width:1180px; }
+        @media (max-width:900px) {
+            .flow-menu-trigger.left-menu-trigger { display:flex; }
+            .flow-menu-backdrop { display:block; }
+            .flow-menu-drawer { width:min(360px, 92vw); transform:translateX(-105%); box-shadow:12px 0 30px rgba(61,27,61,.22); }
+            .flow-menu-drawer.open { transform:translateX(0); }
+            .flow-menu-backdrop.open { opacity:1; visibility:visible; }
+            .topbar-inner, .guest-banner, .hero, .section, footer { margin-left:auto; margin-right:auto; max-width:1180px; }
+        }
+
+        /* ---------- React Bits-style FlowingMenu marquee ---------- */
+        .flowing-menu-leaf { position:relative; overflow:hidden; isolation:isolate; }
+        .flowing-menu-leaf > .flow-menu-subitem { position:relative; z-index:1; }
+        .flowing-marquee { position:absolute; inset:0; z-index:2; overflow:hidden; pointer-events:none; background:var(--cream); color:var(--plum); transform:translate3d(0,101%,0); }
+        .flowing-marquee-inner { display:flex; align-items:center; width:max-content; height:100%; will-change:transform; }
+        .flowing-marquee-part { display:flex; align-items:center; flex-shrink:0; white-space:nowrap; text-transform:uppercase; font-size:14px; font-weight:700; letter-spacing:.04em; }
+        .flowing-marquee-part > span:first-child { padding:0 12px; }
+        .flowing-marquee-image { display:inline-block; width:120px; height:34px; margin:0 12px; border-radius:999px; background-position:center; background-size:cover; flex:0 0 auto; }
+        .flowing-marquee-dot { display:inline-block; width:16px; height:16px; margin:0 26px 0 12px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 5px rgba(226,112,58,.14); }
+        .flowing-menu-leaf:hover .flow-menu-subitem-leaf { color:var(--plum); background:transparent; }
+        .flowing-menu-leaf:hover .flow-menu-badge, .flowing-menu-leaf:hover .flow-menu-arrow { opacity:0; }
+        @media (max-width:640px) { .flowing-marquee-part { font-size:12px; } .flowing-marquee-image { width:86px; height:28px; } }
+        @media (prefers-reduced-motion:reduce) { .flowing-marquee { transform:none; opacity:0; } }
     </style>
 </head>
 <body>
 
+    @php
+        $flowMenuCategories = [
+            ['label' => 'Men', 'slug' => 'men', 'image' => '', 'children' => [
+                ['label' => 'Clothing', 'slug' => 'mens-clothing'],
+                ['label' => 'Shoes', 'slug' => 'mens-shoes'],
+                ['label' => 'Accessories', 'slug' => 'mens-accessories'],
+                ['label' => 'Grooming', 'slug' => 'mens-grooming', 'children' => [
+                    ['label' => 'Shavers & Trimmers', 'slug' => 'shavers-trimmers'],
+                    ['label' => 'Hair Care', 'slug' => 'mens-hair-care'],
+                    ['label' => 'Skincare', 'slug' => 'mens-skincare'],
+                ]],
+            ]],
+            ['label' => 'Women', 'slug' => 'women', 'image' => '', 'children' => [
+                ['label' => 'Clothing', 'slug' => 'womens-clothing'],
+                ['label' => 'Shoes', 'slug' => 'womens-shoes'],
+                ['label' => 'Bags', 'slug' => 'bags'],
+                ['label' => 'Accessories', 'slug' => 'womens-accessories'],
+                ['label' => 'Beauty', 'slug' => 'womens-beauty'],
+            ]],
+            ['label' => 'Electronics', 'slug' => 'electronics', 'image' => '', 'children' => [
+                ['label' => 'Phones & Tablets', 'slug' => 'phones-tablets', 'children' => [
+                    ['label' => 'Smartphones', 'slug' => 'smartphones', 'children' => [
+                        ['label' => 'Apple', 'slug' => 'apple'],
+                        ['label' => 'Samsung', 'slug' => 'samsung'],
+                        ['label' => 'Xiaomi', 'slug' => 'xiaomi'],
+                        ['label' => 'OPPO', 'slug' => 'oppo'],
+                    ]],
+                    ['label' => 'Tablets', 'slug' => 'tablets'],
+                    ['label' => 'Accessories', 'slug' => 'electronics-accessories'],
+                ]],
+                ['label' => 'Computers', 'slug' => 'computers'],
+                ['label' => 'Appliances', 'slug' => 'electronics-appliances'],
+                ['label' => 'Audio', 'slug' => 'audio'],
+                ['label' => 'Cameras', 'slug' => 'cameras'],
+            ]],
+            ['label' => 'Home & Living', 'slug' => 'home-living', 'image' => '', 'children' => [
+                ['label' => 'Furniture', 'slug' => 'furniture'],
+                ['label' => 'Kitchen', 'slug' => 'kitchen'],
+                ['label' => 'Home', 'slug' => 'home', 'children' => [
+                    ['label' => 'Appliances', 'slug' => 'home-appliances'],
+                    ['label' => 'Home Decor', 'slug' => 'home-decor'],
+                ]],
+            ]],
+            ['label' => 'Sports & Outdoors', 'slug' => 'sports-outdoors', 'image' => '', 'children' => [
+                ['label' => 'Running', 'slug' => 'running'],
+                ['label' => 'Basketball', 'slug' => 'basketball'],
+                ['label' => 'Football', 'slug' => 'football'],
+                ['label' => 'Hiking', 'slug' => 'hiking'],
+                ['label' => 'Fitness', 'slug' => 'fitness'],
+            ]],
+            ['label' => 'Beauty & Personal Care', 'slug' => 'beauty-personal-care', 'image' => '', 'children' => [
+                ['label' => 'Skincare', 'slug' => 'skincare'],
+                ['label' => 'Makeup', 'slug' => 'makeup'],
+                ['label' => 'Hair Care', 'slug' => 'hair-care'],
+                ['label' => 'Personal Care', 'slug' => 'personal-care'],
+            ]],
+        ];
+    @endphp
+
+    <div class="flow-menu-backdrop" id="flowMenuBackdrop"></div>
+    <aside class="flow-menu-drawer" id="flowMenuDrawer" aria-hidden="true">
+        <div class="flow-menu-brand"><span class="flow-menu-brand-mark">L</span><span>LUMORA</span></div>
+        <div class="flow-menu-head">
+            <h2>Shop by collection</h2>
+            <button type="button" class="flow-menu-close" id="flowMenuClose" aria-label="Close collections menu">&times;</button>
+        </div>
+        <nav class="flow-menu-list" aria-label="Shop by collection">
+            @php
+                $categoryCounts = $categoryCounts ?? [];
+                $shopProducts = collect($products ?? []);
+            @endphp
+
+            @foreach ($flowMenuCategories as $category)
+                <x-flow-menu-node
+                    :node="$category"
+                    :category-counts="$categoryCounts"
+                    :shop-products="$shopProducts"
+                />
+            @endforeach
+        </nav>
+        <p class="flow-menu-note">Select a collection to browse matching products.</p>
+    </aside>
+
     <!-- ===================== TOP BAR ===================== -->
     <header class="topbar">
         <div class="topbar-inner">
+            <button type="button" class="flow-menu-trigger left-menu-trigger" id="flowMenuTriggerLeft" aria-label="Open shop by collection" aria-expanded="false" aria-controls="flowMenuDrawer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
             <a href="{{ route('shop.index') }}" class="brand">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/></svg>
                 <span class="wordmark">LUM<span>O</span>RA</span>
@@ -244,13 +448,47 @@
                 </a>
 
                 @auth
-                    <div class="account">
-                        <div class="avatar">{{ strtoupper(substr(Auth::user()->name,0,1)) }}</div>
-                        <div>
-                            <div class="account-name">{{ Auth::user()->name }}</div>
-                            <form method="POST" action="{{ route('logout') }}" class="logout-form">
+                    <div class="account-menu-wrap" id="accountMenuWrap">
+                        <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-controls="accountDropdown">
+                            <div class="avatar">{{ strtoupper(substr(Auth::user()->name,0,1)) }}</div>
+                            <div>
+                                <div class="account-name">{{ Auth::user()->name }}</div>
+                                <div class="account-mode">Shopping as Buyer <span class="buyer-badge">Buyer</span></div>
+                            </div>
+                            <svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+
+                        <div class="account-dropdown" id="accountDropdown" role="menu">
+                            <div class="account-dropdown-head">
+                                <div class="avatar">{{ strtoupper(substr(Auth::user()->name,0,1)) }}</div>
+                                <div>
+                                    <div class="account-dropdown-name">{{ Auth::user()->name }}</div>
+                                    <div class="account-mode">Currently shopping as <span class="buyer-badge">Buyer</span></div>
+                                </div>
+                            </div>
+
+                            <a href="{{ route('profile.edit') }}" class="account-menu-link" role="menuitem">
+                                <span class="account-menu-icon">♙</span>
+                                <span>Profile / Settings</span>
+                            </a>
+
+                            @if (Auth::user()->role === 'seller')
+                                <form method="POST" action="{{ route('switchToSeller') }}">
+                                    @csrf
+                                    <button type="submit" class="account-menu-button switch-seller" role="menuitem">
+                                        <span class="account-menu-icon">▣</span>
+                                        <span>Switch to Seller Dashboard</span>
+                                    </button>
+                                </form>
+                            @endif
+
+                            <div class="account-menu-divider"></div>
+                            <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <button type="submit">Log out</button>
+                                <button type="submit" class="account-menu-button logout-menu" role="menuitem">
+                                    <span class="account-menu-icon">↪</span>
+                                    <span>Log out</span>
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -489,5 +727,79 @@
         @include('components.chat-widget')
     @endauth
 
+
+    <script>
+        const accountMenuWrap = document.getElementById('accountMenuWrap');
+        const accountTrigger = document.getElementById('accountTrigger');
+
+        if (accountMenuWrap && accountTrigger) {
+            accountTrigger.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const isOpen = accountMenuWrap.classList.toggle('open');
+                accountTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!accountMenuWrap.contains(event.target)) {
+                    accountMenuWrap.classList.remove('open');
+                    accountTrigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    accountMenuWrap.classList.remove('open');
+                    accountTrigger.setAttribute('aria-expanded', 'false');
+                    accountTrigger.focus();
+                }
+            });
+        }
+        </script>
+
+    {{-- Fallback drawer controls. The main implementation lives in resources/js/app.js. --}}
+    <script>
+        (function () {
+            if (window.__lumoraFlowMenuBound) return;
+
+            const drawer = document.getElementById('flowMenuDrawer');
+            const backdrop = document.getElementById('flowMenuBackdrop');
+            const closeButton = document.getElementById('flowMenuClose');
+            const triggers = document.querySelectorAll('#flowMenuTrigger, #flowMenuTriggerLeft');
+
+            if (!drawer || !backdrop || !triggers.length) return;
+            window.__lumoraFlowMenuBound = true;
+
+            function setOpen(open) {
+                drawer.classList.toggle('open', open);
+                backdrop.classList.toggle('open', open);
+                drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+                triggers.forEach(function (trigger) {
+                    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.body.style.overflow = open ? 'hidden' : '';
+            }
+
+            triggers.forEach(function (trigger) {
+                trigger.addEventListener('click', function () {
+                    setOpen(!drawer.classList.contains('open'));
+                });
+            });
+
+            closeButton?.addEventListener('click', function () { setOpen(false); });
+            backdrop.addEventListener('click', function () { setOpen(false); });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') setOpen(false);
+            });
+
+            document.querySelectorAll('[data-submenu-toggle]').forEach(function (toggle) {
+                toggle.addEventListener('click', function () {
+                    const group = toggle.closest('[data-submenu-group]');
+                    if (!group) return;
+                    const expanded = group.classList.toggle('open');
+                    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                });
+            });
+        }());
+    </script>
 </body>
 </html>

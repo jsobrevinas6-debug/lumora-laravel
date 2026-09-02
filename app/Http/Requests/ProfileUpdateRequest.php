@@ -18,14 +18,27 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'middle_initial' => ['sometimes', 'nullable', 'string', 'max:4'],
+            'sex' => ['sometimes', 'required', Rule::in(['male', 'female'])],
+            'contact_number' => ['sometimes', 'required', 'string', 'max:20'],
+            'date_of_birth' => ['sometimes', 'required', 'date', 'before:today'],
             'email' => [
                 'required',
                 'string',
                 'lowercase',
                 'email',
                 'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
+                Rule::unique(User::class, 'email')->ignore($this->user()->id),
             ],
+            'province' => ['sometimes', 'required', 'string', 'max:255'],
+            'municipality' => ['sometimes', 'required', 'string', 'max:255'],
+            'barangay' => ['sometimes', 'required', 'string', 'max:255'],
+            'street' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'house_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'shop_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'shop_description' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }
 }

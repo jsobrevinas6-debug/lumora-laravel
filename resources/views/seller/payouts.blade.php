@@ -65,6 +65,58 @@
         </button>
     </div>
 
+    {{-- Generate Report --}}
+    <div class="panel" style="margin-bottom:22px;">
+        <h2>Generate Report</h2>
+        <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:20px;">
+            Choose a date range, then download the report you need as a PDF.
+        </p>
+
+        <form method="GET" id="reportForm">
+            <div style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+                <div>
+                    <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Date Range</label>
+                    <select name="range" id="rangeSelect" onchange="toggleCustom()" style="padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13.5px;">
+                        <option value="7">Last 7 Days</option>
+                        <option value="14" selected>Last 14 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <div id="customRangeFields" style="display:none; gap:12px;">
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Start Date</label>
+                        <input type="date" name="start_date" id="start_date" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13.5px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">End Date</label>
+                        <input type="date" name="end_date" id="end_date" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13.5px;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <button type="submit" formaction="{{ route('seller.payouts.reports.financial') }}" class="btn-solid">
+                    Financial &amp; Profit Report
+                </button>
+                <button type="submit" formaction="{{ route('seller.payouts.reports.performance') }}" class="btn-outline">
+                    Sales &amp; Performance Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function toggleCustom() {
+            const isCustom = document.getElementById('rangeSelect').value === 'custom';
+            const fields = document.getElementById('customRangeFields');
+            fields.style.display = isCustom ? 'flex' : 'none';
+            document.getElementById('start_date').required = isCustom;
+            document.getElementById('end_date').required = isCustom;
+        }
+    </script>
+
     {{-- Payout history --}}
     <div class="panel">
         <h2>Payout History</h2>

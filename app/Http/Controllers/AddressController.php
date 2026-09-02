@@ -2,41 +2,74 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class AddressController extends Controller
 {
     private string $base = 'https://psgc.cloud/api/v2';
 
-    public function provinces()
+    public function provinces(): JsonResponse
     {
-        $data = Cache::remember('psgc_provinces', now()->addDay(), function () {
-            $res = Http::timeout(10)->get("{$this->base}/provinces");
-            return $res->successful() ? $res->json() : [];
-        });
-
-        return response()->json($data);
+        return response()->json([
+            'data' => $this->cachedList('psgc_provinces', "{$this->base}/provinces"),
+        ]);
     }
 
-    public function municipalities(string $provinceCode)
+    public function municipalities(string $provinceCode): JsonResponse
     {
-        $data = Cache::remember("psgc_municipalities_{$provinceCode}", now()->addDay(), function () use ($provinceCode) {
-            $res = Http::timeout(10)->get("{$this->base}/provinces/{$provinceCode}/cities-municipalities");
-            return $res->successful() ? $res->json() : [];
-        });
-
-        return response()->json($data);
+        return response()->json([
+            'data' => $this->cachedList(
+                "psgc_municipalities_{$provinceCode}",
+                "{$this->base}/provinces/{$provinceCode}/cities-municipalities"
+            ),
+        ]);
     }
 
-    public function barangays(string $municipalityCode)
+    public function barangays(string $municipalityCode): JsonResponse
     {
-        $data = Cache::remember("psgc_barangays_{$municipalityCode}", now()->addDay(), function () use ($municipalityCode) {
-            $res = Http::timeout(10)->get("{$this->base}/cities-municipalities/{$municipalityCode}/barangays");
-            return $res->successful() ? $res->json() : [];
-        });
+        return response()->json([
+            'data' => $this->cachedList(
+                "psgc_barangays_{$municipalityCode}",
+                "{$this->base}/cities-municipalities/{$municipalityCode}/barangays"
+            ),
+        ]);
+    }
 
-        return response()->json($data);
+    private function cachedList(string $cacheKey, string $url): array
+    {
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached) && count($cached) > 0) {
+            return $cached;
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->timeout(15)
+                ->retry(2, 250)
+                ->get($url);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $payload = $response->json();
+            $items = is_array($payload) && isset($payload['data'])
+                ? $payload['data']
+                : $payload;
+
+            if (! is_array($items) || count($items) === 0) {
+                return [];
+            }
+
+            Cache::put($cacheKey, $items, now()->addDay());
+
+            return $items;
+        } catch (\Throwable $exception) {
+            report($exception);
+            return [];
+        }
     }
 }
