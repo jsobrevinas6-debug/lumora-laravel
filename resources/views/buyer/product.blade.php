@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $product->name }} · {{ config('app.name', 'Lumora') }}</title>
+    <title>{{ $product->name }} &middot; {{ config('app.name', 'Lumora') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         :root { --cream:#fffaf7; --paper:#fffdfb; --line:#eadfe0; --plum:#3d1b3d; --rose:#b96562; --muted:#766a70; --green:#66945e; }
@@ -89,17 +89,17 @@
             </a>
             <input class="search" type="search" placeholder="Search skincare, makeup, fragrance..." aria-label="Search products">
             <button class="top-action" type="button" aria-label="Add to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
-            <a class="top-action" href="{{ route('shop.index') }}" aria-label="Back to shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></a>
+            <a class="top-action" href="{{ route('buyer.cart') }}" aria-label="View cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span data-cart-count>{{ session('lumora_cart') ? collect(session('lumora_cart'))->sum('quantity') : 0 }}</span></a>
         </div>
     </header>
 
     <main class="product-shell">
-        <div class="breadcrumb"><a href="{{ route('shop.index') }}">Home</a> <span>›</span> <a href="{{ route('shop.index', ['category' => $product->category]) }}">{{ $categoryTitle }}</a> <span>›</span> <strong>{{ $product->name }}</strong></div>
+        <div class="breadcrumb"><a href="{{ route('shop.index') }}">Home</a> <span>&rsaquo;</span> <a href="{{ route('shop.index', ['category' => $product->category]) }}">{{ $categoryTitle }}</a> <span>&rsaquo;</span> <strong>{{ $product->name }}</strong></div>
         <section class="product-detail">
             <div class="gallery">
                 <div class="thumbs">
                     <button class="thumb active" type="button" aria-label="Product image">
-                        @if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="thumb-placeholder">◇</span>@endif
+                        @if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="thumb-placeholder">&#9671;</span>@endif
                     </button>
                 </div>
                 <div class="main-photo">
@@ -120,16 +120,20 @@
                 @endphp
                 <div class="eyebrow">{{ $sellerName }}</div>
                 <h1>{{ $product->name }}</h1>
-                <div class="rating">@if ($rating > 0){{ str_repeat('★', (int) round($rating)) }}{{ str_repeat('☆', 5 - (int) round($rating)) }} <span>({{ number_format($rating, 2) }})</span>@else <span class="muted">No ratings yet</span>@endif @if ($salesCount > 0)<span class="muted"> · {{ number_format($salesCount) }} sold</span>@endif</div>
-                <div class="price-row"><span class="price">₱{{ number_format($finalPrice, 2) }}</span>@if ($discountPercent > 0)<span class="old-price">₱{{ number_format($originalPrice, 2) }}</span><span class="sale-badge">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif</div>
+                <div class="rating">@if ($rating > 0){{ str_repeat('&#9733;', (int) round($rating)) }}{{ str_repeat('&#9734;', 5 - (int) round($rating)) }} <span>({{ number_format($rating, 2) }})</span>@else <span class="muted">No ratings yet</span>@endif @if ($salesCount > 0)<span class="muted"> &middot; {{ number_format($salesCount) }} sold</span>@endif</div>
+                <div class="price-row"><span class="price">&#8369;{{ number_format($finalPrice, 2) }}</span>@if ($discountPercent > 0)<span class="old-price">&#8369;{{ number_format($originalPrice, 2) }}</span><span class="sale-badge">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif</div>
                 <div class="description">{{ $product->description ?: 'Discover more details about this Lumora product.' }}</div>
-                <div class="stock {{ $stock < 1 ? 'out' : '' }}">{{ $stock > 0 ? $stock . ' available' : 'Out of stock' }} @if ($stock > 0)<span class="muted"> · In stock and ready to ship</span>@endif</div>
+                <div class="stock {{ $stock < 1 ? 'out' : '' }}">{{ $stock > 0 ? $stock . ' available' : 'Out of stock' }} @if ($stock > 0)<span class="muted"> &middot; In stock and ready to ship</span>@endif</div>
                 <label class="quantity-label" for="quantityOutput">Quantity</label>
-                <div class="purchase-row">
-                    <div class="quantity"><button type="button" id="quantityMinus" aria-label="Decrease quantity">−</button><output id="quantityOutput">1</output><button type="button" id="quantityPlus" aria-label="Increase quantity">+</button></div>
-                    <button type="button" class="button primary add-detail-cart" data-product-id="{{ $product->id }}" @disabled($stock < 1)>🛒&nbsp; Add to cart</button>
-                </div>
-                <button type="button" class="button wishlist buy-now" id="buyNowButton" data-product-id="{{ $product->id }}" @disabled($stock < 1)>Buy now</button>
+                <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" id="detailCartForm" class="lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+                    @csrf
+                    <input type="hidden" name="quantity" id="quantityInput" value="1">
+                    <div class="purchase-row">
+                        <div class="quantity"><button type="button" id="quantityMinus" aria-label="Decrease quantity">&#8722;</button><output id="quantityOutput">1</output><button type="button" id="quantityPlus" aria-label="Increase quantity">+</button></div>
+                        <button type="submit" class="button primary add-detail-cart" @disabled($stock < 1)>Add to cart</button>
+                    </div>
+                    <button type="submit" class="button wishlist buy-now" id="buyNowButton" name="buy_now" value="1" @disabled($stock < 1)>Buy now</button>
+                </form>
             </div>
 
             <aside class="service-stack" aria-label="Shopping services">
@@ -153,7 +157,7 @@
             @if ($relatedProducts->count())
                 <div class="related"><h2>You may also like</h2><div class="related-grid">
                     @foreach ($relatedProducts as $related)
-                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image">@if (!empty($related->image))<img src="{{ Storage::url($related->image) }}" alt="{{ $related->name }}">@else<span>Lumora</span>@endif</div><div class="related-name">{{ $related->name }}</div><div class="related-price">₱{{ number_format((float) $related->price, 2) }}</div></a>
+                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image">@if (!empty($related->image))<img src="{{ Storage::url($related->image) }}" alt="{{ $related->name }}">@else<span>Lumora</span>@endif</div><div class="related-name">{{ $related->name }}</div><div class="related-price">&#8369;{{ number_format((float) $related->price, 2) }}</div></a>
                     @endforeach
                 </div></div>
             @endif
@@ -165,34 +169,19 @@
     @include('components.chat-widget')
 @endif
 
+@include('components.add-to-cart-success-modal')
+
 <script>
     const output = document.getElementById('quantityOutput');
+    const quantityInput = document.getElementById('quantityInput');
     const maxStock = {{ max(1, (int) ($product->stock ?? 0)) }};
-    document.getElementById('quantityMinus')?.addEventListener('click', () => { output.value = output.textContent = String(Math.max(1, Number(output.textContent) - 1)); });
-    document.getElementById('quantityPlus')?.addEventListener('click', () => { output.value = output.textContent = String(Math.min(maxStock, Number(output.textContent) + 1)); });
-    function addCurrentProductToCart(button) {
-        const cart = JSON.parse(localStorage.getItem('lumora_cart') || '[]');
-        const id = String(button.dataset.productId);
-        const quantity = Number(document.getElementById('quantityOutput').textContent || 1);
-        const existing = cart.find(item => (typeof item === 'object' ? String(item.id) : String(item)) === id);
-        if (existing && typeof existing === 'object') existing.quantity += quantity;
-        else if (!existing) cart.push({ id, quantity });
-        localStorage.setItem('lumora_cart', JSON.stringify(cart));
-        button.textContent = 'Added to cart';
-        button.classList.add('added');
+    function setQuantity(value) {
+        const quantity = Math.max(1, Math.min(maxStock, Number(value) || 1));
+        output.textContent = String(quantity);
+        quantityInput.value = String(quantity);
     }
-
-    document.querySelector('.add-detail-cart')?.addEventListener('click', function () {
-        addCurrentProductToCart(this);
-    });
-
-    document.getElementById('buyNowButton')?.addEventListener('click', function () {
-        const cartButton = document.querySelector('.add-detail-cart');
-        if (!cartButton || cartButton.disabled) return;
-        addCurrentProductToCart(this);
-        // A checkout route is not yet available, so Buy now safely adds the item to the cart for now.
-        setTimeout(() => { window.location.href = "{{ route('shop.index') }}"; }, 450);
-    });
+    document.getElementById('quantityMinus')?.addEventListener('click', () => setQuantity(Number(output.textContent) - 1));
+    document.getElementById('quantityPlus')?.addEventListener('click', () => setQuantity(Number(output.textContent) + 1));
     document.querySelectorAll('[data-tab]').forEach(tab => tab.addEventListener('click', () => {
         document.querySelectorAll('[data-tab], .tab-panel').forEach(item => item.classList.remove('active'));
         tab.classList.add('active');

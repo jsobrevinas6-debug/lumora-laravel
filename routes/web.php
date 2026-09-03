@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\AccountModeController;
+use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Seller\ProductController;
 use App\Http\Controllers\Seller\PayoutController;
 use App\Http\Controllers\Seller\OrderController;
+use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +81,19 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
 
 // Buyer/Guest routes
 Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+Route::get('/cart', [CartController::class, 'index'])->name('buyer.cart');
+Route::post('/cart/select', [CartController::class, 'select'])->name('buyer.cart.select');
+Route::patch('/cart/{product}', [CartController::class, 'update'])->name('buyer.cart.update');
+Route::delete('/cart/{product}', [CartController::class, 'remove'])->name('buyer.cart.remove');
+
+Route::post('/cart/checkout', [BuyerOrderController::class, 'create'])
+    ->middleware('auth')
+    ->name('buyer.cart.checkout');
+
+Route::post('/cart/add/{product}', [CartController::class, 'add'])
+    ->name('buyer.cart.add');
+
+
 
 Route::middleware('auth')->group(function () {
     // This route intentionally stays outside the seller. group so its name is switchToSeller.
@@ -102,6 +118,12 @@ Route::middleware('auth')->group(function () {
     ->whereNumber('id')
     ->name('shop.product');
 
+    Route::post('/checkout/place-order', [BuyerOrderController::class, 'store'])
+    ->name('buyer.checkout.store');
+
+    Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])
+    ->name('buyer.orders.show');
+
 
 });
 
@@ -113,5 +135,26 @@ Route::post('/register/verify-code', [\App\Http\Controllers\Auth\EmailVerificati
 Route::get('/address/provinces', [\App\Http\Controllers\AddressController::class, 'provinces'])->name('address.provinces');
 Route::get('/address/provinces/{code}/municipalities', [\App\Http\Controllers\AddressController::class, 'municipalities'])->name('address.municipalities');
 Route::get('/address/municipalities/{code}/barangays', [\App\Http\Controllers\AddressController::class, 'barangays'])->name('address.barangays');
+
+// Google OAuth routes
+Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])
+    ->name('google.redirect');
+
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
+    ->name('google.callback');
+
+Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])
+    ->name('google.redirect');
+
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
+    ->name('google.callback');
+
+Route::get('/auth/google/complete', [GoogleController::class, 'showCompletion'])
+    ->name('google.complete');
+
+Route::post('/auth/google/complete', [GoogleController::class, 'complete'])
+    ->name('google.complete.submit');
+
+
 
 require __DIR__.'/auth.php';

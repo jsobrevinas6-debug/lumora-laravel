@@ -14,6 +14,7 @@
             --plum:#3D1B3D;
             --plum-light:#5A2E5A;
             --orange:#E2703A;
+            --rose:#B96562;
             --gold:#C9972B;
             --cream:#FFFDFB;
             --blush-1:#FBEFEA;
@@ -335,7 +336,158 @@
         .flowing-menu-leaf:hover .flow-menu-badge, .flowing-menu-leaf:hover .flow-menu-arrow { opacity:0; }
         @media (max-width:640px) { .flowing-marquee-part { font-size:12px; } .flowing-marquee-image { width:86px; height:28px; } }
         @media (prefers-reduced-motion:reduce) { .flowing-marquee { transform:none; opacity:0; } }
-    </style>
+        /* ---------- approved luxury buyer dashboard ---------- */
+        body{ background:var(--cream); }
+        .topbar{ background:rgba(255,253,251,.97); box-shadow:0 4px 18px rgba(61,27,61,.04); }
+        .topbar-inner{ max-width:1240px; }
+        .guest-banner-inner{ background:#fffaf5; border-color:#d49b78; }
+        .collection-heading{ max-width:1240px; margin:34px auto 0; padding:0 24px; font-family:'Playfair Display',serif; font-size:24px; color:var(--plum); }
+        .categories{ display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); max-width:1240px; justify-content:initial; gap:18px; padding:0 24px; }
+        .cat-card{ width:auto; min-width:0; padding:10px 10px 16px; background:#fffaf5; border:1px solid var(--line); border-radius:12px; transition:transform .2s ease,box-shadow .2s ease; }
+        .cat-card:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(61,27,61,.1); }
+        .cat-icon{ width:100%; height:112px; margin-bottom:10px; border:0; border-radius:8px; background:linear-gradient(135deg,#f6e3db,#ead0c7); }
+        .cat-icon svg{ width:36px; height:36px; color:var(--orange); }
+        .cat-icon img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
+        .cat-card span{ display:block; min-height:38px; font-family:'Playfair Display',serif; font-size:15px; color:var(--plum); }
+        .cat-card small{ display:block; margin-top:8px; color:var(--plum); font-size:10px; letter-spacing:.08em; }
+        .hero{ position:relative; display:block; width:100%; max-width:none; min-height:520px; margin-top:0; padding:0; overflow:hidden; }
+        .hero-copy{ position:relative; z-index:2; max-width:520px; padding:142px 0 70px 7vw; }
+        .hero-copy .eyebrow{ color:var(--rose); letter-spacing:2.5px; }
+        .hero-copy h1{ margin:12px 0 22px; color:#351128; font-size:72px; line-height:.98; }
+        .hero-copy p{ max-width:360px; color:#351128; font-size:20px; line-height:1.45; }
+        .hero-cta{ background:var(--rose); border-radius:5px; text-transform:uppercase; letter-spacing:.8px; }
+        .hero-visual{ position:absolute; inset:0; min-height:0; border-radius:0; background-image:linear-gradient(90deg,rgba(255,248,244,.96) 0%,rgba(255,248,244,.76) 34%,rgba(255,248,244,.08) 68%),url('{{ asset('images/hero.jpg') }}'); background-position:center; background-size:cover; box-shadow:none; }
+        .hero-visual::before{ display:none; }
+        .hero-visual svg{ opacity:.08; }
+        .hero-visual::after{ display:none; }
+        .benefits-strip{ max-width:1240px; margin:46px auto 0; padding:18px 24px; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; background:#fff8f3; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+        .benefit{ display:flex; align-items:center; justify-content:center; gap:12px; padding:8px; border-right:1px solid var(--line); }
+        .benefit:last-child{ border-right:0; }
+        .benefit-icon{ color:var(--rose); font-size:25px; }
+        .benefit strong{ display:block; color:var(--plum); font-size:13px; }
+        .benefit span{ display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+        .section{ max-width:1240px; }
+        .section-head h2{ font-size:28px; }
+        .deal-card,.product-card{ background:#fffaf5; }
+        .deal-thumb,.product-thumb{ background:linear-gradient(135deg,#f2ded6,#e1b8a9) !important; }
+        .deal-thumb svg,.product-thumb svg{ color:var(--plum); opacity:.55; }
+        .deal-price .now,.product-price{ color:var(--rose); }
+        footer{ background:#fff8f3; }
+        @media (max-width:900px){ .categories{ grid-template-columns:repeat(2,minmax(0,1fr)); } .hero{ min-height:620px; } .hero-copy{ padding:100px 24px 40px; } .hero-copy h1{ font-size:52px; } .hero-visual{ background-position:62% center; } .benefits-strip{ grid-template-columns:1fr; } .benefit{ border-right:0; border-bottom:1px solid var(--line); } .benefit:last-child{ border-bottom:0; } }
+        /* ---------- full reference homepage composition ---------- */
+        body{ background:var(--cream); }
+        .topbar{ background:rgba(255,253,251,.97); box-shadow:0 4px 18px rgba(61,27,61,.04); }
+        .topbar-inner{ max-width:1240px; }
+        .guest-banner-inner{ background:#fffaf5; border-color:#d49b78; }
+        .collection-heading{ max-width:1240px; margin:34px auto 0; padding:0 24px; font-family:'Playfair Display',serif; font-size:24px; color:var(--plum); }
+        .categories{ display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); max-width:1240px; justify-content:initial; gap:18px; padding:0 24px; }
+        .cat-card{ width:auto; min-width:0; padding:10px 10px 16px; background:#fffaf5; border:1px solid var(--line); border-radius:12px; transition:transform .2s ease,box-shadow .2s ease; }
+        .cat-card:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(61,27,61,.1); }
+        .cat-icon{ width:100%; height:112px; margin-bottom:10px; border:0; border-radius:8px; background:linear-gradient(135deg,#f6e3db,#ead0c7); }
+        .cat-icon svg{ width:36px; height:36px; color:var(--orange); }
+        .cat-icon img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
+        .cat-card span{ display:block; min-height:38px; font-family:'Playfair Display',serif; font-size:15px; color:var(--plum); }
+        .cat-card small{ display:block; margin-top:8px; color:var(--plum); font-size:10px; letter-spacing:.08em; }
+        .hero{ position:relative; display:block; width:100%; max-width:none; min-height:520px; margin-top:0; padding:0; overflow:hidden; }
+        .hero-copy{ position:relative; z-index:2; max-width:520px; padding:142px 0 70px 7vw; }
+        .hero-copy .eyebrow{ color:var(--rose); letter-spacing:2.5px; }
+        .hero-copy h1{ margin:12px 0 22px; color:#351128; font-size:72px; line-height:.98; }
+        .hero-copy p{ max-width:360px; color:#351128; font-size:20px; line-height:1.45; }
+        .hero-cta{ background:var(--rose); border-radius:5px; text-transform:uppercase; letter-spacing:.8px; }
+        .hero-visual{ position:absolute; inset:0; min-height:0; border-radius:0; background-image:linear-gradient(90deg,rgba(255,248,244,.96) 0%,rgba(255,248,244,.76) 34%,rgba(255,248,244,.08) 68%),url('{{ asset('images/hero.jpg') }}'); background-position:center; background-size:cover; box-shadow:none; }
+        .hero-visual::before{ display:none; }
+        .hero-visual svg{ opacity:.08; }
+        .hero-visual::after{ display:none; }
+        .benefits-strip{ max-width:1240px; margin:46px auto 0; padding:18px 24px; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; background:#fff8f3; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+        .benefit{ display:flex; align-items:center; justify-content:center; gap:12px; padding:8px; border-right:1px solid var(--line); }
+        .benefit:last-child{ border-right:0; }
+        .benefit-icon{ color:var(--rose); font-size:25px; }
+        .benefit strong{ display:block; color:var(--plum); font-size:13px; }
+        .benefit span{ display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+        .section{ max-width:1240px; }
+        .section-head h2{ font-size:28px; }
+        .legacy-deals,.legacy-just-for-you{ display:none !important; }
+        .homepage-best-sellers{ max-width:1240px; margin:48px auto 0; padding:0 24px; }
+        .homepage-best-sellers-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+        .homepage-best-sellers-head h2{ margin:0; color:var(--plum); font-family:'Playfair Display',serif; font-size:28px; font-weight:600; }
+        .homepage-best-sellers-head a{ color:var(--rose); font-size:13px; font-weight:700; }
+        .homepage-product-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+        .homepage-product-card{ position:relative; overflow:hidden; border:1px solid var(--line); border-radius:12px; background:#fffaf5; }
+        .homepage-product-image{ height:220px; display:grid; place-items:center; overflow:hidden; background:linear-gradient(135deg,#f4e2db,#e2beb0); }
+        .homepage-product-image img{ width:100%; height:100%; object-fit:cover; }
+        .homepage-product-image .fallback{ color:rgba(61,27,61,.45); font-family:'Playfair Display',serif; font-size:34px; }
+        .homepage-product-card .wish{ position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; border:0; border-radius:50%; background:rgba(255,255,255,.9); color:var(--plum); font-size:18px; }
+        .homepage-product-card .sale{ position:absolute; top:10px; left:10px; padding:5px 8px; border-radius:4px; background:var(--rose); color:white; font-size:10px; font-weight:800; }
+        .homepage-product-info{ padding:13px 14px 16px; }
+        .homepage-product-info .seller{ color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+        .homepage-product-info h3{ margin:6px 0; color:var(--plum); font-family:'Playfair Display',serif; font-size:17px; font-weight:500; }
+        .homepage-price{ display:flex; align-items:center; gap:8px; }
+        .homepage-price strong{ color:var(--rose); font-size:16px; }
+        .homepage-price del{ color:var(--muted); font-size:12px; }
+        .homepage-rating{ margin-top:8px; color:var(--gold); font-size:12px; }
+        .homepage-rating span{ color:var(--muted); }
+        .homepage-product-actions{ display:flex; gap:8px; margin-top:13px; }
+        .homepage-product-actions form{ flex:1; display:flex; margin:0; }
+        .homepage-product-actions a,.homepage-product-actions button{ flex:1; min-height:36px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--plum); border-radius:5px; background:transparent; color:var(--plum); font-size:11px; font-weight:700; }
+        .homepage-product-actions form button{ width:100%; }
+        .homepage-product-actions button{ background:var(--cream); color:var(--plum); border:1px solid var(--rose); }
+        footer{ background:#fff8f3; }
+        @media (max-width:900px){ .categories{ grid-template-columns:repeat(2,minmax(0,1fr)); } .hero{ min-height:620px; } .hero-copy{ padding:100px 24px 40px; } .hero-copy h1{ font-size:52px; } .hero-visual{ background-position:62% center; } .benefits-strip{ grid-template-columns:1fr; } .benefit{ border-right:0; border-bottom:1px solid var(--line); } .benefit:last-child{ border-bottom:0; } .homepage-product-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:560px){ .collection-heading{ padding:0 16px; font-size:21px; } .categories{ grid-template-columns:repeat(2,minmax(0,1fr)); padding-left:16px; padding-right:16px; } .cat-card{ width:auto; } .homepage-best-sellers{ padding:0 16px; } .homepage-product-grid{ gap:12px; } .homepage-product-image{ height:160px; } .homepage-product-actions{ flex-direction:column; } }
+        /* ---------- Lumora button palette ---------- */
+        .hero-cta,
+        .btn-primary,
+        .homepage-product-actions button,
+        .flow-menu-trigger,
+        .flow-menu-open-button {
+            background:var(--cream) !important;
+            color:var(--plum) !important;
+            border:1px solid var(--rose) !important;
+            box-shadow:none;
+            transition:background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
+        }
+        .hero-cta:hover,
+        .btn-primary:hover,
+        .homepage-product-actions button:hover,
+        .flow-menu-trigger:hover,
+        .flow-menu-open-button:hover {
+            background:#fff !important;
+            border-color:var(--rose) !important;
+            color:var(--plum) !important;
+            transform:translateY(-1px);
+        }
+        .btn-ghost,
+        .homepage-product-actions a,
+        .filter-button,
+        .sort-select,
+        .flow-menu-close,
+        .flow-menu-back-button {
+            background:var(--cream) !important;
+            color:var(--plum) !important;
+            border:1px solid var(--line) !important;
+            transition:background-color .2s ease, border-color .2s ease, color .2s ease;
+        }
+        .btn-ghost:hover,
+        .homepage-product-actions a:hover,
+        .filter-button:hover,
+        .flow-menu-close:hover,
+        .flow-menu-back-button:hover {
+            background:var(--blush-1) !important;
+            color:var(--rose) !important;
+            border-color:var(--rose) !important;
+        }
+        .hero-cta svg{ color:currentColor; }
+        .sort-select:focus,
+        .filter-button:focus-visible,
+        .hero-cta:focus-visible,
+        .btn-primary:focus-visible,
+        .btn-ghost:focus-visible,
+        .homepage-product-actions a:focus-visible,
+        .homepage-product-actions button:focus-visible {
+            outline:3px solid rgba(185,101,98,.24);
+            outline-offset:2px;
+        }
+        </style>
 </head>
 <body>
 
@@ -442,10 +594,20 @@
                 <a href="#" class="icon-btn" aria-label="Wishlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                 </a>
-                <a href="#" class="icon-btn" aria-label="Cart">
+                @auth
+                    <a href="{{ route('buyer.cart') }}" class="icon-btn" aria-label="Cart">
+                @else
+                    <button type="button" class="icon-btn" data-open-guest-cart aria-label="Sign in to view cart">
+                @endauth
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.5 3h2l2.7 12.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21.5 7H6"/></svg>
-                    <span class="badge">2</span>
-                </a>
+                    <span class="badge" data-cart-count>
+                        {{ session('lumora_cart') ? collect(session('lumora_cart'))->sum('quantity') : 0 }}
+                    </span>
+                @auth
+                    </a>
+                @else
+                    </button>
+                @endauth
 
                 @auth
                     <div class="account-menu-wrap" id="accountMenuWrap">
@@ -500,76 +662,81 @@
         </div>
     </header>
 
-    <!-- ===================== GUEST BANNER ===================== -->
-    @guest
-    <div class="guest-banner">
-        <div class="guest-banner-inner">
-            <p>You're browsing as a guest &mdash; <strong>sign in</strong> to save items, track orders and check out faster.</p>
-            <div class="links">
-                <a href="{{ route('login') }}">Log in</a>
-                <a href="{{ route('register') }}">Create account</a>
-            </div>
-        </div>
-    </div>
-    @endguest
-
-    <!-- ===================== CATEGORY STRIP ===================== -->
-    <div class="categories">
-        <a href="{{ route('shop.index') }}?category=skincare-products" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C8 6 5 10 5 14a7 7 0 0 0 14 0c0-4-3-8-7-12Z"/></svg>
-            </div>
-            <span>Skincare</span>
-        </a>
-        <a href="{{ route('shop.index') }}?category=hair-solutions" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3C9 3 6 5 6 8c0 2 1 3.5 2 5 .5.8 1 2 1 3h6c0-1 .5-2.2 1-3 1-1.5 2-3 2-5 0-3-3-5-6-5Z"/><path d="M9 16h6M10 19h4"/></svg>
-            </div>
-            <span>Hair</span>
-        </a>
-        <a href="{{ route('shop.index') }}?category=makeup-cosmetics" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2c-1 0-2 .5-2 1.5V6h4V3.5C14 2.5 13 2 12 2Z"/><rect x="9" y="6" width="6" height="12" rx="2"/><path d="M10 18v2a2 2 0 0 0 4 0v-2"/></svg>
-            </div>
-            <span>Makeup</span>
-        </a>
-        <a href="{{ route('shop.index') }}?category=personal-care-appliances" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="2" width="10" height="16" rx="3"/><path d="M12 18v4M9 22h6"/><path d="M10 6h4M10 9h4M10 12h4"/></svg>
-            </div>
-            <span>Appliances</span>
-        </a>
-        <a href="{{ route('shop.index') }}?category=mens-grooming" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3h10v2l-2 2H9L7 5V3Z"/><path d="M9 7v10a3 3 0 0 0 6 0V7"/><path d="M12 17v2"/></svg>
-            </div>
-            <span>Men's Grooming</span>
-        </a>
-        <a href="{{ route('shop.index') }}?category=health-supplements" class="cat-card">
-            <div class="cat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="2" width="8" height="14" rx="4"/><path d="M8 9h8"/><path d="M10 16v6M14 16v6"/></svg>
-            </div>
-            <span>Supplements</span>
-        </a>
-    </div>
-
     <!-- ===================== HERO ===================== -->
     <section class="hero">
         <div class="hero-copy">
             <p class="eyebrow">New season edit</p>
-            <h1>Step into<br>something beautiful</h1>
-            <p>Curated skincare, makeup and fragrance from independent sellers you'll love. No account needed to browse &mdash; just to check out.</p>
-            <button class="hero-cta">Explore the collection
+            <h1>Timeless<br>Elegance</h1>
+            <p>Designed to shine. Made to be yours.</p>
+            <a class="hero-cta" href="{{ route('shop.index') }}">Shop now
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </button>
+            </a>
         </div>
         <div class="hero-visual">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 21V9a7 7 0 0 1 14 0v12"/></svg>
         </div>
     </section>
 
-    <!-- ===================== FLASH DEALS ===================== -->
-    <section class="section">
+    <!-- ===================== COLLECTIONS ===================== -->
+    <div class="collection-heading">Shop Our Collections</div>
+    <div class="categories">
+        <a href="{{ route('shop.index') }}?category=apple" class="cat-card">
+            <div class="cat-icon"><img src="{{ asset('images/lumora-phone.jpg') }}" alt="Phone"></div>
+            <span>Phone</span><small>EXPLORE&nbsp; →</small>
+        </a>
+        <a href="{{ route('shop.index') }}?category=computers" class="cat-card">
+            <div class="cat-icon"><img src="{{ asset('images/lumora-laptop.jpg') }}" alt="Laptop"></div>
+            <span>Laptop</span><small>EXPLORE&nbsp; →</small>
+        </a>
+        <a href="{{ route('shop.index') }}?category=basketball" class="cat-card">
+            <div class="cat-icon"><img src="{{ asset('images/lumora-basketball-shoes.jpg') }}" alt="Basketball Shoes"></div>
+            <span>Basketball Shoes</span><small>EXPLORE&nbsp; →</small>
+        </a>
+        <a href="{{ route('shop.index') }}?category=mens-clothing" class="cat-card">
+            <div class="cat-icon"><img src="{{ asset('images/lumora-mens-clothing.jpg') }}" alt="Men’s Clothing"></div>
+            <span>Men’s Clothing</span><small>EXPLORE&nbsp; →</small>
+        </a>
+        <a href="{{ route('shop.index') }}?category=womens-clothing" class="cat-card">
+            <div class="cat-icon"><img src="{{ asset('images/lumora-womens-dress.jpg') }}" alt="Women’s Dress"></div>
+            <span>Women’s Dress</span><small>EXPLORE&nbsp; →</small>
+        </a>
+    </div>
+
+    <!-- ===================== BENEFITS ===================== -->
+    <section class="benefits-strip" aria-label="Lumora shopping benefits">
+        <div class="benefit"><span class="benefit-icon">♧</span><div><strong>Free Shipping</strong><span>On selected orders</span></div></div>
+        <div class="benefit"><span class="benefit-icon">↺</span><div><strong>Easy Returns</strong><span>Simple return policy</span></div></div>
+        <div class="benefit"><span class="benefit-icon">⌑</span><div><strong>Secure Payment</strong><span>Protected checkout</span></div></div>
+    </section>
+
+    <!-- ===================== BEST SELLERS ===================== -->
+    <section class="homepage-best-sellers" aria-labelledby="bestSellersHeading">
+        <div class="homepage-best-sellers-head"><h2 id="bestSellersHeading">Best Sellers</h2><a href="{{ route('shop.index') }}?sort=top_sales">View all →</a></div>
+        <div class="homepage-product-grid">
+            @forelse (collect($products ?? [])->sortByDesc(fn($item) => (int) ($item->sales_count ?? 0))->take(4) as $product)
+                @php
+                    $originalPrice = (float) ($product->price ?? 0);
+                    $discountPercent = (float) ($product->discount_percent ?? 0);
+                    $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - $discountPercent / 100) : $originalPrice;
+                    $rating = (float) ($product->rating ?? 0);
+                @endphp
+                <article class="homepage-product-card">
+                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">♡</button>
+                    @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
+                    <div class="homepage-product-image">@if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="fallback">Lumora</span>@endif</div>
+                    <div class="homepage-product-info"><div class="seller">Lumora seller</div><h3>{{ $product->name }}</h3><div class="homepage-price"><strong>₱{{ number_format($finalPrice, 2) }}</strong>@if ($discountPercent > 0)<del>₱{{ number_format($originalPrice, 2) }}</del>@endif</div><div class="homepage-rating">{{ $rating > 0 ? str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)) : '☆ ☆ ☆ ☆ ☆' }} <span>{{ $rating > 0 ? number_format($rating, 2) : 'No ratings yet' }}</span></div><div class="homepage-product-actions"><a href="{{ route('shop.product', ['id' => $product->id]) }}">View product</a><form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" class="homepage-cart-form lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+    @csrf
+    <input type="hidden" name="quantity" value="1">
+    <button type="submit">Add to cart</button>
+</form></div></div>
+                </article>
+            @empty
+                <p class="muted">Our bestseller collection will appear here as products are added.</p>
+            @endforelse
+        </div>
+    </section>
+
+    <section class="section legacy-deals">
         <div class="section-head">
             <h2>Flash deals</h2>
         </div>
@@ -600,7 +767,7 @@
     </section>
 
     <!-- ===================== JUST FOR YOU (grouped by category) ===================== -->
-    <section class="section">
+    <section class="section legacy-just-for-you">
         <div class="section-head">
             <h2>Just for you</h2>
         </div>
@@ -728,7 +895,9 @@
     @endauth
 
 
-    <script>
+        <script>
+        
+
         const accountMenuWrap = document.getElementById('accountMenuWrap');
         const accountTrigger = document.getElementById('accountTrigger');
 
@@ -801,5 +970,7 @@
             });
         }());
     </script>
+    @include('components.guest-cart-login-modal')
+@include('components.add-to-cart-success-modal')
 </body>
 </html>

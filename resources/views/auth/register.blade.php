@@ -6,22 +6,25 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lumora | Sign Up</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --maroon:#4A1942; --maroon-dark:#2E1330; --coral:#E2582E; --border:#EFDCD4; --text-dark:#2B1826; --text-muted:#A08D96; }
+        :root { --plum:#351128; --plum-soft:#5a294d; --rose:#b96562; --cream:#fffaf6; --paper:#fffdfb; --beige:#f7eee8; --border:#e8d8d0; --text-dark:#2B1826; --text-muted:#857579; --gold:#c9972b; --maroon:#4A1942; --maroon-dark:#2E1330; --coral:#E2582E; }
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { font-family:'Work Sans',sans-serif; color:var(--text-dark); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 16px; background:#F2E4E0; }
-
-        .card { display:flex; background:#fff; border-radius:26px; box-shadow:0 20px 50px rgba(74,25,66,.18); width:900px; max-width:100%; overflow:hidden; min-height:640px; }
-
-        .brand-panel { flex:0 0 32%; background: radial-gradient(circle at 15% 15%,rgba(232,196,196,.55),transparent 45%), radial-gradient(circle at 85% 20%,rgba(245,220,210,.6),transparent 50%), linear-gradient(135deg,#F7E6E2 0%,#F2D9D6 30%,#E9CBCE 55%,#D8B9C4 75%,#C7A8BB 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 28px; }
-        .brand { font-family:'Fraunces',serif; font-size:1.9rem; font-weight:600; letter-spacing:3px; color:var(--maroon); margin-bottom:10px; }
-        .brand .o-accent { color:var(--coral); }
-        .brand-tagline { font-size:.85rem; color:#7A5C6E; line-height:1.7; }
-
-        .form-panel { flex:1; padding:36px 40px; overflow-y:auto; max-height:90vh; }
-        p.subtitle { color:var(--text-muted); font-size:.85rem; margin-bottom:22px; }
-        h1.title { font-size:1.3rem; font-weight:700; margin-bottom:2px; }
+        body { font-family:'Inter',sans-serif; color:var(--plum); min-height:100vh; margin:0; background:var(--cream); }
+        .login-shell { min-height:100vh; display:grid; place-items:center; padding:32px; background:radial-gradient(circle at 8% 12%,rgba(236,205,193,.35),transparent 28%),radial-gradient(circle at 92% 88%,rgba(236,213,205,.45),transparent 32%),var(--cream); }
+        .login-frame { width:min(1120px,100%); min-height:690px; display:grid; grid-template-columns:.82fr 1.18fr; overflow:hidden; border:1px solid var(--border); border-radius:20px; background:#fffdfb; box-shadow:0 24px 70px rgba(53,17,40,.12); }
+        .login-art { position:relative; min-height:690px; display:flex; align-items:flex-start; padding:54px 42px; overflow:hidden; background-image:linear-gradient(180deg,rgba(53,17,40,.04),rgba(53,17,40,.10)),url('{{ asset('images/hero.jpg') }}'); background-size:cover; background-position:center; }
+        .login-art::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,250,246,.06),rgba(53,17,40,.26)); pointer-events:none; }
+        .brand { position:relative; z-index:1; font-family:'Playfair Display',serif; font-size:30px; letter-spacing:5px; color:var(--plum); margin:0; }
+        .brand .o-accent { color:var(--rose); }
+        .brand-tagline { position:absolute; z-index:1; left:42px; right:42px; bottom:48px; font-family:'Playfair Display',serif; font-size:clamp(30px,4vw,52px); line-height:1.02; color:var(--plum); }
+        .brand-tagline small { display:block; margin-top:16px; color:var(--plum-soft); font:14px 'Inter',sans-serif; line-height:1.5; }
+        .login-panel { display:flex; align-items:flex-start; justify-content:center; padding:42px clamp(28px,5vw,70px); background:#fffdfb; overflow-y:auto; max-height:90vh; }
+        .login-card { width:min(520px,100%); }
+        p.subtitle { color:var(--text-muted); font-size:.85rem; margin:0 0 22px; }
+        h1.title { color:var(--plum); font-family:'Playfair Display',serif; font-size:clamp(30px,4vw,44px); font-weight:600; line-height:1.05; margin:0 0 8px; }
+        .back-home { display:inline-flex; align-items:center; gap:7px; margin:0 0 22px; color:var(--plum); font-size:12px; font-weight:600; text-decoration:none; }
+        .back-home:hover { color:var(--rose); text-decoration:underline; text-underline-offset:3px; }
 
         .error-box { background:#fdece6; color:#b8451f; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
         .error-box ul { margin:4px 0 0 18px; padding:0; }
@@ -57,21 +60,26 @@
         button.seller-btn { background:#fff; color:var(--maroon); border:1.5px solid var(--maroon) !important; }
         button.seller-btn:hover { background:#FBF3F0; }
 
-        .approval-note { background:#FBF3F0; border-radius:12px; padding:10px 12px; font-size:.76rem; color:#5C4A52; line-height:1.5; margin-top:16px; }
+        .approval-note { background:var(--beige); border-radius:9px; padding:10px 12px; font-size:.76rem; color:#5C4A52; line-height:1.5; margin-top:16px; }
 
         .login-link { text-align:center; margin-top:18px; font-size:.82rem; color:var(--text-muted); }
         .login-link a { color:var(--maroon); font-weight:600; text-decoration:none; }
+        .back-home { display:inline-flex; align-items:center; gap:6px; margin-bottom:18px; color:var(--maroon); font-size:.78rem; font-weight:600; text-decoration:none; }
+        .back-home:hover { color:var(--coral); text-decoration:underline; }
     </style>
 </head>
 <body>
-<div class="card">
-    <div class="brand-panel">
+<main class="login-shell">
+<section class="login-frame" aria-labelledby="signup-title">
+    <aside class="login-art" aria-label="Lumora brand message">
         <div class="brand">LUM<span class="o-accent">O</span>RA</div>
-        <div class="brand-tagline">Skincare, made personal.<br>Create your account to start shopping or selling.</div>
-    </div>
+        <div class="brand-tagline">Create your account<small>Start shopping or selling with Lumora.</small></div>
+    </aside>
 
-    <div class="form-panel">
-        <h1 class="title">Create your account</h1>
+    <section class="login-panel">
+    <div class="login-card">
+        <a href="{{ route('home') }}" class="back-home" aria-label="Back to Lumora homepage">&larr; Back to homepage</a>
+        <h1 id="signup-title" class="title">Create your account</h1>
         <p class="subtitle">All fields marked required must be filled in.</p>
 
         @if (session('flash_success'))
@@ -169,7 +177,9 @@
         </form>
         <div class="login-link">Already have an account? <a href="{{ route('login') }}">Log in</a></div>
     </div>
-</div>
+    </section>
+</section>
+</main>
 
 <!-- Seller Info Modal -->
 <div id="sellerModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(43,24,38,.55);z-index:999;align-items:center;justify-content:center;padding:20px;">
