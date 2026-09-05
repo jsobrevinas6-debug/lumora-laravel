@@ -130,35 +130,34 @@
         .cat-icon svg{ width:28px; height:28px; color:var(--plum); }
         .cat-card span{ font-size:12px; font-weight:500; color:var(--ink); }
 
-        /* ---------- hero ---------- */
-        .hero{
-            max-width:1180px; margin:32px auto 0; padding:0 24px;
-            display:grid; grid-template-columns:1.1fr 1fr; gap:40px; align-items:center;
-        }
-        .hero-copy .eyebrow{
-            font-size:12px; letter-spacing:2px; text-transform:uppercase;
-            color:var(--orange); font-weight:600; margin:0 0 10px;
-        }
-        .hero-copy h1{ font-size:40px; color:var(--plum); margin:0 0 14px; line-height:1.2; }
-        .hero-copy p{ font-size:15px; color:var(--muted); margin:0 0 24px; max-width:420px; }
-        .hero-cta{
-            display:inline-flex; align-items:center; gap:8px;
-            background:var(--plum); color:#fff; padding:13px 26px;
-            border-radius:999px; font-size:14px; font-weight:600; border:none;
-        }
-        .hero-visual{
-            aspect-ratio:4/3;
-            background:linear-gradient(150deg,var(--plum) 0%,var(--plum-light) 55%,var(--orange) 130%);
-            border-radius: 999px 999px 24px 24px;
-            display:flex; align-items:center; justify-content:center;
-            position:relative; overflow:hidden;
-        }
-        .hero-visual svg{ width:64px; height:64px; color:rgba(255,255,255,0.85); }
-        .hero-visual::after{
-            content:"Step into something beautiful";
-            position:absolute; bottom:22px; left:0; right:0; text-align:center;
-            font-family:'Playfair Display',serif; font-style:italic; color:#fff; font-size:14px; opacity:0.9;
-        }
+        /* ---------- Lumora hero carousel ---------- */
+        .hero-carousel{position:relative;max-width:1440px;height:clamp(430px,43vw,650px);margin:30px auto 0;overflow:hidden;background:#f8e9e4}
+        .hero-track{display:flex;height:100%;transition:transform .72s cubic-bezier(.65,0,.25,1);will-change:transform}
+        .hero-slide{position:relative;flex:0 0 100%;height:100%;display:flex;align-items:center;overflow:hidden;background-color:#f8e9e4;background-position:center;background-size:cover}
+        .hero-slide::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,rgba(255,253,251,.97) 0%,rgba(255,253,251,.84) 30%,rgba(255,253,251,.12) 70%,rgba(255,253,251,0) 100%)}
+        .hero-slide::after{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(0deg,rgba(61,27,61,.08),transparent 35%)}
+        .hero-slide[data-slide="1"]{background-image:url('/images/hero/hero-1.jpg')}
+        .hero-slide[data-slide="2"]{background-image:url('/images/hero/hero-2.jpg')}
+        .hero-slide[data-slide="3"]{background-image:url('/images/hero/hero-3.jpg')}
+        .hero-slide[data-slide="4"]{background-image:url('/images/hero/hero-4.jpg')}
+        .hero-content{position:relative;z-index:1;width:min(1180px,calc(100% - 96px));margin:0 auto;padding:20px 0 72px}
+        .hero-eyebrow{margin:0 0 17px;color:var(--orange);font-size:12px;font-weight:600;letter-spacing:2.3px;text-transform:uppercase}
+        .hero-title{max-width:570px;margin:0 0 17px;color:var(--plum);font-family:'Playfair Display',Georgia,serif;font-size:clamp(43px,5.2vw,78px);font-weight:600;line-height:.98}
+        .hero-description{max-width:430px;margin:0 0 28px;color:var(--ink);font-size:clamp(15px,1.3vw,19px);line-height:1.55}
+        .hero-cta{display:inline-flex;align-items:center;gap:12px;min-height:48px;padding:0 23px;border:1px solid var(--plum);border-radius:4px;background:var(--plum);color:#fff;font-size:13px;font-weight:600;letter-spacing:.3px;transition:background .2s ease,transform .2s ease}
+        .hero-cta:hover{background:var(--plum-light);transform:translateY(-2px)}
+        .hero-cta-arrow{font-size:19px;line-height:0}
+        .hero-arrow{position:absolute;z-index:3;top:50%;width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(61,27,61,.15);border-radius:50%;background:rgba(255,253,251,.86);color:var(--plum);font-size:28px;line-height:1;transform:translateY(-50%);transition:background .2s ease,transform .2s ease}
+        .hero-arrow:hover{background:#fff;transform:translateY(-50%) scale(1.05)}
+        .hero-arrow.prev{left:24px}.hero-arrow.next{right:24px}
+        .hero-footer{position:absolute;z-index:3;right:0;bottom:29px;left:0;display:flex;align-items:center;justify-content:center;gap:14px}
+        .hero-counter{position:absolute;left:max(48px,calc((100% - 1180px)/2));color:var(--plum);font-size:14px;font-weight:600}
+        .hero-counter span{color:var(--muted);font-weight:400}.hero-dots{display:flex;align-items:center;gap:10px}
+        .hero-dot{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:rgba(61,27,61,.25);transition:width .2s ease,border-radius .2s ease,background .2s ease}
+        .hero-dot.active{width:25px;border-radius:999px;background:var(--rose)}.hero-autoplay{color:var(--muted);font-size:10px;letter-spacing:1.4px}
+        @media(max-width:900px){.hero-carousel{height:520px}.hero-content{width:calc(100% - 80px)}.hero-slide::before{background:linear-gradient(90deg,rgba(255,253,251,.97),rgba(255,253,251,.60) 65%,rgba(255,253,251,.10))}.hero-counter{left:40px}}
+        @media(max-width:600px){.hero-carousel{height:570px;margin-top:20px}.hero-slide{align-items:flex-start;padding-top:82px;background-position:62% center}.hero-slide::before{background:linear-gradient(180deg,rgba(255,253,251,.95),rgba(255,253,251,.80) 50%,rgba(255,253,251,.16))}.hero-content{width:calc(100% - 48px);padding:0 0 70px}.hero-title{max-width:330px;font-size:47px}.hero-description{max-width:300px;font-size:14px}.hero-arrow{width:38px;height:38px;font-size:22px}.hero-arrow.prev{left:12px}.hero-arrow.next{right:12px}.hero-counter{left:24px}.hero-footer{bottom:24px}.hero-autoplay{display:none}}
+        @media(prefers-reduced-motion:reduce){.hero-track{transition:none}.hero-cta,.hero-arrow{transition:none}}
 
         /* ---------- section heading ---------- */
         .section{ max-width:1180px; margin:48px auto 0; padding:0 24px; }
@@ -487,7 +486,68 @@
             outline:3px solid rgba(185,101,98,.24);
             outline-offset:2px;
         }
-        </style>
+            /* ---------- lower-scroll editorial sections ---------- */
+        .lower-discovery{max-width:1180px;margin:54px auto 0;padding:0 24px}
+        .lower-discovery-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px}
+        .lower-discovery-head h2{margin:0;color:var(--plum);font-size:30px}
+        .discovery-meta{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:12px}
+        .discovery-tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:22px}
+        .discovery-tabs a{padding:0 0 10px;color:var(--muted);font-size:13px;font-weight:600;border-bottom:2px solid transparent}
+        .discovery-tabs a.active,.discovery-tabs a:hover{color:var(--plum);border-color:var(--rose)}
+        .editorial-banner{max-width:1180px;margin:56px auto 0;padding:0 24px}
+        .editorial-banner-inner{display:grid;grid-template-columns:1.1fr 1fr;min-height:250px;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--cream)}
+        .editorial-banner-image{min-height:250px;background:center/cover url('{{ asset('images/hero.jpg') }}')}
+        .editorial-banner-copy{display:flex;flex-direction:column;justify-content:center;padding:38px 48px}
+        .editorial-banner-copy .eyebrow{margin:0 0 10px;color:var(--orange);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+        .editorial-banner-copy h2{margin:0;color:var(--plum);font-size:36px;line-height:1.08}
+        .editorial-banner-copy p{max-width:360px;margin:14px 0 22px;color:var(--muted);font-size:13px;line-height:1.6}
+        .editorial-cta{width:max-content;padding:11px 20px;border:1px solid var(--rose);border-radius:999px;background:var(--cream);color:var(--plum);font-size:12px;font-weight:700}
+        .editorial-cta:hover{background:#fff;border-color:var(--plum)}
+        .curated-rail{max-width:1180px;margin:26px auto 0;padding:0 24px;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+        .curated-card{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
+        .curated-card img{display:block;width:100%;height:112px;object-fit:cover}
+        .curated-card span{display:flex;align-items:center;justify-content:space-between;padding:12px 13px;color:var(--plum);font-size:12px;font-weight:700}
+        .curated-card span::after{content:'→';color:var(--rose);font-size:16px}
+        .lower-trust{max-width:1180px;margin:56px auto 0;padding:22px 24px 38px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr) 1.35fr;gap:18px;align-items:center}
+        .trust-item{display:flex;align-items:center;gap:12px;min-height:48px;padding-right:16px;border-right:1px solid var(--line)}
+        .trust-item:last-of-type{border-right:0}
+        .trust-icon{color:var(--rose);font-size:22px}
+        .trust-item strong{display:block;color:var(--plum);font-size:12px}.trust-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+        .newsletter{padding-left:8px}.newsletter h3{margin:0;color:var(--plum);font-size:19px}.newsletter p{margin:4px 0 11px;color:var(--muted);font-size:11px}.newsletter-form{display:flex;gap:8px}.newsletter-form input{min-width:0;flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--cream);outline:0}.newsletter-form input:focus{border-color:var(--rose)}.newsletter-form button{padding:10px 15px;border:1px solid var(--rose);border-radius:7px;background:var(--cream);color:var(--plum);font-size:11px;font-weight:700}.newsletter-form button:hover{background:#fff}
+        @media(max-width:800px){.lower-discovery{margin-top:40px}.lower-discovery-head{align-items:start;flex-direction:column}.discovery-tabs{gap:18px;overflow-x:auto}.editorial-banner-inner{grid-template-columns:1fr}.editorial-banner-image{min-height:170px}.editorial-banner-copy{padding:28px}.editorial-banner-copy h2{font-size:29px}.curated-rail{display:flex;overflow-x:auto;scroll-snap-type:x mandatory}.curated-card{flex:0 0 190px;scroll-snap-align:start}.lower-trust{grid-template-columns:1fr 1fr;padding:24px 24px 34px}.trust-item{border-right:0}.newsletter{grid-column:1/-1;padding:10px 0 0}}
+        /* ---------- clean Lumora side-menu treatment ---------- */
+        .flow-menu-trigger.left-menu-trigger{width:38px;height:38px;border:1px solid var(--rose);border-radius:50%;background:var(--cream);color:var(--plum);box-shadow:0 3px 10px rgba(61,27,61,.06);transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
+        .flow-menu-trigger.left-menu-trigger:hover,.flow-menu-trigger.left-menu-trigger[aria-expanded="true"]{background:var(--plum)!important;border-color:var(--plum)!important;color:#fff!important;transform:translateY(-1px)}
+        .flow-menu-backdrop{background:rgba(61,27,61,.22);backdrop-filter:blur(2px)}
+        .flow-menu-drawer{width:min(360px,92vw);padding:28px 20px;background:linear-gradient(180deg,#fffaf7 0%,#f8ebe6 100%);color:var(--plum);border-right:1px solid rgba(185,101,98,.25);box-shadow:12px 0 34px rgba(61,27,61,.16)}
+        .flow-menu-brand{color:var(--plum);margin:0 4px 18px;font-size:20px}
+        .flow-menu-brand-mark{border-color:var(--rose);color:var(--rose);background:#fff}
+        .flow-menu-head{padding:6px 4px 18px;border-bottom:1px solid var(--line)}
+        .flow-menu-head h2{color:var(--plum);font-size:23px}
+        .flow-menu-close{width:34px;height:34px;border:1px solid var(--rose)!important;background:var(--cream)!important;color:var(--plum)!important;font-size:20px;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+        .flow-menu-close:hover{background:var(--plum)!important;border-color:var(--plum)!important;color:#fff!important;transform:rotate(90deg)}
+        .flow-menu-list{margin-top:12px}
+        .flow-menu-item{min-height:52px;padding:8px 9px;border-bottom:1px solid rgba(185,101,98,.18);color:var(--plum);border-radius:8px}
+        .flow-menu-item::before{background:#fff}
+        .flow-menu-item:hover{color:var(--plum);transform:translateX(4px);box-shadow:0 5px 14px rgba(61,27,61,.07)}
+        .flow-menu-item-icon{color:var(--rose)}
+        .flow-menu-item:hover .flow-menu-item-icon{color:var(--orange)}
+        .flow-menu-arrow,.flow-menu-chevron{color:var(--rose)}
+        .flow-menu-badge{border-color:rgba(185,101,98,.35);color:var(--rose);background:#fffaf7}
+        .flow-menu-item:hover .flow-menu-badge{background:var(--blush-1);color:var(--plum);border-color:var(--rose)}
+        .flow-menu-submenu{padding-left:16px}
+        .flow-menu-subitem{min-height:38px;border-bottom-color:rgba(185,101,98,.14);color:#725d61}
+        .flow-menu-subitem:hover{color:var(--plum);background:#fff;border-radius:6px}
+        .flow-menu-note{margin:20px 4px 0;color:#8a7073;font-size:11px}
+        .flowing-marquee{background:#fff;color:var(--plum)}
+        @media(max-width:640px){.flow-menu-drawer{width:min(330px,88vw);padding:24px 16px}.flow-menu-head h2{font-size:21px}}
+            /* Final carousel animation override */
+        .hero-carousel{position:relative;overflow:hidden}
+        .hero-track{display:flex!important;width:100%;transform:translate3d(0,0,0);transition:transform 700ms cubic-bezier(.22,1,.36,1)!important;will-change:transform}
+        .hero-slide{display:flex!important;flex:0 0 100%!important;min-width:100%}
+        .hero-arrow,.hero-dot{cursor:pointer}
+        @media(prefers-reduced-motion:reduce){.hero-track{transition:none!important}}
+    </style>
 </head>
 <body>
 
@@ -662,19 +722,72 @@
         </div>
     </header>
 
-    <!-- ===================== HERO ===================== -->
-    <section class="hero">
-        <div class="hero-copy">
-            <p class="eyebrow">New season edit</p>
-            <h1>Timeless<br>Elegance</h1>
-            <p>Designed to shine. Made to be yours.</p>
-            <a class="hero-cta" href="{{ route('shop.index') }}">Shop now
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </a>
+    <!-- ===================== HERO CAROUSEL ===================== -->
+    @php
+        $heroSlides = [
+            ['eyebrow' => 'New season edit', 'title' => 'Timeless Elegance', 'description' => 'Designed to shine. Made to be yours.', 'button' => 'Shop now', 'url' => route('shop.index')],
+            ['eyebrow' => 'The Lumora edit', 'title' => 'Everyday rituals, beautifully chosen.', 'description' => 'Curated essentials for beauty, confidence, and the everyday.', 'button' => 'Explore the edit', 'url' => route('shop.index') . '?category=beauty'],
+            ['eyebrow' => 'Just for you', 'title' => 'Find your next favorite.', 'description' => 'Thoughtful pieces selected to make every day feel a little more beautiful.', 'button' => 'Discover favorites', 'url' => route('shop.index')],
+            ['eyebrow' => 'Fresh arrivals', 'title' => 'A new season starts here.', 'description' => 'Meet the latest additions to the Lumora collection.', 'button' => 'View new arrivals', 'url' => route('shop.index') . '?sort=latest'],
+        ];
+    @endphp
+    <section class="hero-carousel" data-carousel aria-label="Lumora featured collections">
+        <div class="hero-track" data-carousel-track>
+            @foreach($heroSlides as $index => $slide)
+                <article class="hero-slide" data-slide="{{ $index + 1 }}" data-carousel-slide aria-label="Slide {{ $index + 1 }} of {{ count($heroSlides) }}">
+                    <div class="hero-content">
+                        <p class="hero-eyebrow">{{ $slide['eyebrow'] }}</p>
+                        <h1 class="hero-title">{{ $slide['title'] }}</h1>
+                        <p class="hero-description">{{ $slide['description'] }}</p>
+                        <a class="hero-cta" href="{{ $slide['url'] }}">{{ $slide['button'] }} <span class="hero-cta-arrow">→</span></a>
+                    </div>
+                </article>
+            @endforeach
         </div>
-        <div class="hero-visual">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 21V9a7 7 0 0 1 14 0v12"/></svg>
+        <button class="hero-arrow prev" type="button" data-carousel-prev aria-label="Previous slide">‹</button>
+        <button class="hero-arrow next" type="button" data-carousel-next aria-label="Next slide">›</button>
+        <div class="hero-footer">
+            <div class="hero-counter"><b data-carousel-current>01</b> <span>/ {{ str_pad(count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span></div>
+            <div class="hero-dots" role="tablist" aria-label="Choose a hero slide">
+                @foreach($heroSlides as $index => $slide)
+                    <button class="hero-dot{{ $index === 0 ? ' active' : '' }}" type="button" data-carousel-dot="{{ $index }}" role="tab" aria-label="Go to slide {{ $index + 1 }}" aria-selected="{{ $index === 0 ? 'true' : 'false' }}"></button>
+                @endforeach
+            </div>
+            <span class="hero-autoplay">AUTOPLAY</span>
         </div>
+    </section>
+
+    <!-- ===================== DISCOVERY BETWEEN HERO AND COLLECTIONS ===================== -->
+    <section class="lower-discovery discovery-intro" aria-labelledby="discoverHeading">
+        <div class="lower-discovery-head">
+            <h2 id="discoverHeading">Discover your next favorite</h2>
+            <div class="discovery-meta"><span>{{ collect($products ?? [])->count() }} products</span><a href="{{ route('shop.index') }}?sort=latest">View all &rarr;</a></div>
+        </div>
+        <nav class="discovery-tabs" aria-label="Product sorting">
+            <a class="active" href="{{ route('shop.index') }}?sort=popular">Popular</a>
+            <a href="{{ route('shop.index') }}?sort=top_sales">Top Sales</a>
+            <a href="{{ route('shop.index') }}?sort=latest">Latest</a>
+        </nav>
+    </section>
+
+    <section class="editorial-banner" aria-label="Lumora editorial campaign">
+        <div class="editorial-banner-inner">
+            <div class="editorial-banner-image" role="img" aria-label="Lumora beauty collection"></div>
+            <div class="editorial-banner-copy">
+                <p class="eyebrow">The Lumora edit</p>
+                <h2>Everyday rituals,<br>beautifully chosen.</h2>
+                <p>Curated essentials for beauty, confidence, and the moments that matter.</p>
+                <a class="editorial-cta" href="{{ route('shop.index') }}?category=skincare">Explore collection &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="curated-rail" aria-label="Curated categories">
+        <a class="curated-card" href="{{ route('shop.index') }}?category=skincare"><img src="{{ asset('images/skincare.jpg') }}" alt="Skin Care"><span>Skin Care</span></a>
+        <a class="curated-card" href="{{ route('shop.index') }}?category=hair-care"><img src="{{ asset('images/hair-care.jpg') }}" alt="Hair Care"><span>Hair Care</span></a>
+        <a class="curated-card" href="{{ route('shop.index') }}?category=fragrance"><img src="{{ asset('images/makeup.jpg') }}" alt="Fragrance"><span>Fragrance</span></a>
+        <a class="curated-card" href="{{ route('shop.index') }}?category=mens-grooming"><img src="{{ asset('images/flow-menu-mens-apparel.jpg') }}" alt="Men's Grooming"><span>Men's Grooming</span></a>
+        <a class="curated-card" href="{{ route('shop.index') }}?category=bath-essentials"><img src="{{ asset('images/flow-menu-kids.jpg') }}" alt="Bath Essentials"><span>Bath Essentials</span></a>
     </section>
 
     <!-- ===================== COLLECTIONS ===================== -->
@@ -972,5 +1085,95 @@
     </script>
     @include('components.guest-cart-login-modal')
 @include('components.add-to-cart-success-modal')
+
+    <script>
+    (() => {
+        const carousel = document.querySelector('[data-carousel]');
+        if (!carousel) return;
+
+        const track = carousel.querySelector('[data-carousel-track]');
+        const slides = Array.from(carousel.querySelectorAll('[data-carousel-slide]'));
+        const dots = Array.from(carousel.querySelectorAll('[data-carousel-dot]'));
+        const current = carousel.querySelector('[data-carousel-current]');
+        const previousButton = carousel.querySelector('[data-carousel-prev]');
+        const nextButton = carousel.querySelector('[data-carousel-next]');
+
+        if (!track || slides.length < 2) return;
+
+        let activeIndex = 0;
+        let autoplayTimer = null;
+        let touchStartX = 0;
+        const autoplayDelay = 5000;
+
+        function showSlide(index, animate = true) {
+            activeIndex = (index + slides.length) % slides.length;
+            track.style.transition = animate
+                ? 'transform 700ms cubic-bezier(.22, 1, .36, 1)'
+                : 'none';
+            track.style.transform = `translate3d(-${activeIndex * 100}%, 0, 0)`;
+
+            if (current) current.textContent = String(activeIndex + 1).padStart(2, '0');
+
+            slides.forEach((slide, slideIndex) => {
+                slide.setAttribute('aria-hidden', slideIndex === activeIndex ? 'false' : 'true');
+            });
+
+            dots.forEach((dot, dotIndex) => {
+                const isActive = dotIndex === activeIndex;
+                dot.classList.toggle('active', isActive);
+                dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+
+        function stopAutoplay() {
+            if (autoplayTimer !== null) {
+                window.clearInterval(autoplayTimer);
+                autoplayTimer = null;
+            }
+        }
+
+        function startAutoplay() {
+            stopAutoplay();
+            autoplayTimer = window.setInterval(() => {
+                showSlide(activeIndex + 1, true);
+            }, autoplayDelay);
+        }
+
+        function goToSlide(index) {
+            showSlide(index, true);
+            startAutoplay();
+        }
+
+        previousButton?.addEventListener('click', () => goToSlide(activeIndex - 1));
+        nextButton?.addEventListener('click', () => goToSlide(activeIndex + 1));
+        dots.forEach((dot, dotIndex) => dot.addEventListener('click', () => goToSlide(dotIndex)));
+
+        // Autoplay intentionally continues while the pointer is over the hero.
+        // This keeps the carousel moving automatically on the shop page.
+
+        carousel.addEventListener('keydown', event => {
+            if (event.key === 'ArrowLeft') goToSlide(activeIndex - 1);
+            if (event.key === 'ArrowRight') goToSlide(activeIndex + 1);
+        });
+
+        carousel.addEventListener('touchstart', event => {
+            touchStartX = event.changedTouches[0].screenX;
+            stopAutoplay();
+        }, { passive: true });
+
+        carousel.addEventListener('touchend', event => {
+            const distance = event.changedTouches[0].screenX - touchStartX;
+            if (Math.abs(distance) >= 45) {
+                goToSlide(activeIndex + (distance < 0 ? 1 : -1));
+            } else {
+                startAutoplay();
+            }
+        }, { passive: true });
+
+        showSlide(0, false);
+        startAutoplay();
+    })();
+    </script>
+
 </body>
 </html>
