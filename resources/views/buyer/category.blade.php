@@ -14,8 +14,6 @@
         .category-page { min-height:100vh; }
         .category-topbar { height:92px; background:rgba(255,253,251,.96); border-bottom:1px solid var(--line); display:flex; align-items:center; }
         .category-topbar-inner { width:min(1180px,calc(100% - 48px)); margin:auto; display:flex; align-items:center; gap:24px; }
-        .brand { display:flex; align-items:center; gap:8px; min-width:180px; font-family:Georgia,serif; font-size:23px; font-weight:700; letter-spacing:.3px; }
-        .brand svg { width:26px; height:26px; color:#cf744d; }
         .search { flex:1; height:48px; border:1px solid var(--line); border-radius:26px; padding:0 20px; background:white; color:var(--muted); font:inherit; }
         .top-action { width:42px; height:42px; border:1px solid var(--line); border-radius:50%; background:white; color:var(--plum); display:grid; place-items:center; }
         .top-action svg { width:20px; height:20px; }
@@ -117,7 +115,7 @@
         .sale-badge { display:inline-block; margin-top:8px; padding:4px 8px; border-radius:999px; background:#b85c3b; color:#fff; font-size:10px; font-weight:800; letter-spacing:.04em; }
         .empty { padding:70px 20px; text-align:center; border:1px dashed var(--line); border-radius:14px; color:var(--muted); background:white; }
         .pagination { margin-top:30px; }
-        @media (max-width:900px) { .product-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .brand { min-width:auto; } .brand span { display:none; } .category-shell { width:min(100% - 32px,1180px); grid-template-columns:1fr; display:block; } .category-sidebar { position:fixed; inset:0 auto 0 0; z-index:50; width:min(310px,88vw); margin:0; border-radius:0 14px 14px 0; transform:translateX(-105%); transition:transform .25s ease; } .category-sidebar.mobile-open { transform:translateX(0); } .mobile-category-trigger { display:grid; } }
+        @media (max-width:900px) { .product-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .category-shell { width:min(100% - 32px,1180px); grid-template-columns:1fr; display:block; } .category-sidebar { position:fixed; inset:0 auto 0 0; z-index:50; width:min(310px,88vw); margin:0; border-radius:0 14px 14px 0; transform:translateX(-105%); transition:transform .25s ease; } .category-sidebar.mobile-open { transform:translateX(0); } .mobile-category-trigger { display:grid; } }
         @media (max-width:640px) { .category-topbar-inner,.category-main { width:min(100% - 28px,1180px); } .category-topbar { height:76px; } .search { min-width:0; } .product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } .product-image { height:190px; } h1 { font-size:34px; } .toolbar { flex-wrap:wrap; } .sort-wrap { width:100%; margin-left:0; } .category-meta { align-items:flex-start; flex-direction:column; gap:8px; } }
     </style>
 </head>
@@ -125,10 +123,7 @@
 <div class="category-page">
     <header class="category-topbar">
         <div class="category-topbar-inner">
-            <a href="{{ route('shop.index') }}" class="brand" aria-label="Lumora shop">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/></svg>
-                <span>LUMORA</span>
-            </a>
+            <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
             <input class="search" type="search" placeholder="Search skincare, makeup, fragrance..." aria-label="Search products">
             <button class="top-action" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
             <a class="top-action" href="{{ route('shop.index') }}" aria-label="Back to shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></a>

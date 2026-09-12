@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumora | Application Pending</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -11,8 +12,6 @@
         * { box-sizing:border-box; margin:0; padding:0; }
         body { font-family:'Work Sans',sans-serif; color:var(--text-dark); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 16px; background: radial-gradient(circle at 15% 15%,rgba(232,196,196,.55),transparent 45%), radial-gradient(circle at 85% 20%,rgba(245,220,210,.6),transparent 50%), linear-gradient(135deg,#F7E6E2 0%,#F2D9D6 30%,#E9CBCE 55%,#D8B9C4 75%,#C7A8BB 100%); }
         .card { background:rgba(255,252,250,.95); padding:48px 40px; border-radius:26px; box-shadow:0 20px 50px rgba(74,25,66,.18); width:460px; max-width:100%; text-align:center; }
-        .brand { font-family:'Fraunces',serif; font-size:1.7rem; font-weight:600; letter-spacing:3px; margin-bottom:20px; color:var(--maroon); }
-        .brand .o-accent { color:var(--coral); }
         .icon { font-size:40px; margin-bottom:14px; }
         h1 { font-size:1.2rem; font-weight:700; margin-bottom:10px; }
         p { color:var(--text-muted); font-size:.88rem; line-height:1.6; margin-bottom:24px; }
@@ -22,7 +21,7 @@
 </head>
 <body>
 <div class="card">
-    <div class="brand">LUM<span class="o-accent">O</span>RA</div>
+    <x-logo class="mx-auto mb-5 items-center" />
     <div class="icon">⏳</div>
     <h1>Your seller application is under review</h1>
     <p>

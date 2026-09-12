@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumora Seller | @yield('title')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -11,8 +12,6 @@
         * { box-sizing:border-box; margin:0; padding:0; }
         body { font-family:'Poppins',sans-serif; background:var(--bg); color:var(--text-dark); display:flex; min-height:100vh; }
         .sidebar { width:250px; background:var(--sidebar-bg); border-right:1px solid var(--border); padding:30px 22px; display:flex; flex-direction:column; gap:6px; position:fixed; top:0; left:0; height:100vh; overflow-y:auto; }
-        .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:800; letter-spacing:.5px; margin-bottom:36px; background:linear-gradient(90deg,var(--maroon),var(--coral)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-        .brand-icon { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,var(--maroon),var(--coral)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; -webkit-text-fill-color:#fff; }
         .nav-link { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; border-radius:12px; color:var(--text-muted); text-decoration:none; font-size:14.5px; font-weight:500; transition:all .18s ease; }
         .nav-content { display:flex; align-items:center; gap:11px; min-width:0; }
         .nav-icon { width:19px; height:19px; flex:0 0 19px; color:currentColor; }
@@ -113,7 +112,6 @@
         body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
         button, input, select, textarea { font-family: inherit; }
         .sidebar { z-index: 30; box-shadow: 4px 0 18px rgba(91,26,53,.025); }
-        .brand { line-height: 1; }
         .nav-link { min-height: 42px; line-height: 1.25; }
         .sidebar-footer form { width: 100%; }
         .switch-account-btn, .logout-btn { min-height: 42px; }
@@ -135,9 +133,6 @@
         }
         @media (max-width: 680px) {
             .sidebar { width: 76px; padding: 22px 10px; align-items: center; }
-            .brand { justify-content: center; margin-bottom: 24px; }
-            .brand:not(.brand-icon) { font-size: 0; }
-            .brand-icon { flex: 0 0 30px; }
             .nav-link { width: 48px; justify-content: center; padding: 11px 8px; font-size: 0; }
             .nav-link::before { content: '•'; font-size: 18px; color: currentColor; }
             .nav-badge { display: none !important; }
@@ -155,7 +150,7 @@
 </head>
 <body>
 <aside class="sidebar">
-    <div class="brand"><span class="brand-icon">L</span> Lumora</div>
+    <x-logo class="mb-9 max-[680px]:origin-center max-[680px]:scale-[0.45]" />
     <a href="{{ route('seller.dashboard') }}" class="nav-link {{ request()->routeIs('seller.dashboard') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Dashboard</span></span></a>
     <a href="{{ route('seller.products.index') }}" class="nav-link {{ request()->routeIs('seller.products.*') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.5 7.5 4 7.5-4M12 12v9"/></svg></span><span>My Products</span></span></a>
     <a href="{{ route('seller.orders.index') }}" class="nav-link {{ request()->routeIs('seller.orders.*') ? 'active' : '' }}">

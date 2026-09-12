@@ -10,7 +10,8 @@
                 <table width="100%" style="max-width:440px;background:#ffffff;border-radius:16px;padding:36px 32px;">
                     <tr>
                         <td align="center" style="padding-bottom:8px;">
-                            <span style="font-size:22px;font-weight:bold;letter-spacing:2px;color:#4A1942;">LUM<span style="color:#E2582E;">O</span>RA</span>
+                            <span style="display:block;font-family:Georgia,serif;font-size:24px;font-weight:normal;letter-spacing:6px;color:#2E1E2D;">LUM<span style="color:#C97B63;">O</span>RA</span>
+                            <span style="display:block;margin-top:6px;font-size:7px;font-weight:bold;letter-spacing:4px;color:#8C7A7A;">BEAUTY LIVES HERE</span>
                         </td>
                     </tr>
                     <tr>

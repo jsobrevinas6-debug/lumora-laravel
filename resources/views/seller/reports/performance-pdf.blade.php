@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <style>
     body { font-family: Helvetica, Arial, sans-serif; color: #2B1C22; font-size: 11px; }
-    .brand { color: #5B1A35; font-size: 15px; font-weight: bold; margin-bottom: 4px; }
+    .brand { color: #2E1E2D; font-family: Georgia, serif; font-size: 17px; font-weight: normal; letter-spacing: 4px; margin-bottom: 4px; }
+    .brand .accent { color: #C97B63; }
+    .brand-tagline { color: #8C7A7A; font-size: 6px; font-weight: bold; letter-spacing: 3px; margin-bottom: 10px; }
     h1 { color: #5B1A35; font-size: 22px; margin: 0 0 2px; }
     .subtitle { color: #8B7A80; font-size: 10px; margin-bottom: 14px; }
     hr { border: none; border-top: 1px solid #F0E2DA; margin-bottom: 14px; }
@@ -26,7 +28,8 @@
 </style>
 </head>
 <body>
-    <div class="brand">LUMORA</div>
+    <div class="brand">LUM<span class="accent">O</span>RA</div>
+    <div class="brand-tagline">BEAUTY LIVES HERE</div>
     <h1>Sales &amp; Performance Report</h1>
     <div class="subtitle">{{ $shopName }} &nbsp;|&nbsp; {{ $start->format('M d, Y') }} &ndash; {{ $end->format('M d, Y') }} &nbsp;|&nbsp; Generated {{ now()->format('M d, Y \a\t g:i A') }}</div>
     <hr>

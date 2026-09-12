@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lumora | Sign Up</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -15,8 +16,6 @@
         .login-frame { width:min(1120px,100%); min-height:690px; display:grid; grid-template-columns:.82fr 1.18fr; overflow:hidden; border:1px solid var(--border); border-radius:20px; background:#fffdfb; box-shadow:0 24px 70px rgba(53,17,40,.12); }
         .login-art { position:relative; min-height:690px; display:flex; align-items:flex-start; padding:54px 42px; overflow:hidden; background-image:linear-gradient(180deg,rgba(53,17,40,.04),rgba(53,17,40,.10)),url('{{ asset('images/hero.jpg') }}'); background-size:cover; background-position:center; }
         .login-art::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,250,246,.06),rgba(53,17,40,.26)); pointer-events:none; }
-        .brand { position:relative; z-index:1; font-family:'Playfair Display',serif; font-size:30px; letter-spacing:5px; color:var(--plum); margin:0; }
-        .brand .o-accent { color:var(--rose); }
         .brand-tagline { position:absolute; z-index:1; left:42px; right:42px; bottom:48px; font-family:'Playfair Display',serif; font-size:clamp(30px,4vw,52px); line-height:1.02; color:var(--plum); }
         .brand-tagline small { display:block; margin-top:16px; color:var(--plum-soft); font:14px 'Inter',sans-serif; line-height:1.5; }
         .login-panel { display:flex; align-items:flex-start; justify-content:center; padding:42px clamp(28px,5vw,70px); background:#fffdfb; overflow-y:auto; max-height:90vh; }
@@ -72,7 +71,7 @@
 <main class="login-shell">
 <section class="login-frame" aria-labelledby="signup-title">
     <aside class="login-art" aria-label="Lumora brand message">
-        <div class="brand">LUM<span class="o-accent">O</span>RA</div>
+        <x-logo class="relative z-[1]" />
         <div class="brand-tagline">Create your account<small>Start shopping or selling with Lumora.</small></div>
     </aside>
 

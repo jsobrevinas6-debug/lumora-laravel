@@ -5,7 +5,7 @@
     <div class="guest-cart-card" role="document">
         <button type="button" class="guest-cart-close" data-close-guest-cart aria-label="Close">&times;</button>
 
-        <div class="guest-cart-brand">LUM<span>O</span>RA</div>
+        <x-logo class="mx-auto items-center" />
         <h2 id="guestCartTitle">Sign in to view your<br>cart</h2>
         <p class="guest-cart-subtitle">Save your items and check out faster with a<br> Lumora account.</p>
 
@@ -88,15 +88,6 @@
         line-height:1;
         cursor:pointer;
     }
-
-    .guest-cart-brand {
-        margin-top:3px;
-        color:#4A1942;
-        font:600 30px 'Fraunces',Georgia,serif;
-        letter-spacing:3px;
-    }
-
-    .guest-cart-brand span { color:#B96562; }
 
     .guest-cart-card h2 {
         margin:20px 0 9px;

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 64" role="img" aria-labelledby="title desc">
+  <title id="title">Maya</title>
+  <desc id="desc">Maya payment logo</desc>
+  <rect width="180" height="64" rx="14" fill="#FFFFFF"/>
+  <path d="M28 42V22h7.2l6.8 10.4L48.8 22H56v20h-6.7V31.7l-5.2 7.6h-4.2l-5.2-7.6V42H28Z" fill="#00B14F"/>
+  <text x="69" y="40" fill="#111111" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.4">maya</text>
+  <circle cx="145" cy="22" r="4" fill="#00B14F"/>
+</svg>

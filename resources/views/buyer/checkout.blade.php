@@ -47,12 +47,6 @@
             align-items: center;
             justify-content: space-between;
         }
-        .brand {
-            color: var(--plum);
-            font: 700 31px/1 'Playfair Display', Georgia, serif;
-            letter-spacing: 3px;
-        }
-        .brand span { color: var(--rose); }
         .steps {
             display: flex;
             align-items: center;
@@ -203,7 +197,6 @@
         @media (max-width: 620px) {
             .checkout-header { height: 78px; }
             .header-inner, .page { width: calc(100% - 32px); }
-            .brand { font-size: 24px; }
             .secure { font-size: 12px; }
             .page { padding-top: 31px; }
             .page-title { font-size: 38px; }
@@ -224,7 +217,7 @@
 <body>
 <header class="checkout-header">
     <div class="header-inner">
-        <a class="brand" href="{{ route('shop.index') }}">LUM<span>O</span>RA</a>
+        <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
         <nav class="steps" aria-label="Checkout progress">
             <span class="step">Cart <span class="chevron">›</span></span>
             <span class="step active">Checkout <span class="chevron">›</span></span>

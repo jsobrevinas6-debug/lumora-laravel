@@ -16,6 +16,9 @@ use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ShopController::class, 'index'])->name('home');
+Route::get('/about', function () {
+    return view('about');
+})->name('about');
 
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {

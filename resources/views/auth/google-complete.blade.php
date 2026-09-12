@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Lumora') }} | Complete your account</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,8 +15,6 @@
         body { margin:0; min-height:100vh; color:var(--plum); font-family:Inter,sans-serif; background:radial-gradient(circle at 8% 10%,#f5ddd4 0,transparent 28%),radial-gradient(circle at 92% 90%,#f4e3da 0,transparent 32%),var(--cream); }
         .shell { width:min(980px,calc(100% - 32px)); margin:34px auto; background:var(--paper); border:1px solid var(--line); border-radius:20px; box-shadow:0 24px 65px rgba(53,17,40,.12); overflow:hidden; }
         .top { display:flex; justify-content:space-between; align-items:center; padding:24px 34px; border-bottom:1px solid var(--line); }
-        .brand { font:600 25px 'Playfair Display',serif; letter-spacing:4px; }
-        .brand span { color:var(--rose); }
         .google-status { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
         .google-status img { width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid var(--line); }
         .content { padding:42px clamp(24px,6vw,76px) 54px; }
@@ -49,7 +48,7 @@
 <body>
     <main class="shell">
         <header class="top">
-            <div class="brand">LUM<span>O</span>RA</div>
+            <x-logo />
             <div class="google-status">
                 @if (!empty($google['avatar']))
                     <img src="{{ $google['avatar'] }}" alt="">

@@ -36,7 +36,7 @@
             background:linear-gradient(160deg,var(--blush-1) 0%,var(--blush-2) 55%,var(--blush-1) 100%);
             min-height:100vh;
         }
-        h1,h2,h3,.wordmark{ font-family:'Playfair Display',serif; }
+        h1,h2,h3{ font-family:'Playfair Display',serif; }
         a{ text-decoration:none; color:inherit; }
         button{ font-family:inherit; cursor:pointer; }
 
@@ -54,11 +54,6 @@
             display:flex; align-items:center; gap:24px;
             padding:14px 24px;
         }
-        .brand{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-        .brand svg{ width:26px; height:26px; color:var(--orange); }
-        .brand .wordmark{ font-size:22px; font-weight:700; color:var(--plum); letter-spacing:0.5px; }
-        .brand .wordmark span{ color:var(--orange); }
-
         .search{
             flex:1; max-width:520px;
             display:flex; align-items:center; gap:8px;
@@ -213,9 +208,40 @@
         .product-rating svg{ width:12px; height:12px; color:var(--gold); }
 
         /* ---------- footer ---------- */
-        footer{ margin-top:64px; border-top:1px solid var(--line); padding:32px 24px; text-align:center; }
-        footer p{ margin:4px 0; font-size:12px; color:var(--muted); }
-        footer .wordmark{ font-size:18px; color:var(--plum); }
+        .lumora-site-footer{width:100%;max-width:none;margin:64px auto 0;padding:0 24px 30px;background:#fff8f3;border-top:1px solid var(--line);color:var(--ink)}
+        .lumora-footer-inner{max-width:1240px;margin:0 auto}
+        .lumora-newsletter{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.85fr);gap:30px;align-items:center;margin:0 auto 46px;padding:34px;border:1px solid var(--line);border-radius:16px;background:#fffaf5}
+        .lumora-newsletter-label{margin:0 0 10px;color:var(--rose);font-size:11px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase}
+        .lumora-newsletter h2{margin:0;color:var(--plum);font-size:34px;font-weight:600;line-height:1.05}
+        .lumora-newsletter p{max-width:430px;margin:12px 0 0;color:var(--muted);font-size:13px;line-height:1.65}
+        .lumora-newsletter-form{display:flex;gap:10px;align-items:center;margin:0}
+        .lumora-newsletter-input{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:9px 16px;transition:border-color .2s ease,box-shadow .2s ease}
+        .lumora-newsletter-input:focus-within{border-color:var(--rose);box-shadow:0 0 0 3px rgba(185,101,98,.12)}
+        .lumora-newsletter-input svg{width:16px;height:16px;color:var(--muted);flex-shrink:0}
+        .lumora-newsletter-input input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:14px}
+        .lumora-newsletter-input input::placeholder{color:var(--muted)}
+        .lumora-newsletter-form button{min-height:38px;padding:0 20px;border:1px solid var(--rose);border-radius:999px;background:var(--cream);color:var(--plum);font-size:14px;font-weight:600;transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
+        .lumora-newsletter-form button:hover{background:#fff;border-color:var(--rose);transform:translateY(-1px)}
+        .lumora-footer-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr) 1.35fr;gap:34px;padding:8px 0 34px;text-align:left}
+        .lumora-footer-brand p{max-width:220px;margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.65}
+        .lumora-socials{display:flex;gap:9px;flex-wrap:wrap}
+        .lumora-socials a,.lumora-back-top{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--cream);color:var(--plum);transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
+        .lumora-socials a:hover,.lumora-back-top:hover{background:var(--plum);border-color:var(--plum);color:#fff;transform:translateY(-1px)}
+        .lumora-socials svg,.lumora-back-top svg{width:17px;height:17px}
+        .lumora-footer-column h3{margin:0 0 15px;color:var(--plum);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+        .lumora-footer-column ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+        .lumora-footer-column a{color:var(--muted);font-size:12px;transition:color .2s ease}
+        .lumora-footer-column a:hover{color:var(--rose)}
+        .payment-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+        .payment-badge{min-width:86px;height:40px;display:grid;place-items:center;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--cream);color:var(--plum);font-size:11px;font-weight:700}
+        .payment-badge img{display:block;max-width:72px;max-height:25px;object-fit:contain}
+        .footer-assurances{display:grid;gap:9px;margin-top:2px}
+        .footer-assurance{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+        .footer-assurance svg{width:16px;height:16px;color:var(--rose);flex:0 0 auto}
+        .lumora-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:20px;border-top:1px solid var(--line)}
+        .lumora-footer-bottom p{margin:0;color:var(--muted);font-size:12px}
+        @media(max-width:900px){.lumora-newsletter{grid-template-columns:1fr}.lumora-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lumora-footer-brand,.lumora-footer-payments{grid-column:1/-1}}
+        @media(max-width:640px){.lumora-site-footer{padding:0 16px 28px}.lumora-newsletter{padding:28px 20px;text-align:center}.lumora-newsletter p{margin-left:auto;margin-right:auto}.lumora-newsletter-form{flex-direction:column}.lumora-newsletter-input,.lumora-newsletter-form button{width:100%}.lumora-footer-grid{grid-template-columns:1fr;text-align:center}.lumora-footer-brand p{margin-left:auto;margin-right:auto}.lumora-socials,.payment-badges{justify-content:center}.footer-assurance{justify-content:center}.lumora-footer-bottom{flex-direction:column}.lumora-newsletter h2{font-size:29px}}
 
         @media (max-width:900px){
             .hero{ grid-template-columns:1fr; }
@@ -263,8 +289,6 @@
         .flow-menu-drawer { position:fixed; top:0; left:0; z-index:41; width:min(360px, 92vw); height:100vh; padding:28px 18px; background:linear-gradient(180deg,var(--flow-bg) 0%,var(--flow-bg-deep) 100%); color:var(--flow-text); overflow-y:auto; transform:translateX(-105%); transition:transform .42s cubic-bezier(.22,.61,.36,1); box-shadow:8px 0 26px rgba(61,27,61,.18); }
         .flow-menu-drawer.open { transform:translateX(0); }
         .flow-menu-head { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 18px; border-bottom:1px solid var(--flow-line); }
-        .flow-menu-brand { display:flex; align-items:center; gap:8px; margin:0 6px 16px; color:var(--flow-text); font-family:'Playfair Display',serif; font-size:20px; font-weight:700; letter-spacing:.4px; }
-        .flow-menu-brand-mark { width:25px; height:25px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(255,248,244,.65); border-radius:7px; color:var(--flow-text); font-family:'Inter',sans-serif; font-size:12px; }
         .flow-menu-head h2 { margin:0; color:var(--flow-text); font-family:'Playfair Display',serif; font-size:24px; font-weight:600; }
         .flow-menu-close { width:34px; height:34px; border:1px solid rgba(255,255,255,.35); border-radius:50%; background:transparent; color:#fff; font-size:22px; line-height:1; cursor:pointer; }
         .flow-menu-close:hover { background:rgba(255,255,255,.12); }
@@ -508,20 +532,31 @@
         .curated-card img{display:block;width:100%;height:112px;object-fit:cover}
         .curated-card span{display:flex;align-items:center;justify-content:space-between;padding:12px 13px;color:var(--plum);font-size:12px;font-weight:700}
         .curated-card span::after{content:'→';color:var(--rose);font-size:16px}
+        .developers-section{max-width:1240px;margin:58px auto 0;padding:0 24px}
+        .developers-head{text-align:center;margin-bottom:24px}
+        .developers-head h2{margin:0;color:var(--plum);font-family:'Playfair Display',serif;font-size:34px;font-weight:600;line-height:1.1}
+        .developers-head p{margin:9px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
+        .developers-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch}
+        .developer-card{height:100%;display:flex;flex-direction:column;align-items:center;padding:34px 28px 32px;border:1px solid var(--line);border-radius:24px;background:#fffaf5;box-shadow:0 8px 30px rgba(61,27,61,.035);text-align:center;transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
+        .developer-card:hover{transform:translateY(-4px);border-color:rgba(185,101,98,.5);box-shadow:0 14px 34px rgba(61,27,61,.07)}
+        .developer-photo{width:176px;height:176px;border:1px solid #EADFD8;border-radius:50%;object-fit:cover;background:var(--cream)}
+        .developer-card h3{margin:22px 0 7px;color:var(--plum);font-family:'Playfair Display',serif;font-size:24px;font-weight:600;line-height:1.15}
+        .developer-role{margin:0 0 16px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.12em;line-height:1.5;text-transform:uppercase}
+        .developer-bio{margin:0;color:var(--muted);font-size:13px;line-height:1.7}
         .lower-trust{max-width:1180px;margin:56px auto 0;padding:22px 24px 38px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr) 1.35fr;gap:18px;align-items:center}
         .trust-item{display:flex;align-items:center;gap:12px;min-height:48px;padding-right:16px;border-right:1px solid var(--line)}
         .trust-item:last-of-type{border-right:0}
         .trust-icon{color:var(--rose);font-size:22px}
         .trust-item strong{display:block;color:var(--plum);font-size:12px}.trust-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
         .newsletter{padding-left:8px}.newsletter h3{margin:0;color:var(--plum);font-size:19px}.newsletter p{margin:4px 0 11px;color:var(--muted);font-size:11px}.newsletter-form{display:flex;gap:8px}.newsletter-form input{min-width:0;flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--cream);outline:0}.newsletter-form input:focus{border-color:var(--rose)}.newsletter-form button{padding:10px 15px;border:1px solid var(--rose);border-radius:7px;background:var(--cream);color:var(--plum);font-size:11px;font-weight:700}.newsletter-form button:hover{background:#fff}
+        @media(max-width:900px){.developers-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.developer-card:last-child{grid-column:1/-1;max-width:calc(50% - 9px);width:100%;margin:0 auto}}
         @media(max-width:800px){.lower-discovery{margin-top:40px}.lower-discovery-head{align-items:start;flex-direction:column}.discovery-tabs{gap:18px;overflow-x:auto}.editorial-banner-inner{grid-template-columns:1fr}.editorial-banner-image{min-height:170px}.editorial-banner-copy{padding:28px}.editorial-banner-copy h2{font-size:29px}.curated-rail{display:flex;overflow-x:auto;scroll-snap-type:x mandatory}.curated-card{flex:0 0 190px;scroll-snap-align:start}.lower-trust{grid-template-columns:1fr 1fr;padding:24px 24px 34px}.trust-item{border-right:0}.newsletter{grid-column:1/-1;padding:10px 0 0}}
+        @media(max-width:640px){.developers-section{padding:0 16px}.developers-grid{grid-template-columns:1fr}.developer-card:last-child{grid-column:auto;max-width:none}.developer-card{padding:30px 22px}.developers-head h2{font-size:29px}}
         /* ---------- clean Lumora side-menu treatment ---------- */
         .flow-menu-trigger.left-menu-trigger{width:38px;height:38px;border:1px solid var(--rose);border-radius:50%;background:var(--cream);color:var(--plum);box-shadow:0 3px 10px rgba(61,27,61,.06);transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
         .flow-menu-trigger.left-menu-trigger:hover,.flow-menu-trigger.left-menu-trigger[aria-expanded="true"]{background:var(--plum)!important;border-color:var(--plum)!important;color:#fff!important;transform:translateY(-1px)}
         .flow-menu-backdrop{background:rgba(61,27,61,.22);backdrop-filter:blur(2px)}
         .flow-menu-drawer{width:min(360px,92vw);padding:28px 20px;background:linear-gradient(180deg,#fffaf7 0%,#f8ebe6 100%);color:var(--plum);border-right:1px solid rgba(185,101,98,.25);box-shadow:12px 0 34px rgba(61,27,61,.16)}
-        .flow-menu-brand{color:var(--plum);margin:0 4px 18px;font-size:20px}
-        .flow-menu-brand-mark{border-color:var(--rose);color:var(--rose);background:#fff}
         .flow-menu-head{padding:6px 4px 18px;border-bottom:1px solid var(--line)}
         .flow-menu-head h2{color:var(--plum);font-size:23px}
         .flow-menu-close{width:34px;height:34px;border:1px solid var(--rose)!important;background:var(--cream)!important;color:var(--plum)!important;font-size:20px;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
@@ -612,7 +647,7 @@
 
     <div class="flow-menu-backdrop" id="flowMenuBackdrop"></div>
     <aside class="flow-menu-drawer" id="flowMenuDrawer" aria-hidden="true">
-        <div class="flow-menu-brand"><span class="flow-menu-brand-mark">L</span><span>LUMORA</span></div>
+        <x-logo :href="route('shop.index')" aria-label="Lumora shop" class="mb-5" />
         <div class="flow-menu-head">
             <h2>Shop by collection</h2>
             <button type="button" class="flow-menu-close" id="flowMenuClose" aria-label="Close collections menu">&times;</button>
@@ -640,10 +675,7 @@
             <button type="button" class="flow-menu-trigger left-menu-trigger" id="flowMenuTriggerLeft" aria-label="Open shop by collection" aria-expanded="false" aria-controls="flowMenuDrawer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
-            <a href="{{ route('shop.index') }}" class="brand">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/></svg>
-                <span class="wordmark">LUM<span>O</span>RA</span>
-            </a>
+            <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
 
             <form action="{{ route('shop.index') }}" method="GET" class="search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -997,10 +1029,111 @@
     </section>
 
     <!-- ===================== FOOTER ===================== -->
-    <footer>
-        <p class="wordmark">LUM<span style="color:var(--orange)">O</span>RA</p>
-        <p>Step into something beautiful.</p>
-        <p>&copy; {{ date('Y') }} Lumora. All rights reserved.</p>
+    <footer class="lumora-site-footer" aria-label="Lumora footer">
+        <div class="lumora-footer-inner">
+            <section class="lumora-newsletter" aria-labelledby="lumoraNewsletterHeading">
+                <div>
+                    <p class="lumora-newsletter-label">JOIN LUMORA</p>
+                    <h2 id="lumoraNewsletterHeading">Be the first to know.</h2>
+                    <p>Get exclusive offers, new arrivals, and beauty inspiration straight to your inbox.</p>
+                </div>
+                <form class="lumora-newsletter-form" action="{{ route('shop.index') }}" method="GET">
+                    <label class="lumora-newsletter-input">
+                        <span class="sr-only">Email address</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                        <input type="email" name="newsletter_email" placeholder="Enter your email" autocomplete="email">
+                    </label>
+                    <button type="submit">Subscribe</button>
+                </form>
+            </section>
+
+            <section class="lumora-footer-main" aria-label="Footer navigation">
+                <div class="lumora-footer-grid">
+                    <div class="lumora-footer-brand">
+                        <x-logo :href="route('shop.index')" aria-label="Lumora home" class="mb-4" />
+                        <p>Curated essentials for beauty,<br>confidence,<br>and the everyday.</p>
+                        <div class="lumora-socials" aria-label="Social links">
+                            <a href="#" aria-label="Instagram">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="4"/><circle cx="12" cy="12" r="3.2"/><circle cx="16.3" cy="7.8" r=".7" fill="currentColor" stroke="none"/></svg>
+                            </a>
+                            <a href="#" aria-label="Facebook">
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 8.2h2.2V5h-2.7C10.6 5 9 6.7 9 9.4V12H7v3.1h2V20h3.3v-4.9h2.8l.5-3.1h-3.3V9.7c0-.9.4-1.5 1.7-1.5Z"/></svg>
+                            </a>
+                            <a href="#" aria-label="Twitter">
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 5H21l-6.5 7.4 7.6 10.1h-6l-4.7-6.1-5.3 6.1H3.9l7-8-7.3-9.5h6.1l4.2 5.6L18.9 5Zm-.7 15.7h1.2L9 6.7H7.7l10.5 14Z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <nav class="lumora-footer-column" aria-label="Shop">
+                        <h3>Shop</h3>
+                        <ul>
+                            <li><a href="{{ route('shop.index') }}">All Products</a></li>
+                            <li><a href="{{ route('shop.index') }}?sort=top_sales">Best Sellers</a></li>
+                            <li><a href="{{ route('shop.index') }}?sort=latest">New Arrivals</a></li>
+                            <li><a href="{{ route('shop.index') }}?category=skincare">Skincare</a></li>
+                            <li><a href="{{ route('shop.index') }}?category=makeup">Makeup</a></li>
+                            <li><a href="{{ route('shop.index') }}?category=fragrance">Fragrance</a></li>
+                            <li><a href="{{ route('shop.index') }}?category=personal-care">Body Care</a></li>
+                            <li><a href="{{ route('shop.index') }}?category=bundles">Bundles</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="lumora-footer-column" aria-label="Customer Care">
+                        <h3>Customer Care</h3>
+                        <ul>
+                            <li><a href="#">Help Center</a></li>
+                            <li><a href="#">Shipping Information</a></li>
+                            <li><a href="#">Returns</a></li>
+                            <li><a href="#">Track Order</a></li>
+                            <li><a href="#">Size Guide</a></li>
+                            <li><a href="#">Contact Us</a></li>
+                            <li><a href="#">FAQ</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="lumora-footer-column" aria-label="About Lumora">
+                        <h3>About Lumora</h3>
+                        <ul>
+                            <li><a href="{{ route('about') }}">About Lumora &rarr;</a></li>
+                        </ul>
+                    </nav>
+
+                    <div class="lumora-footer-column lumora-footer-payments">
+                        <h3>We Accept</h3>
+                        <div class="payment-badges" aria-label="Accepted payment methods">
+                            <span class="payment-badge">
+                                <img src="{{ asset('images/payments/gcash.svg') }}" alt="GCash">
+                            </span>
+                            <span class="payment-badge">
+                                <img src="{{ asset('images/payments/maya.svg') }}" alt="Maya">
+                            </span>
+                        </div>
+                        <div class="footer-assurances" aria-label="Shopping assurances">
+                            <div class="footer-assurance">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="18" cy="18" r="1.5"/></svg>
+                                <span>Free Shipping</span>
+                            </div>
+                            <div class="footer-assurance">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 7h10v10H7z"/><path d="M7 11 4 8l3-3"/><path d="M17 13l3 3-3 3"/></svg>
+                                <span>Easy Returns</span>
+                            </div>
+                            <div class="footer-assurance">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 2.8 8 7 10 4.2-2 7-5.6 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+                                <span>Secure Payment</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lumora-footer-bottom">
+                    <p>&copy; 2026 Lumora. All rights reserved.</p>
+                    <button type="button" class="lumora-back-top" data-back-to-top aria-label="Back to top">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 14 6-6 6 6"/><path d="M12 8v12"/></svg>
+                    </button>
+                </div>
+            </section>
+        </div>
     </footer>
 
     @auth
@@ -1037,6 +1170,12 @@
             });
         }
         </script>
+
+    <script>
+        document.querySelector('[data-back-to-top]')?.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
 
     {{-- Fallback drawer controls. The main implementation lives in resources/js/app.js. --}}
     <script>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumora Admin | {{ $title ?? 'Dashboard' }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -11,8 +12,6 @@
         * { box-sizing:border-box; margin:0; padding:0; }
         body { font-family:'Poppins',sans-serif; background:var(--bg); color:var(--text-dark); display:flex; min-height:100vh; }
         .sidebar { width:230px; background:var(--sidebar-bg); border-right:1px solid var(--border); padding:28px 18px; display:flex; flex-direction:column; gap:6px; position:fixed; top:0; left:0; height:100vh; }
-        .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:800; letter-spacing:.5px; margin-bottom:36px; background:linear-gradient(90deg,var(--maroon),var(--coral)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-        .brand-icon { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,var(--maroon),var(--coral)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; -webkit-text-fill-color:#fff; }
         .nav-link { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:12px; color:var(--text-muted); text-decoration:none; font-size:14.5px; font-weight:500; transition:all .18s ease; }
         .nav-link:hover { background:var(--bg); color:var(--maroon); }
         .nav-link.active { background:var(--maroon); color:#fff; font-weight:600; }
@@ -55,7 +54,7 @@
 </head>
 <body>
 <aside class="sidebar">
-    <div class="brand"><span class="brand-icon">L</span> Lumora</div>
+    <x-logo class="mb-9 max-[680px]:origin-center max-[680px]:scale-[0.45]" />
     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
     <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">Users</a>
     <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications') ? 'active' : '' }}">Applications</a>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Lumora') }} | Sign in</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -75,14 +76,6 @@
             inset: 0;
             background: linear-gradient(180deg, rgba(255,250,246,.06), rgba(53,17,40,.26));
             pointer-events: none;
-        }
-        .art-brand {
-            position: relative;
-            z-index: 1;
-            font-family: 'Playfair Display', serif;
-            font-size: 30px;
-            letter-spacing: 5px;
-            color: var(--plum);
         }
         .art-caption {
             position: absolute;
@@ -214,7 +207,6 @@
             .login-shell { padding: 16px; }
             .login-frame { display: block; min-height: 0; border-radius: 16px; }
             .login-art { min-height: 220px; padding: 28px; background-position: center 58%; }
-            .art-brand { font-size: 24px; }
             .art-caption { left: 28px; right: 28px; bottom: 28px; }
             .art-caption strong { font-size: 30px; }
             .art-caption span { margin-top: 7px; font-size: 12px; }
@@ -231,7 +223,7 @@
     <main class="login-shell">
         <section class="login-frame" aria-labelledby="login-title">
             <aside class="login-art" aria-label="Lumora brand message">
-                <div class="art-brand">LUMORA</div>
+                <x-logo class="relative z-[1]" />
                 <div class="art-caption">
                     <strong>Timeless<br>Elegance</strong>
                     <span>Designed to shine. Made to be yours.</span>

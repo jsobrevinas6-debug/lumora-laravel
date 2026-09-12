@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <style>
     body { font-family: Helvetica, Arial, sans-serif; color: #2B1C22; font-size: 12px; }
-    .brand { color: #5B1A35; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+    .brand { color: #2E1E2D; font-family: Georgia, serif; font-size: 18px; font-weight: normal; letter-spacing: 4px; margin-bottom: 3px; }
+    .brand .accent { color: #C97B63; }
+    .brand-tagline { color: #8C7A7A; font-size: 6px; font-weight: bold; letter-spacing: 3px; margin-bottom: 8px; }
+    .document-label { color: #2B1C22; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
     .label-box { border: 2px solid #5B1A35; border-radius: 8px; padding: 20px; margin-top: 16px; }
     .row { display: table; width: 100%; margin-bottom: 16px; }
     .col { display: table-cell; width: 50%; vertical-align: top; }
@@ -18,7 +21,9 @@
 </style>
 </head>
 <body>
-    <div class="brand">LUMORA — Shipping Label</div>
+    <div class="brand">LUM<span class="accent">O</span>RA</div>
+    <div class="brand-tagline">BEAUTY LIVES HERE</div>
+    <div class="document-label">Shipping Label</div>
     <div style="font-size:11px;color:#8B7A80;">Order #{{ $order->id }} &middot; {{ \Carbon\Carbon::parse($order->created_at)->format('M d, Y') }}</div>
 
     <div class="label-box">
