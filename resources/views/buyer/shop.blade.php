@@ -127,32 +127,42 @@
 
         /* ---------- Lumora hero carousel ---------- */
         .hero-carousel{position:relative;max-width:1440px;height:clamp(430px,43vw,650px);margin:30px auto 0;overflow:hidden;background:#f8e9e4}
-        .hero-track{display:flex;height:100%;transition:transform .72s cubic-bezier(.65,0,.25,1);will-change:transform}
-        .hero-slide{position:relative;flex:0 0 100%;height:100%;display:flex;align-items:center;overflow:hidden;background-color:#f8e9e4;background-position:center;background-size:cover}
-        .hero-slide::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,rgba(255,253,251,.97) 0%,rgba(255,253,251,.84) 30%,rgba(255,253,251,.12) 70%,rgba(255,253,251,0) 100%)}
+        .hero-track{position:relative;height:100%;transform:translate3d(0,0,0)}
+        .hero-slide{position:absolute;inset:0;height:100%;display:flex;align-items:center;overflow:hidden;background-color:#f8e9e4;opacity:0;transform:translate3d(0,0,0) scale(1.06);transition:opacity 800ms ease-in-out,transform 800ms ease-in-out;will-change:opacity,transform;pointer-events:none}
+        .hero-slide::before{content:'';position:absolute;inset:0;z-index:0;background-image:linear-gradient(90deg,rgba(255,253,251,.97) 0%,rgba(255,253,251,.84) 30%,rgba(255,253,251,.12) 70%,rgba(255,253,251,0) 100%),var(--hero-image);background-position:center;background-size:cover;opacity:0;transform:translate3d(30px,0,0) scale(1.08);transition:opacity 900ms ease-in-out,transform 900ms ease-in-out;will-change:opacity,transform}
         .hero-slide::after{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(0deg,rgba(61,27,61,.08),transparent 35%)}
-        .hero-slide[data-slide="1"]{background-image:url('/images/hero/hero-1.jpg')}
-        .hero-slide[data-slide="2"]{background-image:url('/images/hero/hero-2.jpg')}
-        .hero-slide[data-slide="3"]{background-image:url('/images/hero/hero-3.jpg')}
-        .hero-slide[data-slide="4"]{background-image:url('/images/hero/hero-4.jpg')}
+        .hero-slide[data-slide="1"]{--hero-image:url('/images/hero/hero-1.jpg')}
+        .hero-slide[data-slide="2"]{--hero-image:url('/images/hero/hero-2.jpg')}
+        .hero-slide[data-slide="3"]{--hero-image:url('/images/hero/hero-3.jpg')}
+        .hero-slide[data-slide="4"]{--hero-image:url('/images/hero/hero-4.jpg')}
+        .hero-slide.is-active{z-index:2;opacity:1;transform:translate3d(0,0,0) scale(1);pointer-events:auto}
+        .hero-slide.is-active::before{opacity:1;transform:translate3d(0,0,0) scale(1)}
+        .hero-slide.is-leaving{z-index:1;opacity:0;transform:translate3d(0,0,0) scale(1.03)}
         .hero-content{position:relative;z-index:1;width:min(1180px,calc(100% - 96px));margin:0 auto;padding:20px 0 72px}
         .hero-eyebrow{margin:0 0 17px;color:var(--orange);font-size:12px;font-weight:600;letter-spacing:2.3px;text-transform:uppercase}
         .hero-title{max-width:570px;margin:0 0 17px;color:var(--plum);font-family:'Playfair Display',Georgia,serif;font-size:clamp(43px,5.2vw,78px);font-weight:600;line-height:.98}
         .hero-description{max-width:430px;margin:0 0 28px;color:var(--ink);font-size:clamp(15px,1.3vw,19px);line-height:1.55}
-        .hero-cta{display:inline-flex;align-items:center;gap:12px;min-height:48px;padding:0 23px;border:1px solid var(--plum);border-radius:4px;background:var(--plum);color:#fff;font-size:13px;font-weight:600;letter-spacing:.3px;transition:background .2s ease,transform .2s ease}
-        .hero-cta:hover{background:var(--plum-light);transform:translateY(-2px)}
+        .hero-eyebrow,.hero-title,.hero-description,.hero-cta{opacity:0;transform:translate3d(0,20px,0);transition:opacity 700ms ease-in-out,transform 700ms ease-in-out;will-change:opacity,transform}
+        .hero-slide.is-active .hero-eyebrow,.hero-slide.is-active .hero-title,.hero-slide.is-active .hero-description,.hero-slide.is-active .hero-cta{opacity:1;transform:translate3d(0,0,0)}
+        .hero-slide.is-active .hero-eyebrow{transition-delay:100ms}
+        .hero-slide.is-active .hero-title{transition-delay:200ms}
+        .hero-slide.is-active .hero-description{transition-delay:300ms}
+        .hero-slide.is-active .hero-cta{transition-delay:400ms}
+        .hero-cta{display:inline-flex;align-items:center;gap:12px;min-height:48px;padding:0 23px;border:1px solid var(--plum);border-radius:4px;background:var(--plum);color:#fff;font-size:13px;font-weight:600;letter-spacing:.3px;transition:opacity 700ms ease-in-out,transform 700ms ease-in-out,background .2s ease}
+        .hero-cta:hover,.hero-slide.is-active .hero-cta:hover{background:var(--plum-light);transform:translate3d(0,-2px,0);transition-delay:0ms}
         .hero-cta-arrow{font-size:19px;line-height:0}
-        .hero-arrow{position:absolute;z-index:3;top:50%;width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(61,27,61,.15);border-radius:50%;background:rgba(255,253,251,.86);color:var(--plum);font-size:28px;line-height:1;transform:translateY(-50%);transition:background .2s ease,transform .2s ease}
-        .hero-arrow:hover{background:#fff;transform:translateY(-50%) scale(1.05)}
+        .hero-arrow{position:absolute;z-index:3;top:50%;width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(61,27,61,.15);border-radius:50%;background:rgba(255,253,251,.86);color:var(--plum);font-size:28px;line-height:1;opacity:.5;transform:translate3d(0,-50%,0);transition:opacity 300ms ease-in-out,background 300ms ease-in-out,transform 300ms ease-in-out;will-change:opacity,transform}
+        .hero-arrow:hover{opacity:1;background:#fff;transform:translate3d(0,-50%,0) scale(1.05)}
         .hero-arrow.prev{left:24px}.hero-arrow.next{right:24px}
         .hero-footer{position:absolute;z-index:3;right:0;bottom:29px;left:0;display:flex;align-items:center;justify-content:center;gap:14px}
         .hero-counter{position:absolute;left:max(48px,calc((100% - 1180px)/2));color:var(--plum);font-size:14px;font-weight:600}
         .hero-counter span{color:var(--muted);font-weight:400}.hero-dots{display:flex;align-items:center;gap:10px}
-        .hero-dot{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:rgba(61,27,61,.25);transition:width .2s ease,border-radius .2s ease,background .2s ease}
-        .hero-dot.active{width:25px;border-radius:999px;background:var(--rose)}.hero-autoplay{color:var(--muted);font-size:10px;letter-spacing:1.4px}
-        @media(max-width:900px){.hero-carousel{height:520px}.hero-content{width:calc(100% - 80px)}.hero-slide::before{background:linear-gradient(90deg,rgba(255,253,251,.97),rgba(255,253,251,.60) 65%,rgba(255,253,251,.10))}.hero-counter{left:40px}}
-        @media(max-width:600px){.hero-carousel{height:570px;margin-top:20px}.hero-slide{align-items:flex-start;padding-top:82px;background-position:62% center}.hero-slide::before{background:linear-gradient(180deg,rgba(255,253,251,.95),rgba(255,253,251,.80) 50%,rgba(255,253,251,.16))}.hero-content{width:calc(100% - 48px);padding:0 0 70px}.hero-title{max-width:330px;font-size:47px}.hero-description{max-width:300px;font-size:14px}.hero-arrow{width:38px;height:38px;font-size:22px}.hero-arrow.prev{left:12px}.hero-arrow.next{right:12px}.hero-counter{left:24px}.hero-footer{bottom:24px}.hero-autoplay{display:none}}
-        @media(prefers-reduced-motion:reduce){.hero-track{transition:none}.hero-cta,.hero-arrow{transition:none}}
+        .hero-dot{position:relative;width:10px;height:10px;padding:0;border:0;border-radius:999px;background:transparent;transition:transform 300ms ease-in-out}
+        .hero-dot::before{content:'';position:absolute;top:50%;left:50%;width:10px;height:10px;border-radius:999px;background:rgba(61,27,61,.25);transform:translate3d(-50%,-50%,0) scaleX(1);transition:transform 300ms ease-in-out,background 300ms ease-in-out;will-change:transform}
+        .hero-dot.active::before{background:var(--rose);transform:translate3d(-50%,-50%,0) scaleX(3)}.hero-autoplay{color:var(--muted);font-size:10px;letter-spacing:1.4px}
+        @media(max-width:900px){.hero-carousel{height:520px}.hero-content{width:calc(100% - 80px)}.hero-slide::before{background-image:linear-gradient(90deg,rgba(255,253,251,.97),rgba(255,253,251,.60) 65%,rgba(255,253,251,.10)),var(--hero-image)}.hero-counter{left:40px}}
+        @media(max-width:600px){.hero-carousel{height:570px;margin-top:20px}.hero-slide{align-items:flex-start;padding-top:82px}.hero-slide::before{background-image:linear-gradient(180deg,rgba(255,253,251,.95),rgba(255,253,251,.80) 50%,rgba(255,253,251,.16)),var(--hero-image);background-position:62% center}.hero-content{width:calc(100% - 48px);padding:0 0 70px}.hero-title{max-width:330px;font-size:47px}.hero-description{max-width:300px;font-size:14px}.hero-arrow{width:38px;height:38px;font-size:22px}.hero-arrow.prev{left:12px}.hero-arrow.next{right:12px}.hero-counter{left:24px}.hero-footer{bottom:24px}.hero-autoplay{display:none}}
+        @media(prefers-reduced-motion:reduce){.hero-slide,.hero-slide::before,.hero-eyebrow,.hero-title,.hero-description,.hero-cta,.hero-arrow,.hero-dot,.hero-dot::before{transition:none!important}.hero-slide,.hero-slide::before,.hero-eyebrow,.hero-title,.hero-description,.hero-cta{transform:none!important}.hero-slide.is-active,.hero-slide.is-active::before,.hero-slide.is-active .hero-eyebrow,.hero-slide.is-active .hero-title,.hero-slide.is-active .hero-description,.hero-slide.is-active .hero-cta{opacity:1!important}}
 
         /* ---------- section heading ---------- */
         .section{ max-width:1180px; margin:48px auto 0; padding:0 24px; }
@@ -578,8 +588,8 @@
         @media(max-width:640px){.flow-menu-drawer{width:min(330px,88vw);padding:24px 16px}.flow-menu-head h2{font-size:21px}}
             /* Final carousel animation override */
         .hero-carousel{position:relative;overflow:hidden}
-        .hero-track{display:flex!important;width:100%;transform:translate3d(0,0,0);transition:transform 700ms cubic-bezier(.22,1,.36,1)!important;will-change:transform}
-        .hero-slide{display:flex!important;flex:0 0 100%!important;min-width:100%}
+        .hero-track{position:relative!important;height:100%;transform:translate3d(0,0,0)!important;will-change:auto}
+        .hero-slide{display:flex!important;position:absolute!important;inset:0!important;min-width:100%}
         .hero-arrow,.hero-dot{cursor:pointer}
         @media(prefers-reduced-motion:reduce){.hero-track{transition:none!important}}
     </style>
@@ -724,6 +734,11 @@
                             <a href="{{ route('profile.edit') }}" class="account-menu-link" role="menuitem">
                                 <span class="account-menu-icon">♙</span>
                                 <span>Profile / Settings</span>
+                            </a>
+
+                            <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
+                                <span class="account-menu-icon">▤</span>
+                                <span>My Orders</span>
                             </a>
 
                             @if (Auth::user()->role === 'seller')
@@ -1239,22 +1254,65 @@
 
         if (!track || slides.length < 2) return;
 
-        let activeIndex = 0;
+        let activeIndex = -1;
         let autoplayTimer = null;
+        let isHovering = false;
         let touchStartX = 0;
-        const autoplayDelay = 5000;
+        const autoplayDelay = 6500;
+        const slideDuration = 800;
+        const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const leaveTimers = new WeakMap();
 
         function showSlide(index, animate = true) {
-            activeIndex = (index + slides.length) % slides.length;
-            track.style.transition = animate
-                ? 'transform 700ms cubic-bezier(.22, 1, .36, 1)'
-                : 'none';
-            track.style.transform = `translate3d(-${activeIndex * 100}%, 0, 0)`;
+            const nextIndex = (index + slides.length) % slides.length;
+            const previousIndex = activeIndex;
+            const shouldAnimate = animate && !reduceMotionQuery.matches;
+
+            if (nextIndex === previousIndex) return;
+
+            track.style.transform = 'translate3d(0, 0, 0)';
+            activeIndex = nextIndex;
 
             if (current) current.textContent = String(activeIndex + 1).padStart(2, '0');
 
             slides.forEach((slide, slideIndex) => {
-                slide.setAttribute('aria-hidden', slideIndex === activeIndex ? 'false' : 'true');
+                const isPrevious = slideIndex === previousIndex;
+                const isActive = slideIndex === activeIndex;
+                const activeTimer = leaveTimers.get(slide);
+
+                if (activeTimer) {
+                    window.clearTimeout(activeTimer);
+                    leaveTimers.delete(slide);
+                }
+
+                slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+
+                if (isActive) {
+                    slide.classList.remove('is-leaving');
+                    if (shouldAnimate) {
+                        slide.classList.remove('is-active');
+                        window.requestAnimationFrame(() => {
+                            if (activeIndex === slideIndex) {
+                                slide.classList.add('is-active');
+                            }
+                        });
+                    } else {
+                        slide.classList.add('is-active');
+                    }
+                    return;
+                }
+
+                if (isPrevious && shouldAnimate) {
+                    slide.classList.remove('is-active');
+                    slide.classList.add('is-leaving');
+                    leaveTimers.set(slide, window.setTimeout(() => {
+                        slide.classList.remove('is-leaving');
+                        leaveTimers.delete(slide);
+                    }, slideDuration));
+                    return;
+                }
+
+                slide.classList.remove('is-active', 'is-leaving');
             });
 
             dots.forEach((dot, dotIndex) => {
@@ -1273,6 +1331,7 @@
 
         function startAutoplay() {
             stopAutoplay();
+            if (isHovering || reduceMotionQuery.matches) return;
             autoplayTimer = window.setInterval(() => {
                 showSlide(activeIndex + 1, true);
             }, autoplayDelay);
@@ -1287,8 +1346,15 @@
         nextButton?.addEventListener('click', () => goToSlide(activeIndex + 1));
         dots.forEach((dot, dotIndex) => dot.addEventListener('click', () => goToSlide(dotIndex)));
 
-        // Autoplay intentionally continues while the pointer is over the hero.
-        // This keeps the carousel moving automatically on the shop page.
+        carousel.addEventListener('mouseenter', () => {
+            isHovering = true;
+            stopAutoplay();
+        });
+
+        carousel.addEventListener('mouseleave', () => {
+            isHovering = false;
+            startAutoplay();
+        });
 
         carousel.addEventListener('keydown', event => {
             if (event.key === 'ArrowLeft') goToSlide(activeIndex - 1);
@@ -1309,7 +1375,16 @@
             }
         }, { passive: true });
 
-        showSlide(0, false);
+        reduceMotionQuery.addEventListener?.('change', () => {
+            if (reduceMotionQuery.matches) {
+                stopAutoplay();
+                showSlide(activeIndex < 0 ? 0 : activeIndex, false);
+            } else {
+                startAutoplay();
+            }
+        });
+
+        showSlide(0, true);
         startAutoplay();
     })();
     </script>

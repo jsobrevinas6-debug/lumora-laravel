@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +11,7 @@ use Illuminate\View\View;
 class SellerDashboardController extends Controller
 {
     private const LOW_STOCK_LIMIT = 20;
+
     private const LOW_STOCK_PER_PAGE = 5;
 
     public function index(Request $request): View
@@ -23,7 +23,7 @@ class SellerDashboardController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         $totalOrders = DB::table('order_items as oi')
@@ -43,7 +43,7 @@ class SellerDashboardController extends Controller
             ->where('stock', '<=', self::LOW_STOCK_LIMIT);
 
         if ($lowStockSearch !== '') {
-            $lowStockQuery->where('name', 'like', '%' . $lowStockSearch . '%');
+            $lowStockQuery->where('name', 'like', '%'.$lowStockSearch.'%');
         }
 
         $lowStock = $lowStockQuery
@@ -79,7 +79,7 @@ class SellerDashboardController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->selectRaw('DATE(o.created_at) as day, SUM(oi.price * oi.quantity) as total')
             ->groupBy('day')

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 
 class PayoutController extends Controller
 {
@@ -23,12 +23,12 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         // Platform commission taken off the top, and what the seller actually earns
         $platformCommission = $totalSales * self::COMMISSION_RATE;
-        $sellerEarnings     = $totalSales - $platformCommission;
+        $sellerEarnings = $totalSales - $platformCommission;
 
         $totalOrders = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
@@ -65,21 +65,21 @@ class PayoutController extends Controller
     public function saveMethod(Request $request)
     {
         $request->validate([
-            'method'         => ['required', 'in:gcash,paymaya,bank_transfer'],
-            'account_name'   => ['required', 'string', 'max:255'],
+            'method' => ['required', 'in:gcash,paymaya,bank_transfer'],
+            'account_name' => ['required', 'string', 'max:255'],
             'account_number' => ['required', 'string', 'max:50'],
-            'bank_name'      => ['required_if:method,bank_transfer', 'nullable', 'string', 'max:255'],
+            'bank_name' => ['required_if:method,bank_transfer', 'nullable', 'string', 'max:255'],
         ]);
 
         DB::table('seller_payout_methods')->updateOrInsert(
             ['seller_id' => Auth::id()],
             [
-                'method'         => $request->method,
-                'account_name'   => $request->account_name,
+                'method' => $request->method,
+                'account_name' => $request->account_name,
                 'account_number' => $request->account_number,
-                'bank_name'      => $request->method === 'bank_transfer' ? $request->bank_name : null,
-                'updated_at'     => now(),
-                'created_at'     => now(),
+                'bank_name' => $request->method === 'bank_transfer' ? $request->bank_name : null,
+                'updated_at' => now(),
+                'created_at' => now(),
             ]
         );
 
@@ -105,7 +105,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         $sellerEarnings = $totalSales * (1 - self::COMMISSION_RATE);
@@ -122,15 +122,15 @@ class PayoutController extends Controller
         }
 
         DB::table('payout_requests')->insert([
-            'seller_id'      => $sellerId,
-            'amount'         => $request->amount,
-            'method'         => $payoutMethod->method,
-            'account_name'   => $payoutMethod->account_name,
+            'seller_id' => $sellerId,
+            'amount' => $request->amount,
+            'method' => $payoutMethod->method,
+            'account_name' => $payoutMethod->account_name,
             'account_number' => $payoutMethod->account_number,
-            'bank_name'      => $payoutMethod->bank_name,
-            'status'         => 'pending',
-            'created_at'     => now(),
-            'updated_at'     => now(),
+            'bank_name' => $payoutMethod->bank_name,
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         return back()->with('success', 'Payout request submitted.');
@@ -140,11 +140,13 @@ class PayoutController extends Controller
     {
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $start = Carbon::parse($request->start_date)->startOfDay();
-            $end   = Carbon::parse($request->end_date)->endOfDay();
+            $end = Carbon::parse($request->end_date)->endOfDay();
         } else {
             $days = (int) $request->input('range', 7);
-            if ($days <= 0) $days = 7;
-            $end   = now()->endOfDay();
+            if ($days <= 0) {
+                $days = 7;
+            }
+            $end = now()->endOfDay();
             $start = now()->subDays($days - 1)->startOfDay();
         }
 
@@ -160,7 +162,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->sum(DB::raw('oi.price * oi.quantity'));
 
@@ -171,7 +173,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->distinct('oi.order_id')
             ->count('oi.order_id');
@@ -188,7 +190,7 @@ class PayoutController extends Controller
             'grossSales', 'commission', 'netEarnings', 'totalOrders', 'payouts', 'shopName', 'start', 'end'
         ));
 
-        return $pdf->download('financial-report-' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->download('financial-report-'.now()->format('Y-m-d').'.pdf');
     }
 
     public function performanceReportPdf(Request $request)
@@ -200,7 +202,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->sum(DB::raw('oi.price * oi.quantity'));
 
@@ -208,7 +210,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->distinct('oi.order_id')
             ->count('oi.order_id');
@@ -219,7 +221,7 @@ class PayoutController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->where('p.seller_id', $sellerId)
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->select(
                 'p.name as product_name',
@@ -237,7 +239,7 @@ class PayoutController extends Controller
             'totalSales', 'totalOrders', 'avgOrderValue', 'topProducts', 'shopName', 'start', 'end'
         ));
 
-        return $pdf->download('performance-report-' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->download('performance-report-'.now()->format('Y-m-d').'.pdf');
     }
 
     private function currentShopName(): string

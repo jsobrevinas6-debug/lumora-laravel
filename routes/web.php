@@ -124,6 +124,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/checkout/place-order', [BuyerOrderController::class, 'store'])
     ->name('buyer.checkout.store');
 
+    Route::get('/account/orders', [BuyerOrderController::class, 'index'])
+    ->name('buyer.orders.index');
+
     Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])
     ->name('buyer.orders.show');
 
@@ -145,18 +148,6 @@ Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])
 
 Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
     ->name('google.callback');
-
-Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])
-    ->name('google.redirect');
-
-Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
-    ->name('google.callback');
-
-Route::get('/auth/google/complete', [GoogleController::class, 'showCompletion'])
-    ->name('google.complete');
-
-Route::post('/auth/google/complete', [GoogleController::class, 'complete'])
-    ->name('google.complete.submit');
 
 
 

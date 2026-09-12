@@ -15,6 +15,79 @@ class OrderController extends Controller
     private const CART_KEY = 'lumora_cart';
     private const SELECTED_KEY = 'lumora_cart_selected';
 
+    public function index(Request $request): View
+    {
+        $statuses = [
+            'pending',
+            'processing',
+            'packed',
+            'shipped',
+            'out_for_delivery',
+            'delivered',
+            'cancelled',
+            'returned',
+        ];
+
+        $sortOptions = [
+            'latest',
+            'oldest',
+            'highest',
+            'lowest',
+        ];
+
+        $activeStatus = $request->get('status', 'all');
+
+        if (! in_array($activeStatus, array_merge(['all'], $statuses), true)) {
+            $activeStatus = 'all';
+        }
+
+        $search = trim((string) $request->get('search', ''));
+        $sort = $request->get('sort', 'latest');
+
+        if (! in_array($sort, $sortOptions, true)) {
+            $sort = 'latest';
+        }
+
+        $query = Order::query()
+            ->where('user_id', $request->user()->id)
+            ->with([
+                'items.product',
+                'statusHistory' => function ($query) {
+                    $query->latest();
+                },
+            ]);
+
+        if ($activeStatus !== 'all') {
+            $query->where('status', $activeStatus);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                $query->where('order_number', 'like', "%{$search}%")
+                    ->orWhereHas('items.product', function ($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'highest' => $query->orderByDesc('total'),
+            'lowest' => $query->orderBy('total'),
+            default => $query->latest(),
+        };
+
+        $orders = $query->paginate(10)->withQueryString();
+
+        return view('buyer.orders.index', compact(
+            'orders',
+            'statuses',
+            'activeStatus',
+            'search',
+            'sort'
+        ));
+    }
+
     public function create(Request $request): View|RedirectResponse
     {
         $items = $this->selectedItems($request);
@@ -40,6 +113,7 @@ class OrderController extends Controller
 
         $order = DB::transaction(function () use ($request) {
             $storedCart = $request->session()->get(self::CART_KEY, []);
+
             $selectedIds = collect($request->session()->get(self::SELECTED_KEY, []))
                 ->map(fn ($id) => (int) $id)
                 ->unique()
@@ -83,12 +157,34 @@ class OrderController extends Controller
             }
 
             $shipping = 15;
-            $total = round($lines->sum('line_total') + $shipping, 2);
+
+            $subtotal = round($lines->sum(function (array $line) {
+                return (float) $line['product']->price * $line['quantity'];
+            }), 2);
+
+            $discount = round($lines->sum(function (array $line) {
+                return ((float) $line['product']->price - $line['unit_price']) * $line['quantity'];
+            }), 2);
+
+            $total = round($subtotal + $shipping - $discount, 2);
 
             $order = Order::create([
-                'buyer_id' => $request->user()->id,
+                'order_number' => $this->generateOrderNumber(),
+                'user_id' => $request->user()->id,
+                'seller_id' => $lines->pluck('product.seller_id')->filter()->first(),
                 'status' => 'pending',
+                'payment_status' => 'pending',
+                'payment_method' => $request->payment_method,
+                'subtotal' => $subtotal,
+                'shipping_fee' => $shipping,
+                'discount' => $discount,
                 'total' => $total,
+            ]);
+
+            $order->statusHistory()->create([
+                'status' => 'pending',
+                'remarks' => 'Order Placed',
+                'changed_by' => null,
             ]);
 
             foreach ($lines as $line) {
@@ -96,8 +192,10 @@ class OrderController extends Controller
 
                 $order->items()->create([
                     'product_id' => $product->id,
+                    'seller_id' => $product->seller_id,
                     'quantity' => $line['quantity'],
                     'price' => $line['unit_price'],
+                    'subtotal' => $line['line_total'],
                 ]);
 
                 $product->decrement('stock', $line['quantity']);
@@ -121,9 +219,12 @@ class OrderController extends Controller
 
     public function show(Request $request, Order $order): View
     {
-        abort_unless((int) $order->buyer_id === (int) $request->user()->id, 403);
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 403);
 
-        $order->load('items.product');
+        $order->load([
+            'items.product',
+            'statusHistory.changedBy',
+        ]);
 
         return view('buyer.order-success', compact('order'));
     }
@@ -131,6 +232,7 @@ class OrderController extends Controller
     private function selectedItems(Request $request)
     {
         $storedCart = $request->session()->get(self::CART_KEY, []);
+
         $selectedIds = collect($request->session()->get(self::SELECTED_KEY, []))
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -172,12 +274,34 @@ class OrderController extends Controller
 
     private function summary($items): array
     {
+        $shipping = $items->isEmpty() ? 0 : 15;
+
+        $subtotal = round($items->sum(function (array $item) {
+            return $item['original_price'] * $item['quantity'];
+        }), 2);
+
+        $discount = round($items->sum('line_discount'), 2);
+
+        $total = round($items->sum('line_total') + $shipping, 2);
+
         return [
             'item_count' => (int) $items->sum('quantity'),
-            'subtotal' => round($items->sum(fn (array $item) => $item['original_price'] * $item['quantity']), 2),
-            'discount' => round($items->sum('line_discount'), 2),
-            'shipping' => $items->isEmpty() ? 0 : 15,
-            'total' => round($items->sum('line_total') + ($items->isEmpty() ? 0 : 15), 2),
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'shipping' => $shipping,
+            'total' => $total,
         ];
+    }
+
+    private function generateOrderNumber(): string
+    {
+        $next = ((int) Order::query()->max('id')) + 1;
+
+        do {
+            $orderNumber = 'LMR-' . now()->year . '-' . str_pad((string) $next, 6, '0', STR_PAD_LEFT);
+            $next++;
+        } while (Order::query()->where('order_number', $orderNumber)->exists());
+
+        return $orderNumber;
     }
 }

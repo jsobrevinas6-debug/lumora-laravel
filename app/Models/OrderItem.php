@@ -13,13 +13,20 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'seller_id',
         'quantity',
         'price',
+        'subtotal',
+        'seen_at',
+        'packed_at',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'price' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'seen_at' => 'datetime',
+        'packed_at' => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -30,5 +37,10 @@ class OrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seller_id');
     }
 }

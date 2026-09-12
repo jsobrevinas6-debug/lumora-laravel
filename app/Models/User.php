@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -33,7 +34,11 @@ class User extends Authenticatable
         'street',
         'house_number',
         'email',
+        'google_id',
+        'avatar',
+        'provider',
         'email_verified',
+        'email_verified_at',
         'password',
         'role',
         'status',
@@ -63,5 +68,15 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'password' => 'hashed',
         ];
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function soldOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'seller_id');
     }
 }

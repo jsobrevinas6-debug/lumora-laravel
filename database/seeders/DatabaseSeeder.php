@@ -22,5 +22,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
             'status' => 'active',
         ]);
+
+        $this->call(OrderSeeder::class);
     }
 }

@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\SellerApprovedMail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class DashboardController extends Controller
 {
     public function users()
     {
         $users = DB::table('users')->orderByDesc('created_at')->get();
+
         return view('admin.users', compact('users'));
     }
 
@@ -31,14 +32,14 @@ class DashboardController extends Controller
 
     public function index()
     {
-        $totalSales    = DB::table('order_items as oi')
+        $totalSales = DB::table('order_items as oi')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->sum(DB::raw('oi.price * oi.quantity'));
 
-        $totalOrders   = DB::table('orders')->count();
+        $totalOrders = DB::table('orders')->count();
         $totalProducts = DB::table('products')->count();
-        $totalBuyers   = DB::table('users')->where('role', 'buyer')->count();
+        $totalBuyers = DB::table('users')->where('role', 'buyer')->count();
 
         $applications = DB::table('seller_applications as sa')
             ->join('users as u', 'u.id', '=', 'sa.user_id')
@@ -53,14 +54,16 @@ class DashboardController extends Controller
 
     public function handleApplication($id, $action)
     {
-        $newStatus = match($action) {
+        $newStatus = match ($action) {
             'approve' => 'approved',
-            'reject'  => 'rejected',
+            'reject' => 'rejected',
             'archive' => 'archived',
-            default   => null,
+            default => null,
         };
 
-        if (!$newStatus) abort(404);
+        if (! $newStatus) {
+            abort(404);
+        }
 
         DB::table('seller_applications')->where('id', $id)->update(['status' => $newStatus]);
 
@@ -75,24 +78,28 @@ class DashboardController extends Controller
             }
         }
 
-        session()->flash('flash_success', 'Application ' . $newStatus . '.');
+        session()->flash('flash_success', 'Application '.$newStatus.'.');
+
         return redirect()->route('admin.dashboard');
     }
 
     public function handleUserStatus($id, $action)
     {
-        $newStatus = match($action) {
-            'activate'   => 'active',
-            'suspend'    => 'suspended',
+        $newStatus = match ($action) {
+            'activate' => 'active',
+            'suspend' => 'suspended',
             'deactivate' => 'deactivated',
-            default      => null,
+            default => null,
         };
 
-        if (!$newStatus) abort(404);
+        if (! $newStatus) {
+            abort(404);
+        }
 
         DB::table('users')->where('id', $id)->update(['status' => $newStatus]);
 
-        session()->flash('flash_success', 'User account ' . $newStatus . '.');
+        session()->flash('flash_success', 'User account '.$newStatus.'.');
+
         return redirect()->route('admin.users');
     }
 
@@ -111,7 +118,7 @@ class DashboardController extends Controller
             ->join('users as u', 'u.id', '=', 'p.seller_id')
             ->leftJoin('seller_applications as sa', function ($join) {
                 $join->on('sa.user_id', '=', 'u.id')
-                     ->where('sa.status', '=', 'approved');
+                    ->where('sa.status', '=', 'approved');
             })
             ->select(
                 'p.id as product_id',
@@ -139,42 +146,45 @@ class DashboardController extends Controller
     public function flagProduct($id)
     {
         DB::table('products')->where('id', $id)->update([
-            'status'     => 'flagged',
+            'status' => 'flagged',
             'updated_at' => now(),
         ]);
 
         session()->flash('flash_success', 'Product flagged as prohibited and hidden from the storefront.');
+
         return redirect()->route('admin.compliance');
     }
 
     public function clearProduct($id)
     {
         DB::table('products')->where('id', $id)->update([
-            'status'     => 'active',
+            'status' => 'active',
             'updated_at' => now(),
         ]);
 
         session()->flash('flash_success', 'Product cleared and set back to active.');
+
         return redirect()->route('admin.compliance');
     }
 
     public function warnSeller(Request $request, $id)
     {
         $request->validate([
-            'reason'     => ['required', 'string', 'max:1000'],
+            'reason' => ['required', 'string', 'max:1000'],
             'product_id' => ['nullable', 'integer'],
         ]);
 
         DB::table('seller_warnings')->insert([
-            'seller_id'  => $id,
+            'seller_id' => $id,
             'product_id' => $request->product_id,
-            'reason'     => $request->reason,
+            'reason' => $request->reason,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $seller = DB::table('users')->find($id);
-        session()->flash('flash_success', 'Warning logged for ' . ($seller->name ?? 'this seller') . '.');
+        session()->flash('flash_success', 'Warning logged for '.($seller->name ?? 'this seller').'.');
+
         return redirect()->route('admin.compliance');
     }
 
@@ -214,13 +224,14 @@ class DashboardController extends Controller
         $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);
 
         DB::table('complaints')->where('id', $id)->update([
-            'status'      => 'resolved',
-            'admin_note'  => $request->admin_note,
+            'status' => 'resolved',
+            'admin_note' => $request->admin_note,
             'resolved_at' => now(),
-            'updated_at'  => now(),
+            'updated_at' => now(),
         ]);
 
         session()->flash('flash_success', 'Complaint marked as resolved.');
+
         return redirect()->route('admin.complaints');
     }
 
@@ -229,13 +240,14 @@ class DashboardController extends Controller
         $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);
 
         DB::table('complaints')->where('id', $id)->update([
-            'status'      => 'dismissed',
-            'admin_note'  => $request->admin_note,
+            'status' => 'dismissed',
+            'admin_note' => $request->admin_note,
             'resolved_at' => now(),
-            'updated_at'  => now(),
+            'updated_at' => now(),
         ]);
 
         session()->flash('flash_success', 'Complaint dismissed.');
+
         return redirect()->route('admin.complaints');
     }
 
@@ -251,14 +263,15 @@ class DashboardController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->select('u.id as seller_id', 'u.name as seller_name', DB::raw('SUM(oi.price * oi.quantity) as gross_sales'))
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('gross_sales')
             ->get()
             ->map(function ($row) use ($commissionRate) {
-                $row->commission   = round($row->gross_sales * $commissionRate, 2);
+                $row->commission = round($row->gross_sales * $commissionRate, 2);
                 $row->net_earnings = round($row->gross_sales - $row->commission, 2);
+
                 return $row;
             });
 
@@ -276,11 +289,13 @@ class DashboardController extends Controller
     {
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $start = Carbon::parse($request->start_date)->startOfDay();
-            $end   = Carbon::parse($request->end_date)->endOfDay();
+            $end = Carbon::parse($request->end_date)->endOfDay();
         } else {
             $days = (int) $request->input('range', 7);
-            if ($days <= 0) $days = 7;
-            $end   = now()->endOfDay();
+            if ($days <= 0) {
+                $days = 7;
+            }
+            $end = now()->endOfDay();
             $start = now()->subDays($days - 1)->startOfDay();
         }
 
@@ -293,12 +308,12 @@ class DashboardController extends Controller
 
         $totalSales = DB::table('order_items as oi')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         $totalOrders = DB::table('orders')
-            ->where('status', 'paid')
+            ->where('payment_status', 'paid')
             ->whereBetween('created_at', [$start, $end])
             ->count();
 
@@ -308,7 +323,7 @@ class DashboardController extends Controller
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->select(
                 'p.name as product_name',
@@ -325,7 +340,7 @@ class DashboardController extends Controller
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->select(
                 'u.name as seller_name',
@@ -341,7 +356,7 @@ class DashboardController extends Controller
             'totalSales', 'totalOrders', 'avgOrderValue', 'topProducts', 'topSellers', 'start', 'end'
         ));
 
-        return $pdf->download('sales-summary-report-' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->download('sales-summary-report-'.now()->format('Y-m-d').'.pdf');
     }
 
     public function commissionReportPdf(Request $request)
@@ -353,26 +368,27 @@ class DashboardController extends Controller
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.status', 'paid')
+            ->where('o.payment_status', 'paid')
             ->whereBetween('o.created_at', [$start, $end])
             ->select('u.id as seller_id', 'u.name as seller_name', DB::raw('SUM(oi.price * oi.quantity) as gross_sales'))
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('gross_sales')
             ->get()
             ->map(function ($row) use ($commissionRate) {
-                $row->commission   = round($row->gross_sales * $commissionRate, 2);
+                $row->commission = round($row->gross_sales * $commissionRate, 2);
                 $row->net_earnings = round($row->gross_sales - $row->commission, 2);
+
                 return $row;
             });
 
         $totalGrossSales = $sellerSales->sum('gross_sales');
         $totalCommission = $sellerSales->sum('commission');
-        $totalNet        = $sellerSales->sum('net_earnings');
+        $totalNet = $sellerSales->sum('net_earnings');
 
         $pdf = Pdf::loadView('admin.reports.commission-pdf', compact(
             'sellerSales', 'totalGrossSales', 'totalCommission', 'totalNet', 'commissionRate', 'start', 'end'
         ));
 
-        return $pdf->download('commission-report-' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->download('commission-report-'.now()->format('Y-m-d').'.pdf');
     }
 }
