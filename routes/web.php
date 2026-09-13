@@ -20,6 +20,14 @@ Route::get('/about', function () {
     return view('about');
 })->name('about');
 
+Route::get('/dashboard', function () {
+    return match (request()->user()->role) {
+        'admin' => redirect()->route('admin.dashboard'),
+        'seller' => redirect()->route('seller.dashboard'),
+        default => redirect()->route('shop.index'),
+    };
+})->middleware('auth')->name('dashboard');
+
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

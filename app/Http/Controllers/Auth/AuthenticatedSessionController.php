@@ -29,28 +29,11 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $redirectTo = $request->input('redirect_to');
-
-        if (
-              is_string($redirectTo) &&
-              str_starts_with($redirectTo, '/') &&
-              ! str_starts_with($redirectTo, '//')
-        ) {
-              return redirect($redirectTo);
-        }
-
-
-        $redirectTo = $request->input('redirect_to');
         if (is_string($redirectTo) && str_starts_with($redirectTo, '/') && ! str_starts_with($redirectTo, '//')) {
             return redirect($redirectTo);
         }
 
-        $role = Auth::user()->role;
-
-        return match($role) {
-            'admin'  => redirect()->route('admin.dashboard'),
-            'seller' => redirect()->route('seller.dashboard'),
-            default  => redirect()->route('shop.index'),
-        };
+        return redirect()->route('dashboard');
     }
 
     /**

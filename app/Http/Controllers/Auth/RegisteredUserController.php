@@ -165,6 +165,6 @@ class RegisteredUserController extends Controller
             return redirect()->route('seller.pending');
         }
 
-        return redirect()->route('shop.index');
+        return redirect()->route('dashboard');
     }
 }

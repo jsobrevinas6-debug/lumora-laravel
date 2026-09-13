@@ -196,10 +196,28 @@ return new class extends Migration
     private function backfillOrderItems(): void
     {
         if (Schema::hasColumn('order_items', 'seller_id')) {
-            DB::table('order_items as oi')
-                ->join('products as p', 'p.id', '=', 'oi.product_id')
-                ->whereNull('oi.seller_id')
-                ->update(['oi.seller_id' => DB::raw('p.seller_id')]);
+            DB::table('order_items')
+                ->whereNull('seller_id')
+                ->whereNotNull('product_id')
+                ->orderBy('id')
+                ->select('id', 'product_id')
+                ->chunkById(100, function ($items): void {
+                    $productIds = $items->pluck('product_id')->filter()->unique()->all();
+
+                    $sellerIds = DB::table('products')
+                        ->whereIn('id', $productIds)
+                        ->pluck('seller_id', 'id');
+
+                    foreach ($items as $item) {
+                        $sellerId = $sellerIds[$item->product_id] ?? null;
+
+                        if ($sellerId !== null) {
+                            DB::table('order_items')
+                                ->where('id', $item->id)
+                                ->update(['seller_id' => $sellerId]);
+                        }
+                    }
+                });
         }
 
         if (Schema::hasColumn('order_items', 'subtotal')) {
@@ -209,10 +227,31 @@ return new class extends Migration
         }
 
         if (Schema::hasColumn('orders', 'seller_id')) {
-            DB::table('orders as o')
-                ->join('order_items as oi', 'oi.order_id', '=', 'o.id')
-                ->whereNull('o.seller_id')
-                ->update(['o.seller_id' => DB::raw('oi.seller_id')]);
+            DB::table('orders')
+                ->whereNull('seller_id')
+                ->orderBy('id')
+                ->select('id')
+                ->chunkById(100, function ($orders): void {
+                    $orderIds = $orders->pluck('id')->all();
+
+                    $sellerIds = DB::table('order_items')
+                        ->whereIn('order_id', $orderIds)
+                        ->whereNotNull('seller_id')
+                        ->orderBy('id')
+                        ->get(['order_id', 'seller_id'])
+                        ->groupBy('order_id')
+                        ->map(fn ($items) => $items->first()->seller_id);
+
+                    foreach ($orders as $order) {
+                        $sellerId = $sellerIds[$order->id] ?? null;
+
+                        if ($sellerId !== null) {
+                            DB::table('orders')
+                                ->where('id', $order->id)
+                                ->update(['seller_id' => $sellerId]);
+                        }
+                    }
+                });
         }
     }
 
