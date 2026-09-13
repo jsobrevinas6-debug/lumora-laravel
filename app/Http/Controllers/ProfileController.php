@@ -33,6 +33,22 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
+    public function updateAddress(Request $request): RedirectResponse
+    {
+        $validated = $request->validateWithBag('addressUpdate', [
+            'province' => ['nullable', 'string', 'max:255'],
+            'municipality' => ['nullable', 'string', 'max:255'],
+            'barangay' => ['nullable', 'string', 'max:255'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'house_number' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $request->user()->update($validated);
+
+        return Redirect::to(route('profile.edit') . '#shipping-address')
+            ->with('status', 'address-updated');
+    }
+
     public function destroy(Request $request): RedirectResponse
     {
         $request->validateWithBag('userDeletion', [
