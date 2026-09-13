@@ -11,6 +11,7 @@ use App\Http\Controllers\Seller\ProductController;
 use App\Http\Controllers\Seller\PayoutController;
 use App\Http\Controllers\Seller\OrderController;
 use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
+use App\Http\Controllers\Buyer\PaymentMethodController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
@@ -135,6 +136,18 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/account/orders', [BuyerOrderController::class, 'index'])
     ->name('buyer.orders.index');
+
+    Route::get('/account/payment-methods', [PaymentMethodController::class, 'index'])
+    ->name('buyer.payment-methods.index');
+
+    Route::post('/account/payment-methods', [PaymentMethodController::class, 'store'])
+    ->name('buyer.payment-methods.store');
+
+    Route::patch('/account/payment-methods/{paymentMethod}/default', [PaymentMethodController::class, 'setDefault'])
+    ->name('buyer.payment-methods.default');
+
+    Route::delete('/account/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy'])
+    ->name('buyer.payment-methods.destroy');
 
     Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])
     ->name('buyer.orders.show');

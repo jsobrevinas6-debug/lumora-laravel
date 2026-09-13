@@ -190,15 +190,6 @@
 
             @include('profile.partials.update-profile-information-form', ['isGoogleAccount' => $isGoogleAccount])
             @include('profile.partials.update-shipping-address-form')
-            <x-buyer-profile.section-card
-                title="Payment Methods"
-                description="Manage saved payment options for faster checkout."
-                id="payment-methods"
-                class="profile-scroll-section"
-                data-profile-section
-            >
-                <p class="section-empty-note">Cash on delivery is available for eligible orders.</p>
-            </x-buyer-profile.section-card>
             @include('profile.partials.update-password-form')
         </section>
     </div>

@@ -165,6 +165,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
+            margin-bottom: 10px;
             min-height: 61px;
             padding: 0 17px;
             border: 1px solid var(--rose-soft);
@@ -173,6 +174,7 @@
             font-size: 15px;
         }
         .payment-option input { width: 21px; height: 21px; accent-color: var(--plum); }
+        .payment-option span small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
         .place-order {
             width: 100%;
             height: 69px;
@@ -284,10 +286,35 @@
             <form method="POST" action="{{ route('buyer.checkout.store') }}">
                 @csrf
                 <label class="payment-label" for="payment_method">Payment method</label>
-                <label class="payment-option">
-                    <input id="payment_method" type="radio" name="payment_method" value="cod" checked>
-                    <span>Cash on Delivery</span>
-                </label>
+                @php
+                    $checkoutPaymentMethods = collect($paymentMethods ?? [])->unique('type')->values();
+                    $defaultPaymentMethod = $checkoutPaymentMethods->firstWhere('is_default', true);
+                    $selectedPaymentType = old('payment_method', $defaultPaymentMethod?->type ?? 'cod');
+                    $paymentTypeLabels = [
+                        'cod' => 'Cash on Delivery',
+                        'gcash' => 'GCash',
+                        'maya' => 'Maya',
+                        'bank_transfer' => 'Bank Transfer',
+                        'card_reference' => 'Card Reference',
+                    ];
+                @endphp
+
+                @foreach($checkoutPaymentMethods as $method)
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="{{ $method->type }}" @checked($selectedPaymentType === $method->type)>
+                        <span>
+                            {{ $paymentTypeLabels[$method->type] ?? ucwords(str_replace('_', ' ', $method->type)) }}
+                            <small>{{ $method->provider ?: $method->account_name ?: 'Saved payment method' }}</small>
+                        </span>
+                    </label>
+                @endforeach
+
+                @unless($checkoutPaymentMethods->contains('type', 'cod'))
+                    <label class="payment-option">
+                        <input id="payment_method" type="radio" name="payment_method" value="cod" @checked($selectedPaymentType === 'cod')>
+                        <span>Cash on Delivery</span>
+                    </label>
+                @endunless
                 <button class="place-order" type="submit">Place order</button>
             </form>
         </aside>

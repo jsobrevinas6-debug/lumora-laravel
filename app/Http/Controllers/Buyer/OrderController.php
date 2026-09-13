@@ -102,13 +102,18 @@ class OrderController extends Controller
             'cartItems' => $items,
             'summary' => $this->summary($items),
             'buyer' => $request->user(),
+            'paymentMethods' => $request->user()
+                ->paymentMethods()
+                ->orderByDesc('is_default')
+                ->latest()
+                ->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'payment_method' => ['required', 'in:cod'],
+            'payment_method' => ['required', 'in:cod,gcash,maya,bank_transfer,card_reference'],
         ]);
 
         $order = DB::transaction(function () use ($request) {
