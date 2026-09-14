@@ -541,7 +541,7 @@
         .curated-card{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
         .curated-card img{display:block;width:100%;height:112px;object-fit:cover}
         .curated-card span{display:flex;align-items:center;justify-content:space-between;padding:12px 13px;color:var(--plum);font-size:12px;font-weight:700}
-        .curated-card span::after{content:'→';color:var(--rose);font-size:16px}
+        .curated-card span::after{content:'â†’';color:var(--rose);font-size:16px}
         .developers-section{max-width:1240px;margin:58px auto 0;padding:0 24px}
         .developers-head{text-align:center;margin-bottom:24px}
         .developers-head h2{margin:0;color:var(--plum);font-family:'Playfair Display',serif;font-size:34px;font-weight:600;line-height:1.1}
@@ -732,12 +732,12 @@
                             </div>
 
                             <a href="{{ route('profile.edit') }}" class="account-menu-link" role="menuitem">
-                                <span class="account-menu-icon">♙</span>
+                                <span class="account-menu-icon">â™™</span>
                                 <span>Profile / Settings</span>
                             </a>
 
                             <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
-                                <span class="account-menu-icon">▤</span>
+                                <span class="account-menu-icon">â–¤</span>
                                 <span>My Orders</span>
                             </a>
 
@@ -745,7 +745,7 @@
                                 <form method="POST" action="{{ route('switchToSeller') }}">
                                     @csrf
                                     <button type="submit" class="account-menu-button switch-seller" role="menuitem">
-                                        <span class="account-menu-icon">▣</span>
+                                        <span class="account-menu-icon">â–£</span>
                                         <span>Switch to Seller Dashboard</span>
                                     </button>
                                 </form>
@@ -755,7 +755,7 @@
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="account-menu-button logout-menu" role="menuitem">
-                                    <span class="account-menu-icon">↪</span>
+                                    <span class="account-menu-icon">â†ª</span>
                                     <span>Log out</span>
                                 </button>
                             </form>
@@ -786,13 +786,13 @@
                         <p class="hero-eyebrow">{{ $slide['eyebrow'] }}</p>
                         <h1 class="hero-title">{{ $slide['title'] }}</h1>
                         <p class="hero-description">{{ $slide['description'] }}</p>
-                        <a class="hero-cta" href="{{ $slide['url'] }}">{{ $slide['button'] }} <span class="hero-cta-arrow">→</span></a>
+                        <a class="hero-cta" href="{{ $slide['url'] }}">{{ $slide['button'] }} <span class="hero-cta-arrow">â†’</span></a>
                     </div>
                 </article>
             @endforeach
         </div>
-        <button class="hero-arrow prev" type="button" data-carousel-prev aria-label="Previous slide">‹</button>
-        <button class="hero-arrow next" type="button" data-carousel-next aria-label="Next slide">›</button>
+        <button class="hero-arrow prev" type="button" data-carousel-prev aria-label="Previous slide">â€¹</button>
+        <button class="hero-arrow next" type="button" data-carousel-next aria-label="Next slide">â€º</button>
         <div class="hero-footer">
             <div class="hero-counter"><b data-carousel-current>01</b> <span>/ {{ str_pad(count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span></div>
             <div class="hero-dots" role="tablist" aria-label="Choose a hero slide">
@@ -842,53 +842,71 @@
     <div class="categories">
         <a href="{{ route('shop.index') }}?category=apple" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-phone.jpg') }}" alt="Phone"></div>
-            <span>Phone</span><small>EXPLORE&nbsp; →</small>
+            <span>Phone</span><small>EXPLORE&nbsp; â†’</small>
         </a>
         <a href="{{ route('shop.index') }}?category=computers" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-laptop.jpg') }}" alt="Laptop"></div>
-            <span>Laptop</span><small>EXPLORE&nbsp; →</small>
+            <span>Laptop</span><small>EXPLORE&nbsp; â†’</small>
         </a>
         <a href="{{ route('shop.index') }}?category=basketball" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-basketball-shoes.jpg') }}" alt="Basketball Shoes"></div>
-            <span>Basketball Shoes</span><small>EXPLORE&nbsp; →</small>
+            <span>Basketball Shoes</span><small>EXPLORE&nbsp; â†’</small>
         </a>
         <a href="{{ route('shop.index') }}?category=mens-clothing" class="cat-card">
-            <div class="cat-icon"><img src="{{ asset('images/lumora-mens-clothing.jpg') }}" alt="Men’s Clothing"></div>
-            <span>Men’s Clothing</span><small>EXPLORE&nbsp; →</small>
+            <div class="cat-icon"><img src="{{ asset('images/lumora-mens-clothing.jpg') }}" alt="Menâ€™s Clothing"></div>
+            <span>Menâ€™s Clothing</span><small>EXPLORE&nbsp; â†’</small>
         </a>
         <a href="{{ route('shop.index') }}?category=womens-clothing" class="cat-card">
-            <div class="cat-icon"><img src="{{ asset('images/lumora-womens-dress.jpg') }}" alt="Women’s Dress"></div>
-            <span>Women’s Dress</span><small>EXPLORE&nbsp; →</small>
+            <div class="cat-icon"><img src="{{ asset('images/lumora-womens-dress.jpg') }}" alt="Womenâ€™s Dress"></div>
+            <span>Womenâ€™s Dress</span><small>EXPLORE&nbsp; â†’</small>
         </a>
     </div>
 
     <!-- ===================== BENEFITS ===================== -->
     <section class="benefits-strip" aria-label="Lumora shopping benefits">
-        <div class="benefit"><span class="benefit-icon">♧</span><div><strong>Free Shipping</strong><span>On selected orders</span></div></div>
-        <div class="benefit"><span class="benefit-icon">↺</span><div><strong>Easy Returns</strong><span>Simple return policy</span></div></div>
-        <div class="benefit"><span class="benefit-icon">⌑</span><div><strong>Secure Payment</strong><span>Protected checkout</span></div></div>
+        <div class="benefit"><span class="benefit-icon">â™§</span><div><strong>Free Shipping</strong><span>On selected orders</span></div></div>
+        <div class="benefit"><span class="benefit-icon">â†º</span><div><strong>Easy Returns</strong><span>Simple return policy</span></div></div>
+        <div class="benefit"><span class="benefit-icon">âŒ‘</span><div><strong>Secure Payment</strong><span>Protected checkout</span></div></div>
     </section>
 
     <!-- ===================== BEST SELLERS ===================== -->
     <section class="homepage-best-sellers" aria-labelledby="bestSellersHeading">
-        <div class="homepage-best-sellers-head"><h2 id="bestSellersHeading">Best Sellers</h2><a href="{{ route('shop.index') }}?sort=top_sales">View all →</a></div>
+        <div class="homepage-best-sellers-head"><h2 id="bestSellersHeading">Best Sellers</h2><a href="{{ route('shop.index') }}?sort=top_sales">View all â†’</a></div>
         <div class="homepage-product-grid">
             @forelse (collect($products ?? [])->sortByDesc(fn($item) => (int) ($item->sales_count ?? 0))->take(4) as $product)
                 @php
                     $originalPrice = (float) ($product->price ?? 0);
                     $discountPercent = (float) ($product->discount_percent ?? 0);
                     $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - $discountPercent / 100) : $originalPrice;
-                    $rating = (float) ($product->rating ?? 0);
+                    $rating = round((float) ($product->reviews_avg_rating ?? 0), 1);
+                    $reviewCount = (int) ($product->reviews_count ?? 0);
                 @endphp
                 <article class="homepage-product-card">
-                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">♡</button>
+                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">â™¡</button>
                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                     <div class="homepage-product-image">@if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="fallback">Lumora</span>@endif</div>
-                    <div class="homepage-product-info"><div class="seller">Lumora seller</div><h3>{{ $product->name }}</h3><div class="homepage-price"><strong>₱{{ number_format($finalPrice, 2) }}</strong>@if ($discountPercent > 0)<del>₱{{ number_format($originalPrice, 2) }}</del>@endif</div><div class="homepage-rating">{{ $rating > 0 ? str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)) : '☆ ☆ ☆ ☆ ☆' }} <span>{{ $rating > 0 ? number_format($rating, 2) : 'No ratings yet' }}</span></div><div class="homepage-product-actions"><a href="{{ route('shop.product', ['id' => $product->id]) }}">View product</a><form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" class="homepage-cart-form lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+                    <div class="homepage-product-info">
+                        <div class="seller">Lumora seller</div>
+                        <h3>{{ $product->name }}</h3>
+                        <div class="homepage-price">
+                            <strong>&#8369;{{ number_format($finalPrice, 2) }}</strong>
+                            @if ($discountPercent > 0)
+                                <del>&#8369;{{ number_format($originalPrice, 2) }}</del>
+                            @endif
+                        </div>
+                        <div class="homepage-rating">
+                            {!! str_repeat('&#9733;', (int) round($rating)) !!}{!! str_repeat('&#9734;', 5 - (int) round($rating)) !!}
+                            <span>{{ number_format($rating, 1) }} ({{ $reviewCount }})</span>
+                        </div>
+                        <div class="homepage-product-actions">
+                            <a href="{{ route('shop.product', ['id' => $product->id]) }}">View product</a>
+                            <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" class="homepage-cart-form lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
     @csrf
     <input type="hidden" name="quantity" value="1">
     <button type="submit">Add to cart</button>
-</form></div></div>
+                            </form>
+                        </div>
+                    </div>
                 </article>
             @empty
                 <p class="muted">Our bestseller collection will appear here as products are added.</p>
@@ -902,11 +920,11 @@
         </div>
         <div class="deals-strip">
             @foreach ([
-                ['name'=>'Rose Clay Mask','now'=>'₱349','was'=>'₱499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
-                ['name'=>'Silk Lip Tint','now'=>'₱199','was'=>'₱280','disc'=>'29% off','color'=>'linear-gradient(135deg,#E2703A,#B4502A)'],
-                ['name'=>'Amber Eau de Parfum','now'=>'₱899','was'=>'₱1,299','disc'=>'31% off','color'=>'linear-gradient(135deg,#7A5A9E,#3D1B3D)'],
-                ['name'=>'Gold Hoop Earrings','now'=>'₱450','was'=>'₱620','disc'=>'27% off','color'=>'linear-gradient(135deg,#C9972B,#8A6314)'],
-                ['name'=>'Linen Candle Set','now'=>'₱520','was'=>'₱690','disc'=>'25% off','color'=>'linear-gradient(135deg,#5A8A6E,#2E4F3C)'],
+                ['name'=>'Rose Clay Mask','now'=>'â‚±349','was'=>'â‚±499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
+                ['name'=>'Silk Lip Tint','now'=>'â‚±199','was'=>'â‚±280','disc'=>'29% off','color'=>'linear-gradient(135deg,#E2703A,#B4502A)'],
+                ['name'=>'Amber Eau de Parfum','now'=>'â‚±899','was'=>'â‚±1,299','disc'=>'31% off','color'=>'linear-gradient(135deg,#7A5A9E,#3D1B3D)'],
+                ['name'=>'Gold Hoop Earrings','now'=>'â‚±450','was'=>'â‚±620','disc'=>'27% off','color'=>'linear-gradient(135deg,#C9972B,#8A6314)'],
+                ['name'=>'Linen Candle Set','now'=>'â‚±520','was'=>'â‚±690','disc'=>'25% off','color'=>'linear-gradient(135deg,#5A8A6E,#2E4F3C)'],
             ] as $d)
                 <div class="deal-card">
                     <div class="deal-thumb" style="background:{{ $d['color'] }}">
@@ -1026,14 +1044,22 @@
                             <div class="product-body">
                                 @if (is_object($item))
                                     <p class="name">{{ $item->name }}</p>
-                                    <p class="product-price">₱{{ number_format($item->price, 2) }}</p>
+                                    <p class="product-price">â‚±{{ number_format($item->price, 2) }}</p>
                                 @else
                                     <p class="name">{{ $item['name'] }}</p>
-                                    <p class="product-price">₱{{ $item['price'] }}</p>
+                                    <p class="product-price">â‚±{{ $item['price'] }}</p>
                                 @endif
+                                @php
+                                    $compactRating = is_object($item) ? round((float) ($item->reviews_avg_rating ?? 0), 1) : 0;
+                                    $compactReviews = is_object($item) ? (int) ($item->reviews_count ?? 0) : 0;
+                                    $compactSold = is_object($item) ? (int) ($item->sales_count ?? 0) : 0;
+                                @endphp
                                 <div class="product-rating">
                                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8l-6.2 3.2L7 14.2l-5-4.9 6.9-1L12 2Z"/></svg>
-                                    4.8 · 120 sold
+                                    {{ number_format($compactRating, 1) }} ({{ $compactReviews }})
+                                    @if ($compactSold > 0)
+                                        &middot; {{ number_format($compactSold) }} sold
+                                    @endif
                                 </div>
                             </div>
                         </div>

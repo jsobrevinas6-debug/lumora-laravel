@@ -8,12 +8,14 @@ use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class OrderController extends Controller
 {
     private const CART_KEY = 'lumora_cart';
     private const SELECTED_KEY = 'lumora_cart_selected';
+    private const BUY_NOW_KEY = 'lumora_buy_now';
 
     public function index(Request $request): View
     {
@@ -90,9 +92,23 @@ class OrderController extends Controller
 
     public function create(Request $request): View|RedirectResponse
     {
-        $items = $this->selectedItems($request);
+        $checkoutMode = $request->routeIs('buyer.buy-now.checkout') ? 'buy_now' : 'cart';
+        $items = $checkoutMode === 'buy_now' ? $this->buyNowItems($request) : $this->selectedItems($request);
+        $cartPaymentOption = $request->input('cart_payment_option', 'cod');
+
+        if (! in_array($cartPaymentOption, ['cod', 'wallet'], true)) {
+            $cartPaymentOption = 'cod';
+        }
+
+        $request->session()->put('cart_payment_option', $cartPaymentOption);
 
         if ($items->isEmpty()) {
+            if ($checkoutMode === 'buy_now') {
+                return redirect()
+                    ->route('shop.index')
+                    ->with('error', 'Choose an available product before checkout.');
+            }
+
             return redirect()
                 ->route('buyer.cart')
                 ->with('error', 'Select at least one product before checkout.');
@@ -102,64 +118,87 @@ class OrderController extends Controller
             'cartItems' => $items,
             'summary' => $this->summary($items),
             'buyer' => $request->user(),
+            'cartPaymentOption' => $cartPaymentOption,
+            'checkoutMode' => $checkoutMode,
+            'returnUrl' => $checkoutMode === 'buy_now'
+                ? route('shop.product', ['id' => $items->first()['product_id']])
+                : route('buyer.cart'),
             'paymentMethods' => $request->user()
                 ->paymentMethods()
+                ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
                 ->orderByDesc('is_default')
                 ->latest()
                 ->get(),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function buyNow(Request $request, Product $product): RedirectResponse
     {
-        $request->validate([
-            'payment_method' => ['required', 'in:cod,gcash,maya,bank_transfer,card_reference'],
+        abort_unless($product->status === 'active', 404);
+
+        $validated = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $order = DB::transaction(function () use ($request) {
-            $storedCart = $request->session()->get(self::CART_KEY, []);
+        $quantity = (int) $validated['quantity'];
 
-            $selectedIds = collect($request->session()->get(self::SELECTED_KEY, []))
-                ->map(fn ($id) => (int) $id)
-                ->unique()
-                ->values();
+        if ($quantity > (int) $product->stock) {
+            return back()
+                ->with('error', 'The requested quantity is not available.')
+                ->withInput();
+        }
 
-            if ($selectedIds->isEmpty()) {
-                abort(422, 'Select at least one product before checkout.');
+        $request->session()->put(self::BUY_NOW_KEY, [
+            'product_id' => $product->id,
+            'quantity' => $quantity,
+        ]);
+
+        return redirect()->route('buyer.buy-now.checkout');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'checkout_mode' => ['nullable', 'string', 'in:cart,buy_now'],
+            'payment_method' => ['required', 'string', 'in:cod,gcash,maya,bank_transfer'],
+            'payment_method_id' => ['nullable', 'integer'],
+        ]);
+
+        $selectedWallet = null;
+
+        if ($validated['payment_method'] === 'cod' && ! empty($validated['payment_method_id'])) {
+            return back()
+                ->withErrors(['payment_method_id' => 'Cash on Delivery cannot use a saved wallet.'])
+                ->withInput();
+        }
+
+        if (! empty($validated['payment_method_id'])) {
+            $selectedWallet = $request->user()
+                ->paymentMethods()
+                ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+                ->find($validated['payment_method_id']);
+
+            if (! $selectedWallet || $selectedWallet->type !== $validated['payment_method']) {
+                return back()
+                    ->withErrors(['payment_method_id' => 'Select a saved wallet that matches your payment method.'])
+                    ->withInput();
             }
+        }
 
-            $products = Product::query()
-                ->whereIn('id', $selectedIds)
-                ->where('status', 'active')
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
+        if ($validated['payment_method'] === 'cod') {
+            $selectedWallet = null;
+        } elseif (! $selectedWallet) {
+            return back()
+                ->withErrors(['payment_method_id' => 'Select a saved wallet for this payment method.'])
+                ->withInput();
+        }
 
-            $lines = collect();
+        $checkoutMode = $validated['checkout_mode'] ?? 'cart';
 
-            foreach ($selectedIds as $productId) {
-                $product = $products->get($productId);
-                $quantity = (int) ($storedCart[(string) $productId]['quantity'] ?? 0);
-
-                if (! $product || $quantity < 1) {
-                    abort(422, 'One of the selected products is no longer available.');
-                }
-
-                if ($quantity > (int) $product->stock) {
-                    abort(422, "Insufficient stock for {$product->name}.");
-                }
-
-                $originalPrice = (float) $product->price;
-                $discountPercent = (float) ($product->discount_percent ?? 0);
-                $unitPrice = round($originalPrice * (1 - ($discountPercent / 100)), 2);
-
-                $lines->push([
-                    'product' => $product,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'line_total' => round($unitPrice * $quantity, 2),
-                ]);
-            }
+        $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode) {
+            $lines = $checkoutMode === 'buy_now'
+                ? $this->buyNowOrderLines($request)
+                : $this->cartOrderLines($request);
 
             $shipping = 15;
 
@@ -173,18 +212,25 @@ class OrderController extends Controller
 
             $total = round($subtotal + $shipping - $discount, 2);
 
-            $order = Order::create([
+            $orderData = [
                 'order_number' => $this->generateOrderNumber(),
                 'user_id' => $request->user()->id,
                 'seller_id' => $lines->pluck('product.seller_id')->filter()->first(),
                 'status' => 'pending',
                 'payment_status' => 'pending',
-                'payment_method' => $request->payment_method,
+                'payment_method' => $validated['payment_method'],
+                'payment_method_id' => $selectedWallet?->id,
                 'subtotal' => $subtotal,
                 'shipping_fee' => $shipping,
                 'discount' => $discount,
                 'total' => $total,
-            ]);
+            ];
+
+            if (Schema::hasColumn('orders', 'buyer_id')) {
+                $orderData['buyer_id'] = $request->user()->id;
+            }
+
+            $order = Order::create($orderData);
 
             $order->statusHistory()->create([
                 'status' => 'pending',
@@ -207,12 +253,18 @@ class OrderController extends Controller
                 $product->increment('sales_count', $line['quantity']);
             }
 
-            $remainingCart = collect($storedCart)
-                ->reject(fn ($item, $id) => $selectedIds->contains((int) $id))
-                ->all();
+            if ($checkoutMode === 'buy_now') {
+                $request->session()->forget(self::BUY_NOW_KEY);
+            } else {
+                $selectedIds = $lines->pluck('product.id')->map(fn ($id) => (int) $id);
+                $storedCart = $request->session()->get(self::CART_KEY, []);
+                $remainingCart = collect($storedCart)
+                    ->reject(fn ($item, $id) => $selectedIds->contains((int) $id))
+                    ->all();
 
-            $request->session()->put(self::CART_KEY, $remainingCart);
-            $request->session()->put(self::SELECTED_KEY, []);
+                $request->session()->put(self::CART_KEY, $remainingCart);
+                $request->session()->put(self::SELECTED_KEY, []);
+            }
 
             return $order;
         });
@@ -275,6 +327,120 @@ class OrderController extends Controller
                 'line_total' => round($unitPrice * $quantity, 2),
             ];
         })->filter()->values();
+    }
+
+    private function buyNowItems(Request $request)
+    {
+        $payload = $request->session()->get(self::BUY_NOW_KEY);
+
+        if (! is_array($payload)) {
+            return collect();
+        }
+
+        $product = Product::query()
+            ->where('status', 'active')
+            ->find((int) ($payload['product_id'] ?? 0));
+
+        $quantity = (int) ($payload['quantity'] ?? 0);
+
+        if (! $product || $quantity < 1 || $quantity > (int) $product->stock) {
+            return collect();
+        }
+
+        $originalPrice = (float) $product->price;
+        $discountPercent = (float) ($product->discount_percent ?? 0);
+        $unitPrice = round($originalPrice * (1 - ($discountPercent / 100)), 2);
+
+        return collect([[
+            'product' => $product,
+            'product_id' => $product->id,
+            'quantity' => $quantity,
+            'original_price' => $originalPrice,
+            'unit_price' => $unitPrice,
+            'line_discount' => round(($originalPrice - $unitPrice) * $quantity, 2),
+            'line_total' => round($unitPrice * $quantity, 2),
+        ]]);
+    }
+
+    private function cartOrderLines(Request $request)
+    {
+        $storedCart = $request->session()->get(self::CART_KEY, []);
+
+        $selectedIds = collect($request->session()->get(self::SELECTED_KEY, []))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($selectedIds->isEmpty()) {
+            abort(422, 'Select at least one product before checkout.');
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $selectedIds)
+            ->where('status', 'active')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        $lines = collect();
+
+        foreach ($selectedIds as $productId) {
+            $product = $products->get($productId);
+            $quantity = (int) ($storedCart[(string) $productId]['quantity'] ?? 0);
+
+            if (! $product || $quantity < 1) {
+                abort(422, 'One of the selected products is no longer available.');
+            }
+
+            if ($quantity > (int) $product->stock) {
+                abort(422, "Insufficient stock for {$product->name}.");
+            }
+
+            $lines->push($this->orderLine($product, $quantity));
+        }
+
+        return $lines;
+    }
+
+    private function buyNowOrderLines(Request $request)
+    {
+        $payload = $request->session()->get(self::BUY_NOW_KEY);
+
+        if (! is_array($payload)) {
+            abort(422, 'Choose an available product before checkout.');
+        }
+
+        $product = Product::query()
+            ->where('status', 'active')
+            ->whereKey((int) ($payload['product_id'] ?? 0))
+            ->lockForUpdate()
+            ->first();
+
+        $quantity = (int) ($payload['quantity'] ?? 0);
+
+        if (! $product || $quantity < 1) {
+            abort(422, 'The selected product is no longer available.');
+        }
+
+        if ($quantity > (int) $product->stock) {
+            abort(422, "Insufficient stock for {$product->name}.");
+        }
+
+        return collect([$this->orderLine($product, $quantity)]);
+    }
+
+    private function orderLine(Product $product, int $quantity): array
+    {
+        $originalPrice = (float) $product->price;
+        $discountPercent = (float) ($product->discount_percent ?? 0);
+        $unitPrice = round($originalPrice * (1 - ($discountPercent / 100)), 2);
+
+        return [
+            'product' => $product,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'line_total' => round($unitPrice * $quantity, 2),
+        ];
     }
 
     private function summary($items): array

@@ -23,11 +23,25 @@ class CartController extends Controller
 
         $selectedItems = $cart->filter(fn (array $item) => $selectedIds->contains($item['product_id']));
         $summary = $this->summary($selectedItems);
+        $cartPaymentOption = $request->session()->get('cart_payment_option', 'cod');
+
+        if (! in_array($cartPaymentOption, ['cod', 'wallet'], true)) {
+            $cartPaymentOption = 'cod';
+        }
+
+        $defaultWallet = $request->user()
+            ?->paymentMethods()
+            ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+            ->orderByDesc('is_default')
+            ->latest()
+            ->first();
 
         return view('buyer.cart', [
             'cartItems' => $cart,
             'selectedIds' => $selectedIds,
             'summary' => $summary,
+            'cartPaymentOption' => $cartPaymentOption,
+            'defaultWallet' => $defaultWallet,
         ]);
     }
 
@@ -61,10 +75,6 @@ class CartController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json(['message' => $message, 'cart_count' => $count]);
-        }
-
-        if ($request->boolean('buy_now')) {
-            return redirect()->route('buyer.cart')->with('success', $message);
         }
 
         return back()->with('success', $message);

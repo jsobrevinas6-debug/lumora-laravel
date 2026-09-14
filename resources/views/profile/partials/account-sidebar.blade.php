@@ -3,6 +3,12 @@
 ])
 
 @php
+    if (request()->routeIs('buyer.wallet.*') || request()->routeIs('buyer.payment-methods.*')) {
+        $active = 'payment-methods';
+    } elseif (request()->routeIs('buyer.orders.*')) {
+        $active = 'orders';
+    }
+
     $onProfilePage = $active === 'profile';
     $profileHref = $onProfilePage ? '#profile' : route('profile.edit');
     $wishlistHref = $onProfilePage ? '#wishlist' : route('profile.edit') . '#wishlist';
@@ -41,7 +47,7 @@
                 <x-buyer-profile.nav-item :href="$shippingHref" label="Shipping Address">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></x-slot>
                 </x-buyer-profile.nav-item>
-                <x-buyer-profile.nav-item :href="route('buyer.payment-methods.index')" label="Payment Methods" :active="$active === 'payment-methods'">
+                <x-buyer-profile.nav-item :href="route('buyer.wallet.index')" label="Wallet" :active="$active === 'payment-methods'">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></x-slot>
                 </x-buyer-profile.nav-item>
             </div>

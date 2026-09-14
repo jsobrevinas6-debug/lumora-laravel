@@ -16,7 +16,6 @@ class PaymentMethod extends Model
         'provider',
         'account_name',
         'account_identifier',
-        'last_four',
         'notes',
         'is_default',
     ];
@@ -24,6 +23,7 @@ class PaymentMethod extends Model
     protected function casts(): array
     {
         return [
+            'account_identifier' => 'encrypted',
             'is_default' => 'boolean',
         ];
     }

@@ -14,10 +14,12 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'user_id',
+        'buyer_id',
         'seller_id',
         'status',
         'payment_status',
         'payment_method',
+        'payment_method_id',
         'subtotal',
         'shipping_fee',
         'discount',
@@ -48,6 +50,11 @@ class Order extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 
     public function items(): HasMany

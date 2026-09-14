@@ -12,6 +12,7 @@ use App\Http\Controllers\Seller\PayoutController;
 use App\Http\Controllers\Seller\OrderController;
 use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
 use App\Http\Controllers\Buyer\PaymentMethodController;
+use App\Http\Controllers\Buyer\ProductReviewController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
@@ -98,7 +99,7 @@ Route::post('/cart/select', [CartController::class, 'select'])->name('buyer.cart
 Route::patch('/cart/{product}', [CartController::class, 'update'])->name('buyer.cart.update');
 Route::delete('/cart/{product}', [CartController::class, 'remove'])->name('buyer.cart.remove');
 
-Route::post('/cart/checkout', [BuyerOrderController::class, 'create'])
+Route::match(['GET', 'POST'], '/cart/checkout', [BuyerOrderController::class, 'create'])
     ->middleware('auth')
     ->name('buyer.cart.checkout');
 
@@ -127,15 +128,38 @@ Route::middleware('auth')->group(function () {
     ->whereNumber('id')
     ->name('shop.product');
 
-    Route::get('/shop/product/{id}', [ShopController::class, 'show'])
-    ->whereNumber('id')
-    ->name('shop.product');
+    Route::post('/buy-now/{product}', [BuyerOrderController::class, 'buyNow'])
+    ->name('buyer.buy-now');
+
+    Route::get('/checkout', [BuyerOrderController::class, 'create'])
+    ->name('buyer.buy-now.checkout');
 
     Route::post('/checkout/place-order', [BuyerOrderController::class, 'store'])
     ->name('buyer.checkout.store');
 
+    Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])
+    ->name('buyer.products.reviews.store');
+
+    Route::patch('/products/{product}/reviews/{review}', [ProductReviewController::class, 'update'])
+    ->name('buyer.products.reviews.update');
+
+    Route::delete('/products/{product}/reviews/{review}', [ProductReviewController::class, 'destroy'])
+    ->name('buyer.products.reviews.destroy');
+
     Route::get('/account/orders', [BuyerOrderController::class, 'index'])
     ->name('buyer.orders.index');
+
+    Route::get('/account/wallet', [PaymentMethodController::class, 'index'])
+    ->name('buyer.wallet.index');
+
+    Route::post('/account/wallet', [PaymentMethodController::class, 'store'])
+    ->name('buyer.wallet.store');
+
+    Route::patch('/account/wallet/{paymentMethod}/default', [PaymentMethodController::class, 'setDefault'])
+    ->name('buyer.wallet.default');
+
+    Route::delete('/account/wallet/{paymentMethod}', [PaymentMethodController::class, 'destroy'])
+    ->name('buyer.wallet.destroy');
 
     Route::get('/account/payment-methods', [PaymentMethodController::class, 'index'])
     ->name('buyer.payment-methods.index');

@@ -3,35 +3,35 @@
     $cartCount = session('lumora_cart') ? collect(session('lumora_cart'))->sum('quantity') : 0;
 
     $typeLabels = [
-        'cod' => 'Cash on Delivery',
         'gcash' => 'GCash',
         'maya' => 'Maya',
-        'bank_transfer' => 'Bank Transfer',
-        'card_reference' => 'Card Reference',
+        'bank_transfer' => 'Bank Account',
     ];
 
     $methodIcon = function (string $type): string {
         return match ($type) {
-            'cod' => '<path d="M4 7h16v10H4z"/><path d="M8 11h8"/><path d="M8 14h5"/>',
             'gcash', 'maya' => '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M9 7h6"/><path d="M10 17h4"/>',
             'bank_transfer' => '<path d="M3 10h18L12 4 3 10Z"/><path d="M5 10v8"/><path d="M9 10v8"/><path d="M15 10v8"/><path d="M19 10v8"/><path d="M3 18h18"/>',
-            default => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/>',
+            default => '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M9 7h6"/><path d="M10 17h4"/>',
         };
     };
 
     $maskedIdentifier = function ($method): string {
-        if ($method->last_four) {
-            return 'Ending in ' . $method->last_four;
-        }
-
         if (! $method->account_identifier) {
-            return 'Saved payment option';
+            return 'Saved wallet';
         }
 
         $identifier = (string) $method->account_identifier;
-        $tail = substr($identifier, -4);
+        $digits = preg_replace('/\D+/', '', $identifier);
+        $tail = substr($digits ?: $identifier, -4);
 
-        return strlen($identifier) > 4 ? 'Ending in ' . $tail : $identifier;
+        if (in_array($method->type, ['gcash', 'maya'], true)) {
+            $prefix = substr($digits ?: $identifier, 0, 4);
+
+            return trim($prefix . ' *** ' . $tail);
+        }
+
+        return '**** **** ' . $tail;
     };
 @endphp
 
@@ -41,7 +41,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Lumora | Payment Methods</title>
+    <title>Lumora | Wallet</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -175,30 +175,30 @@
                 <span>/</span>
                 <a href="{{ route('profile.edit') }}">Account</a>
                 <span>/</span>
-                <span>Payment Methods</span>
+                <span>Wallet</span>
             </nav>
 
             <header class="payment-header">
                 <p class="account-label">Account</p>
-                <h1 class="payment-title">Payment Methods</h1>
-                <p class="payment-subtitle">Manage your saved payment options for faster checkout.</p>
+                <h1 class="payment-title">Wallet</h1>
+                <p class="payment-subtitle">Manage your saved wallets for faster checkout.</p>
             </header>
 
-            @if (session('status') === 'payment-method-saved')
-                <div class="alert">Payment method saved.</div>
-            @elseif (session('status') === 'payment-method-default')
-                <div class="alert">Default payment method updated.</div>
-            @elseif (session('status') === 'payment-method-removed')
-                <div class="alert">Payment method removed.</div>
+            @if (session('status') === 'wallet-saved')
+                <div class="alert">Wallet saved.</div>
+            @elseif (session('status') === 'wallet-default')
+                <div class="alert">Default wallet updated.</div>
+            @elseif (session('status') === 'wallet-removed')
+                <div class="alert">Wallet removed.</div>
             @endif
 
             <div class="payment-grid">
                 <section class="payment-panel" aria-labelledby="saved-methods-heading">
                     <div class="panel-head">
                         <div>
-                            <h2 id="saved-methods-heading">Saved Methods</h2>
+                            <h2 id="saved-methods-heading">Saved Wallets</h2>
                         </div>
-                        <a class="add-anchor" href="#add-payment-method">Add New Method</a>
+                        <a class="add-anchor" href="#add-payment-method">Add New Wallet</a>
                     </div>
 
                     @if ($paymentMethods->isEmpty())
@@ -206,8 +206,8 @@
                             <div class="empty-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
                             </div>
-                            <h2>No saved payment methods yet.</h2>
-                            <p>Add a payment option for faster checkout.</p>
+                            <h2>No saved wallets yet.</h2>
+                            <p>Add a wallet for faster checkout.</p>
                         </div>
                     @else
                         <div class="method-list">
@@ -223,7 +223,7 @@
                                                 <span class="default-badge">Default</span>
                                             @endif
                                         </div>
-                                        <p class="method-provider">{{ $method->provider ?: $method->account_name ?: 'Lumora payment method' }}</p>
+                                        <p class="method-provider">{{ $method->account_name ?: 'Lumora wallet' }}</p>
                                         <p class="method-identifier">{{ $maskedIdentifier($method) }}</p>
                                         @if ($method->notes)
                                             <p class="method-notes">{{ $method->notes }}</p>
@@ -231,13 +231,13 @@
 
                                         <div class="method-actions">
                                             @unless ($method->is_default)
-                                                <form method="POST" action="{{ route('buyer.payment-methods.default', $method) }}">
+                                            <form method="POST" action="{{ route('buyer.wallet.default', $method) }}">
                                                     @csrf
                                                     @method('PATCH')
                                                     <button class="text-button" type="submit">Set Default</button>
                                                 </form>
                                             @endunless
-                                            <form method="POST" action="{{ route('buyer.payment-methods.destroy', $method) }}">
+                                            <form method="POST" action="{{ route('buyer.wallet.destroy', $method) }}">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button class="danger-button" type="submit">Remove</button>
@@ -253,47 +253,38 @@
                 <section class="payment-panel" id="add-payment-method" aria-labelledby="add-method-heading">
                     <div class="panel-head">
                         <div>
-                            <h2 id="add-method-heading">Add New Payment Method</h2>
-                            <p>Add a new payment option to your account.</p>
+                            <h2 id="add-method-heading">Add New Wallet</h2>
+                            <p>Add a new wallet to your account.</p>
                         </div>
                     </div>
 
-                    <form class="payment-form" method="POST" action="{{ route('buyer.payment-methods.store') }}">
+                    <form class="payment-form" method="POST" action="{{ route('buyer.wallet.store') }}">
                         @csrf
                         <div class="field">
-                            <label for="type">Method Type</label>
+                            <label for="type">Wallet Type</label>
                             <select class="select" id="type" name="type" required>
-                                <option value="cod" @selected(old('type') === 'cod')>Cash on Delivery</option>
                                 <option value="gcash" @selected(old('type') === 'gcash')>GCash</option>
                                 <option value="maya" @selected(old('type') === 'maya')>Maya</option>
-                                <option value="bank_transfer" @selected(old('type') === 'bank_transfer')>Bank Transfer</option>
-                                <option value="card_reference" @selected(old('type') === 'card_reference')>Card Reference</option>
+                                <option value="bank_transfer" @selected(old('type') === 'bank_transfer')>Bank Account</option>
                             </select>
                             @error('type')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
 
                         <div class="field">
-                            <label for="provider">Provider</label>
-                            <input class="input" id="provider" name="provider" value="{{ old('provider') }}" placeholder="Cash on Delivery, GCash, Maya, or bank name">
-                            @error('provider')<span class="field-error">{{ $message }}</span>@enderror
-                        </div>
-
-                        <div class="field">
-                            <label for="account_name">Account / Cardholder Name</label>
+                            <label for="account_name">Full Name</label>
                             <input class="input" id="account_name" name="account_name" value="{{ old('account_name') }}" placeholder="{{ $user->name }}">
                             @error('account_name')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
 
                         <div class="field">
-                            <label for="account_identifier">Account Number / Last 4 Digits</label>
-                            <input class="input" id="account_identifier" name="account_identifier" value="{{ old('account_identifier', old('last_four')) }}" placeholder="Enter last 4 digits only" maxlength="255">
+                            <label for="account_identifier" id="account_identifier_label">GCash Number</label>
+                            <input class="input" id="account_identifier" name="account_identifier" value="{{ old('account_identifier') }}" placeholder="09XXXXXXXXX" maxlength="20" inputmode="numeric">
                             @error('account_identifier')<span class="field-error">{{ $message }}</span>@enderror
-                            @error('last_four')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
 
                         <div class="field">
                             <label for="notes">Notes Optional</label>
-                            <textarea class="textarea" id="notes" name="notes" placeholder="Optional note for this payment method">{{ old('notes') }}</textarea>
+                            <textarea class="textarea" id="notes" name="notes" placeholder="Optional note for this wallet">{{ old('notes') }}</textarea>
                             @error('notes')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
 
@@ -302,7 +293,7 @@
                             <span class="checkbox-label">Set as default</span>
                         </label>
 
-                        <button class="submit-button" type="submit">Save Payment Method</button>
+                        <button class="submit-button" type="submit">Save Wallet</button>
                     </form>
                 </section>
             </div>
@@ -317,22 +308,28 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const typeSelect = document.querySelector('#type');
-        const providerInput = document.querySelector('#provider');
         const identifierInput = document.querySelector('#account_identifier');
+        const identifierLabel = document.querySelector('#account_identifier_label');
 
         const syncPaymentFields = () => {
-            if (!typeSelect || !providerInput || !identifierInput) return;
+            if (!typeSelect || !identifierInput || !identifierLabel) return;
 
             const type = typeSelect.value;
+            const labels = {
+                gcash: 'GCash Number',
+                maya: 'Maya Number',
+                bank_transfer: 'Bank Account Number',
+            };
+            const placeholders = {
+                gcash: '09XXXXXXXXX',
+                maya: '09XXXXXXXXX',
+                bank_transfer: 'Bank account number',
+            };
 
-            if (type === 'cod' && providerInput.value.trim() === '') {
-                providerInput.value = 'Cash on Delivery';
-            }
-
-            identifierInput.maxLength = type === 'card_reference' ? 4 : 255;
-            identifierInput.placeholder = type === 'card_reference'
-                ? 'Enter last 4 digits only'
-                : 'Account number or safe account reference';
+            identifierLabel.textContent = labels[type] || 'Wallet Number';
+            identifierInput.placeholder = placeholders[type] || 'Wallet number';
+            identifierInput.maxLength = type === 'bank_transfer' ? 50 : 20;
+            identifierInput.inputMode = type === 'bank_transfer' ? 'text' : 'numeric';
         };
 
         typeSelect?.addEventListener('change', syncPaymentFields);

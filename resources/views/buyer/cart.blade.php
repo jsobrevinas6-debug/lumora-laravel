@@ -7,6 +7,27 @@
         ->orderByDesc('created_at')
         ->limit(8)
         ->get();
+    $cartPaymentOption = in_array($cartPaymentOption ?? 'cod', ['cod', 'wallet'], true) ? $cartPaymentOption : 'cod';
+    $walletLabels = [
+        'gcash' => 'GCash',
+        'maya' => 'Maya',
+        'bank_transfer' => 'Bank Account',
+    ];
+    $maskWallet = function ($wallet): string {
+        if (! $wallet?->account_identifier) {
+            return 'Saved wallet';
+        }
+
+        $identifier = (string) $wallet->account_identifier;
+        $digits = preg_replace('/\D+/', '', $identifier);
+        $tail = substr($digits ?: $identifier, -4);
+
+        if (in_array($wallet->type, ['gcash', 'maya'], true)) {
+            return substr($digits ?: $identifier, 0, 4) . ' *** ' . $tail;
+        }
+
+        return '**** **** ' . $tail;
+    };
 @endphp
 
 <!DOCTYPE html>
@@ -94,6 +115,22 @@
         .total{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);color:var(--primary)}
         .total span{color:var(--muted);font-size:14px}
         .total strong{font-family:'Playfair Display',Georgia,serif;font-size:40px;font-weight:600;line-height:1}
+        .payment-preview{margin-top:24px;padding:17px;border:1px solid var(--border);border-radius:18px;background:var(--background)}
+        .payment-preview-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+        .payment-preview-title{margin:0;color:var(--primary);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+        .wallet-link{flex:0 0 auto;color:var(--accent);font-size:12px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+        .payment-preview-options{display:grid;gap:9px}
+        .cart-payment-option{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;min-height:44px;border:1px solid var(--border);border-radius:14px;background:var(--card);padding:11px 12px;color:var(--primary);font-size:13px;font-weight:700;cursor:pointer;transition:background-color .2s ease,border-color .2s ease,color .2s ease}
+        .cart-payment-option input{width:18px;height:18px;accent-color:var(--primary)}
+        .cart-payment-option:has(input:checked){border-color:var(--accent);background:#FFF4EE;color:var(--primary);box-shadow:inset 0 0 0 1px rgba(201,143,114,.18)}
+        .wallet-preview{margin-top:12px;border:1px solid var(--border);border-radius:14px;background:var(--card);padding:13px}
+        .wallet-preview[hidden]{display:none}
+        .wallet-preview-label{display:block;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+        .wallet-preview strong{display:block;margin-top:6px;color:var(--primary);font-size:14px}
+        .wallet-preview span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.45}
+        .wallet-empty{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+        .wallet-empty a{color:var(--accent);font-weight:800;text-decoration:underline;text-underline-offset:3px}
+        .payment-preview-note{margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
         .checkout,.continue{width:100%;min-height:58px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:999px;padding:0 20px;font-size:14px;font-weight:700;transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
         .checkout{margin-top:28px;border:1px solid var(--primary);background:var(--primary);color:var(--card)}
         .checkout:hover:not(:disabled){background:#4E2A47;transform:scale(1.02)}
@@ -280,8 +317,36 @@
                         @csrf
                         <div id="selection-inputs"></div>
                     </form>
-                    <form method="POST" action="{{ route('buyer.cart.checkout') }}">
-                        @csrf
+                    <form method="GET" action="{{ route('buyer.cart.checkout') }}">
+                        <section class="payment-preview" aria-labelledby="cart-payment-heading">
+                            <div class="payment-preview-head">
+                                <h3 class="payment-preview-title" id="cart-payment-heading">Payment Method</h3>
+                                <a class="wallet-link" href="{{ route('buyer.wallet.index') }}">Manage Wallet</a>
+                            </div>
+                            <div class="payment-preview-options" aria-label="Available payment options">
+                                <label class="cart-payment-option">
+                                    <input type="radio" name="cart_payment_option" value="cod" @checked($cartPaymentOption === 'cod')>
+                                    <span>Cash on Delivery</span>
+                                </label>
+                                <label class="cart-payment-option">
+                                    <input type="radio" name="cart_payment_option" value="wallet" @checked($cartPaymentOption === 'wallet')>
+                                    <span>Wallet</span>
+                                </label>
+                            </div>
+
+                            <div class="wallet-preview" data-wallet-preview @if($cartPaymentOption !== 'wallet') hidden @endif>
+                                @if($defaultWallet)
+                                    <span class="wallet-preview-label">Saved Wallet</span>
+                                    <strong>{{ $walletLabels[$defaultWallet->type] ?? 'Wallet' }}</strong>
+                                    <span>{{ $defaultWallet->account_name ?: 'Lumora wallet' }}</span>
+                                    <span>{{ $maskWallet($defaultWallet) }}</span>
+                                @else
+                                    <p class="wallet-empty">No saved wallet yet. <a href="{{ route('buyer.wallet.index') }}">Add Wallet</a></p>
+                                @endif
+                            </div>
+
+                            <p class="payment-preview-note">Cash on Delivery or Wallet available at checkout.</p>
+                        </section>
                         <button class="checkout" id="checkout" type="submit" {{ $summary['item_count'] ? '' : 'disabled' }}>Proceed to Checkout</button>
                     </form>
                     <a class="continue" href="{{ route('shop.index') }}">Continue Shopping</a>
@@ -361,7 +426,14 @@
             const rows = [...document.querySelectorAll('[data-item]')];
             const all = document.querySelector('#select-all');
             const removeSelected = document.querySelector('#remove-selected');
+            const cartPaymentOptions = [...document.querySelectorAll('input[name="cart_payment_option"]')];
+            const walletPreview = document.querySelector('[data-wallet-preview]');
             const money = (amount) => '&#8369;' + Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            function syncPaymentPreview() {
+                const selectedPayment = cartPaymentOptions.find((option) => option.checked)?.value || 'cod';
+                if (walletPreview) walletPreview.hidden = selectedPayment !== 'wallet';
+            }
 
             function selected() {
                 return rows.filter((row) => row.querySelector('.item-check').checked);
@@ -462,7 +534,12 @@
                 window.location.reload();
             });
 
+            cartPaymentOptions.forEach((option) => {
+                option.addEventListener('change', syncPaymentPreview);
+            });
+
             sync();
+            syncPaymentPreview();
         })();
     </script>
 </body>

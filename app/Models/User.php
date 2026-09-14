@@ -80,6 +80,11 @@ class User extends Authenticatable
         return $this->hasMany(PaymentMethod::class);
     }
 
+    public function productReviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
     public function soldOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'seller_id');

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
+use App\Models\Product;
 use App\Support\CategoryCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,16 +15,47 @@ class ShopController extends Controller
 {
     public function show(int $id): View
     {
-        $product = DB::table('products')
-            ->leftJoin('users', 'users.id', '=', 'products.seller_id')
-            ->select('products.*', 'users.shop_name', 'users.name as seller_name')
+        $product = Product::query()
+            ->with(['seller'])
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->where('products.id', $id)
             ->where('products.status', 'active')
             ->first();
 
         abort_if(!$product, 404);
 
-        $relatedProducts = DB::table('products')
+        $reviews = $product->reviews()
+            ->with(['user'])
+            ->latest()
+            ->paginate(10, ['*'], 'reviews_page');
+
+        $ratingBreakdown = $product->reviews()
+            ->select('rating', DB::raw('COUNT(*) as total'))
+            ->groupBy('rating')
+            ->pluck('total', 'rating')
+            ->map(fn ($total) => (int) $total);
+
+        $userReview = null;
+        $deliveredOrder = null;
+
+        if (auth()->check()) {
+            $userReview = $product->reviews()
+                ->where('user_id', auth()->id())
+                ->first();
+
+            $deliveredOrder = Order::query()
+                ->where('user_id', auth()->id())
+                ->where('status', 'delivered')
+                ->whereHas('items', fn ($query) => $query->where('product_id', $product->id))
+                ->latest('delivered_at')
+                ->latest('id')
+                ->first();
+        }
+
+        $relatedProducts = Product::query()
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->where('status', 'active')
             ->where('category', $product->category)
             ->where('id', '!=', $product->id)
@@ -33,6 +66,10 @@ class ShopController extends Controller
         return view('buyer.product', [
             'product' => $product,
             'relatedProducts' => $relatedProducts,
+            'reviews' => $reviews,
+            'ratingBreakdown' => $ratingBreakdown,
+            'userReview' => $userReview,
+            'canReview' => (bool) $deliveredOrder,
             'categoryTitle' => CategoryCatalog::label((string) ($product->category ?? '')),
         ]);
     }
@@ -62,7 +99,7 @@ class ShopController extends Controller
         }
 
         $sort = $validated['sort'] ?? 'newest';
-        $baseQuery = DB::table('products')->where('status', 'active');
+        $baseQuery = Product::query()->where('status', 'active');
 
         $categoryCounts = (clone $baseQuery)
             ->select('category', DB::raw('COUNT(*) as total'))
@@ -73,7 +110,10 @@ class ShopController extends Controller
             ->all();
 
         if ($category !== '') {
-            $query = (clone $baseQuery)->where('category', $category);
+            $query = (clone $baseQuery)
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
+                ->where('category', $category);
 
             if ($minPrice !== null) $query->where('price', '>=', $minPrice);
             if ($maxPrice !== null) $query->where('price', '<=', $maxPrice);
@@ -87,8 +127,8 @@ class ShopController extends Controller
                 $query->orderByDesc('price')->orderByDesc('created_at');
             } elseif ($sort === 'discount_desc') {
                 $query->orderByDesc('discount_percent')->orderByDesc('created_at');
-            } elseif ($sort === 'popular' && Schema::hasColumn('products', 'rating')) {
-                $query->orderByDesc('rating')->orderByDesc('created_at');
+            } elseif ($sort === 'popular') {
+                $query->orderByDesc('reviews_avg_rating')->orderByDesc('created_at');
             } elseif ($sort === 'top_sales' && Schema::hasColumn('products', 'sales_count')) {
                 $query->orderByDesc('sales_count')->orderByDesc('created_at');
             } else {
@@ -114,7 +154,11 @@ class ShopController extends Controller
             ]);
         }
 
-        $products = $baseQuery->orderByDesc('created_at')->get();
+        $products = $baseQuery
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
+            ->orderByDesc('created_at')
+            ->get();
 
         return view('buyer.shop', [
             'products' => $products,

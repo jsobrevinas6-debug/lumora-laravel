@@ -175,6 +175,130 @@
         }
         .payment-option input { width: 21px; height: 21px; accent-color: var(--plum); }
         .payment-option span small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+        .payment-card {
+            margin-top: 36px;
+            padding-top: 27px;
+            border-top: 1px solid #d8c9bd;
+        }
+        .payment-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 16px;
+        }
+        .payment-card-title {
+            margin: 0;
+            color: var(--plum);
+            font: 600 26px/1 'Playfair Display', Georgia, serif;
+        }
+        .payment-card-subtitle {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        .manage-wallet {
+            flex: 0 0 auto;
+            color: var(--rose);
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .payment-options,
+        .wallet-list {
+            display: grid;
+            gap: 10px;
+        }
+        .payment-radio-card,
+        .wallet-card {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 12px;
+            align-items: flex-start;
+            min-height: 62px;
+            margin: 0;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(255, 253, 251, .78);
+            padding: 13px 14px;
+            color: var(--ink);
+            cursor: pointer;
+            transition: border-color .2s ease, background-color .2s ease;
+        }
+        .payment-radio-card:has(input:checked),
+        .wallet-card:has(input:checked) {
+            border-color: var(--rose-soft);
+            background: #fff7f3;
+        }
+        .payment-radio-card input,
+        .wallet-card input {
+            width: 19px;
+            height: 19px;
+            margin-top: 2px;
+            accent-color: var(--plum);
+        }
+        .payment-radio-card strong,
+        .wallet-card strong {
+            display: block;
+            color: var(--plum);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .payment-radio-card span,
+        .wallet-card span {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .wallet-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .wallet-section-title {
+            margin: 19px 0 10px;
+            color: var(--plum);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .wallet-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 20px;
+            border-radius: 999px;
+            background: rgba(111, 143, 120, .13);
+            padding: 0 8px;
+            color: #6F8F78;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .payment-note {
+            margin: 8px 0 0 31px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .payment-note a {
+            color: var(--rose);
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .payment-error {
+            display: block;
+            margin-top: 10px;
+            color: var(--rose);
+            font-size: 12px;
+            line-height: 1.45;
+        }
         .place-order {
             width: 100%;
             height: 69px;
@@ -213,6 +337,8 @@
             .item-meta, .item-qty, .item-price { font-size: 11px; }
             .item-qty { width: 45px; }
             .item-price { width: 73px; }
+            .payment-card-head { flex-direction: column; gap: 8px; }
+            .manage-wallet { align-self: flex-start; }
         }
     </style>
 </head>
@@ -257,7 +383,9 @@
             <div class="card items-card">
                 <h2 class="card-title">Items to purchase</h2>
                 @foreach($cartItems as $item)
-                    @php($product = $item['product'])
+                    @php
+                        $product = $item['product'];
+                    @endphp
                     <div class="item">
                         @if($product->image)
                             <img class="item-image" src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
@@ -273,7 +401,7 @@
                     </div>
                 @endforeach
             </div>
-            <a class="return-link" href="{{ route('buyer.cart') }}">← &nbsp;Return to cart</a>
+            <a class="return-link" href="{{ $returnUrl ?? route('buyer.cart') }}">← &nbsp;{{ ($checkoutMode ?? 'cart') === 'buy_now' ? 'Return to product' : 'Return to cart' }}</a>
         </section>
 
         <aside class="card summary-card">
@@ -285,40 +413,170 @@
 
             <form method="POST" action="{{ route('buyer.checkout.store') }}">
                 @csrf
-                <label class="payment-label" for="payment_method">Payment method</label>
+                <input type="hidden" name="checkout_mode" value="{{ $checkoutMode ?? 'cart' }}">
                 @php
-                    $checkoutPaymentMethods = collect($paymentMethods ?? [])->unique('type')->values();
-                    $defaultPaymentMethod = $checkoutPaymentMethods->firstWhere('is_default', true);
-                    $selectedPaymentType = old('payment_method', $defaultPaymentMethod?->type ?? 'cod');
-                    $paymentTypeLabels = [
-                        'cod' => 'Cash on Delivery',
-                        'gcash' => 'GCash',
-                        'maya' => 'Maya',
-                        'bank_transfer' => 'Bank Transfer',
-                        'card_reference' => 'Card Reference',
+                    $wallets = collect($paymentMethods ?? [])
+                        ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+                        ->values();
+                    $walletsByType = $wallets->groupBy('type');
+                    $defaultWallet = $wallets->firstWhere('is_default', true);
+                    $cartPaymentOption = in_array($cartPaymentOption ?? 'cod', ['cod', 'wallet'], true) ? $cartPaymentOption : 'cod';
+                    $initialWallet = $cartPaymentOption === 'wallet' ? $defaultWallet : null;
+                    $selectedWalletId = old('payment_method_id', $initialWallet?->id);
+                    $selectedPaymentType = old('payment_method', $initialWallet?->type ?? 'cod');
+                    $paymentOptions = [
+                        'cod' => [
+                            'label' => 'Cash on Delivery',
+                            'description' => 'Pay when your order arrives.',
+                            'empty' => null,
+                        ],
+                        'gcash' => [
+                            'label' => 'GCash',
+                            'description' => 'Use a saved GCash wallet at checkout.',
+                            'empty' => 'No saved GCash wallet yet. You can add one from Wallet.',
+                        ],
+                        'maya' => [
+                            'label' => 'Maya',
+                            'description' => 'Use a saved Maya wallet at checkout.',
+                            'empty' => 'No saved Maya wallet yet. You can add one from Wallet.',
+                        ],
+                        'bank_transfer' => [
+                            'label' => 'Bank Account',
+                            'description' => 'Use a saved bank account wallet at checkout.',
+                            'empty' => 'No saved bank account yet. You can add one from Wallet.',
+                        ],
                     ];
+
+                    $maskWallet = function ($wallet): string {
+                        $identifier = (string) $wallet->account_identifier;
+                        $digits = preg_replace('/\D+/', '', $identifier);
+                        $tail = substr($digits ?: $identifier, -4);
+
+                        if (in_array($wallet->type, ['gcash', 'maya'], true)) {
+                            return substr($digits ?: $identifier, 0, 4) . ' *** ' . $tail;
+                        }
+
+                        return '**** **** ' . $tail;
+                    };
                 @endphp
 
-                @foreach($checkoutPaymentMethods as $method)
-                    <label class="payment-option">
-                        <input type="radio" name="payment_method" value="{{ $method->type }}" @checked($selectedPaymentType === $method->type)>
-                        <span>
-                            {{ $paymentTypeLabels[$method->type] ?? ucwords(str_replace('_', ' ', $method->type)) }}
-                            <small>{{ $method->provider ?: $method->account_name ?: 'Saved payment method' }}</small>
-                        </span>
-                    </label>
-                @endforeach
+                <section class="payment-card" aria-labelledby="checkout-payment-heading">
+                    <div class="payment-card-head">
+                        <div>
+                            <h3 class="payment-card-title" id="checkout-payment-heading">Payment Method</h3>
+                            <p class="payment-card-subtitle">Choose how you want to pay for your order.</p>
+                        </div>
+                        <a class="manage-wallet" href="{{ route('buyer.wallet.index') }}">Manage Wallet</a>
+                    </div>
 
-                @unless($checkoutPaymentMethods->contains('type', 'cod'))
-                    <label class="payment-option">
-                        <input id="payment_method" type="radio" name="payment_method" value="cod" @checked($selectedPaymentType === 'cod')>
-                        <span>Cash on Delivery</span>
-                    </label>
-                @endunless
+                    <div class="payment-options">
+                        @foreach($paymentOptions as $value => $option)
+                            @php
+                                $savedCount = $walletsByType->get($value, collect())->count();
+                            @endphp
+                            <div>
+                                <label class="payment-radio-card">
+                                    <input
+                                        type="radio"
+                                        name="payment_method"
+                                        value="{{ $value }}"
+                                        data-payment-method
+                                        @checked($selectedPaymentType === $value)
+                                    >
+                                    <span>
+                                        <strong>{{ $option['label'] }}</strong>
+                                        <span>{{ $option['description'] }}</span>
+                                    </span>
+                                </label>
+
+                                @if($value !== 'cod' && $savedCount === 0)
+                                    <p class="payment-note">
+                                        {{ $option['empty'] }}
+                                        <a href="{{ route('buyer.wallet.index') }}">Add Wallet</a>
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+
+                    @if($wallets->isNotEmpty())
+                        <h4 class="wallet-section-title">Saved Wallets</h4>
+                        <div class="wallet-list">
+                            @foreach($wallets as $wallet)
+                                <label class="wallet-card">
+                                    <input
+                                        type="radio"
+                                        name="payment_method_id"
+                                        value="{{ $wallet->id }}"
+                                        data-wallet-radio
+                                        data-wallet-type="{{ $wallet->type }}"
+                                        @checked((string) $selectedWalletId === (string) $wallet->id)
+                                    >
+                                    <span>
+                                        <span class="wallet-title-row">
+                                            <strong>{{ $paymentOptions[$wallet->type]['label'] ?? 'Wallet' }}</strong>
+                                            @if($wallet->is_default)
+                                                <span class="wallet-badge">Default</span>
+                                            @endif
+                                        </span>
+                                        <span>{{ $wallet->account_name ?: 'Lumora wallet' }}</span>
+                                        <span>{{ $maskWallet($wallet) }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="payment-note">No saved wallets yet. <a href="{{ route('buyer.wallet.index') }}">Add Wallet</a></p>
+                    @endif
+
+                    @error('payment_method')<span class="payment-error">{{ $message }}</span>@enderror
+                    @error('payment_method_id')<span class="payment-error">{{ $message }}</span>@enderror
+                </section>
+
                 <button class="place-order" type="submit">Place order</button>
             </form>
         </aside>
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const methodRadios = [...document.querySelectorAll('[data-payment-method]')];
+        const walletRadios = [...document.querySelectorAll('[data-wallet-radio]')];
+
+        const walletForType = (type) => walletRadios.find((radio) => radio.dataset.walletType === type);
+
+        walletRadios.forEach((walletRadio) => {
+            walletRadio.addEventListener('change', () => {
+                if (!walletRadio.checked) return;
+
+                const matchingMethod = methodRadios.find((radio) => radio.value === walletRadio.dataset.walletType);
+                if (matchingMethod) matchingMethod.checked = true;
+            });
+        });
+
+        methodRadios.forEach((methodRadio) => {
+            methodRadio.addEventListener('change', () => {
+                if (!methodRadio.checked) return;
+
+                if (methodRadio.value === 'cod') {
+                    walletRadios.forEach((radio) => {
+                        radio.checked = false;
+                    });
+                    return;
+                }
+
+                const currentWallet = walletRadios.find((radio) => radio.checked);
+                if (currentWallet?.dataset.walletType === methodRadio.value) return;
+
+                walletRadios.forEach((radio) => {
+                    radio.checked = false;
+                });
+
+                const firstMatchingWallet = walletForType(methodRadio.value);
+                if (firstMatchingWallet) firstMatchingWallet.checked = true;
+            });
+        });
+    });
+</script>
 </body>
 </html>

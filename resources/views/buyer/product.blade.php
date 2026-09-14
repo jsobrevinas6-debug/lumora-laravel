@@ -18,6 +18,8 @@
         .top-action { width:42px; height:42px; display:grid; place-items:center; border:1px solid var(--line); border-radius:50%; background:white; color:var(--plum); }
         .top-action svg { width:20px; height:20px; }
         .product-shell { width:min(1380px,calc(100% - 48px)); margin:0 auto; padding:22px 0 70px; }
+        .flash { margin:0 0 18px; padding:12px 15px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--rose); font-size:13px; }
+        .flash.success { color:#6F8F78; }
         .breadcrumb { margin-bottom:25px; color:var(--muted); font-size:13px; }
         .breadcrumb a:hover { color:var(--rose); }
         .breadcrumb strong { color:var(--plum); }
@@ -36,6 +38,12 @@
         .eyebrow { color:var(--rose); font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
         h1 { margin:9px 0 12px; font-family:Georgia,serif; font-size:43px; font-weight:500; line-height:1.05; }
         .rating { margin:0 0 22px; color:var(--plum); font-size:13px; }
+        .rating-link { display:inline-flex; align-items:center; gap:8px; color:inherit; }
+        .stars { letter-spacing:1px; white-space:nowrap; }
+        .stars .filled { color:#C98F72; }
+        .stars .empty { color:#EAE3DD; }
+        .purchase-row form { flex:1; display:flex; margin:0; }
+        .purchase-row .button.primary { width:100%; }
         .muted { color:var(--muted); }
         .price-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 21px; }
         .price { color:var(--rose); font-size:27px; font-weight:700; }
@@ -65,6 +73,33 @@
         .tab.active { border-bottom-color:var(--rose); color:var(--plum); font-weight:700; }
         .tab-panel { display:none; min-height:130px; padding:22px; color:var(--muted); font-size:13px; line-height:1.7; white-space:pre-line; }
         .tab-panel.active { display:block; }
+        #reviews.tab-panel { white-space:normal; }
+        .reviews-summary { display:grid; grid-template-columns:minmax(180px,.4fr) minmax(260px,.6fr); gap:24px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+        .reviews-score { color:var(--plum); font-family:Georgia,serif; font-size:46px; line-height:1; }
+        .reviews-based { margin-top:8px; color:var(--muted); }
+        .rating-breakdown { display:grid; gap:8px; }
+        .rating-bar { display:grid; grid-template-columns:58px 1fr 34px; gap:10px; align-items:center; color:var(--muted); font-size:12px; }
+        .rating-track { height:8px; overflow:hidden; border-radius:999px; background:#EAE3DD; }
+        .rating-fill { height:100%; border-radius:999px; background:#C98F72; }
+        .review-list { display:grid; gap:16px; margin-top:22px; }
+        .review-card { padding:16px; border:1px solid var(--line); border-radius:10px; background:#FFFDFC; }
+        .review-head { display:flex; justify-content:space-between; gap:14px; margin-bottom:8px; }
+        .review-name { color:var(--plum); font-weight:700; }
+        .review-date { color:var(--muted); font-size:12px; }
+        .verified-badge { display:inline-flex; margin-top:6px; padding:3px 8px; border-radius:999px; background:rgba(111,143,120,.13); color:#6F8F78; font-size:10px; font-weight:800; text-transform:uppercase; }
+        .review-text { margin:10px 0 0; color:var(--muted); line-height:1.65; }
+        .review-form { margin-top:24px; padding:18px; border:1px solid var(--line); border-radius:10px; background:#FFFDFC; }
+        .review-form h3 { margin:0 0 14px; font-family:Georgia,serif; color:var(--plum); font-size:22px; font-weight:500; }
+        .star-input { display:inline-flex; flex-direction:row-reverse; gap:4px; margin-bottom:14px; }
+        .star-input input { position:absolute; opacity:0; pointer-events:none; }
+        .star-input label { color:#EAE3DD; font-size:28px; line-height:1; cursor:pointer; transition:color .2s ease; }
+        .star-input input:checked ~ label, .star-input label:hover, .star-input label:hover ~ label { color:#C98F72; }
+        .review-textarea { width:100%; min-height:110px; padding:13px; border:1px solid var(--line); border-radius:8px; background:white; color:var(--plum); font:inherit; resize:vertical; }
+        .review-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+        .review-submit, .review-delete { min-height:42px; padding:0 18px; border-radius:8px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+        .review-submit { border:1px solid var(--plum); background:var(--plum); color:white; }
+        .review-delete { border:1px solid var(--line); background:white; color:var(--muted); }
+        .review-note { margin:18px 0 0; color:var(--muted); }
         .related { padding:0 22px 24px; }
         .related h2 { margin:18px 0 14px; font-family:Georgia,serif; font-size:20px; font-weight:500; }
         .related-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
@@ -90,6 +125,12 @@
     </header>
 
     <main class="product-shell">
+        @if (session('success'))
+            <div class="flash success">{{ session('success') }}</div>
+        @endif
+        @if (session('error') || $errors->any())
+            <div class="flash">{{ session('error') ?: $errors->first() }}</div>
+        @endif
         <div class="breadcrumb"><a href="{{ route('shop.index') }}">Home</a> <span>&rsaquo;</span> <a href="{{ route('shop.index', ['category' => $product->category]) }}">{{ $categoryTitle }}</a> <span>&rsaquo;</span> <strong>{{ $product->name }}</strong></div>
         <section class="product-detail">
             <div class="gallery">
@@ -106,29 +147,45 @@
 
             <div class="product-copy">
                 @php
-                    $rating = (float) ($product->rating ?? 0);
+                    $averageRating = round((float) ($product->reviews_avg_rating ?? 0), 1);
+                    $reviewCount = (int) ($product->reviews_count ?? 0);
+                    $roundedRating = (int) round($averageRating);
                     $salesCount = (int) ($product->sales_count ?? 0);
                     $discountPercent = (float) ($product->discount_percent ?? 0);
                     $originalPrice = (float) $product->price;
                     $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - ($discountPercent / 100)) : $originalPrice;
-                    $sellerName = $product->shop_name ?: ($product->seller_name ?: 'Lumora seller');
+                    $sellerName = $product->seller?->shop_name ?: ($product->seller?->name ?: 'Lumora seller');
                     $stock = (int) ($product->stock ?? 0);
                 @endphp
                 <div class="eyebrow">{{ $sellerName }}</div>
                 <h1>{{ $product->name }}</h1>
-                <div class="rating">@if ($rating > 0){{ str_repeat('&#9733;', (int) round($rating)) }}{{ str_repeat('&#9734;', 5 - (int) round($rating)) }} <span>({{ number_format($rating, 2) }})</span>@else <span class="muted">No ratings yet</span>@endif @if ($salesCount > 0)<span class="muted"> &middot; {{ number_format($salesCount) }} sold</span>@endif</div>
+                <div class="rating">
+                    <a href="#reviews" class="rating-link" data-open-reviews>
+                        <span class="stars" aria-label="{{ number_format($averageRating, 1) }} out of 5 stars">
+                            @for ($star = 1; $star <= 5; $star++)
+                                <span class="{{ $star <= $roundedRating ? 'filled' : 'empty' }}">★</span>
+                            @endfor
+                        </span>
+                        <span>{{ number_format($averageRating, 1) }} ({{ $reviewCount }} {{ $reviewCount === 1 ? 'review' : 'reviews' }})</span>
+                    </a>
+                    @if ($salesCount > 0)<span class="muted"> &middot; {{ number_format($salesCount) }} sold</span>@endif
+                </div>
                 <div class="price-row"><span class="price">&#8369;{{ number_format($finalPrice, 2) }}</span>@if ($discountPercent > 0)<span class="old-price">&#8369;{{ number_format($originalPrice, 2) }}</span><span class="sale-badge">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif</div>
                 <div class="description">{{ $product->description ?: 'Discover more details about this Lumora product.' }}</div>
                 <div class="stock {{ $stock < 1 ? 'out' : '' }}">{{ $stock > 0 ? $stock . ' available' : 'Out of stock' }} @if ($stock > 0)<span class="muted"> &middot; In stock and ready to ship</span>@endif</div>
                 <label class="quantity-label" for="quantityOutput">Quantity</label>
-                <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" id="detailCartForm" class="lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
-                    @csrf
-                    <input type="hidden" name="quantity" id="quantityInput" value="1">
-                    <div class="purchase-row">
-                        <div class="quantity"><button type="button" id="quantityMinus" aria-label="Decrease quantity">&#8722;</button><output id="quantityOutput">1</output><button type="button" id="quantityPlus" aria-label="Increase quantity">+</button></div>
+                <div class="purchase-row">
+                    <div class="quantity"><button type="button" id="quantityMinus" aria-label="Decrease quantity">&#8722;</button><output id="quantityOutput">1</output><button type="button" id="quantityPlus" aria-label="Increase quantity">+</button></div>
+                    <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" id="detailCartForm" class="lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+                        @csrf
+                        <input type="hidden" name="quantity" id="quantityInput" value="1">
                         <button type="submit" class="button primary add-detail-cart" @disabled($stock < 1)>Add to cart</button>
-                    </div>
-                    <button type="submit" class="button wishlist buy-now" id="buyNowButton" name="buy_now" value="1" @disabled($stock < 1)>Buy now</button>
+                    </form>
+                </div>
+                <form method="POST" action="{{ route('buyer.buy-now', ['product' => $product->id]) }}" id="buyNowForm">
+                    @csrf
+                    <input type="hidden" name="quantity" id="buy-now-quantity" value="1">
+                    <button type="submit" class="button wishlist buy-now" id="buyNowButton" @disabled($stock < 1)>Buy now</button>
                 </form>
             </div>
 
@@ -148,12 +205,110 @@
             </div>
             <div class="tab-panel active" id="description">{{ $product->description ?: 'No description has been added for this product yet.' }}</div>
             <div class="tab-panel" id="details">Category: {{ $categoryTitle }}<br>Seller: {{ $sellerName }}<br>Stock: {{ $stock > 0 ? $stock . ' available' : 'Out of stock' }}</div>
-            <div class="tab-panel" id="reviews">@if ($rating > 0)Rated {{ number_format($rating, 2) }} out of 5.@else No reviews yet. Be the first to review this product after purchase.@endif</div>
+            <div class="tab-panel" id="reviews">
+                <div class="reviews-summary">
+                    <div>
+                        <div class="reviews-score">{{ number_format($averageRating, 1) }}</div>
+                        <div class="stars" aria-label="{{ number_format($averageRating, 1) }} out of 5 stars">
+                            @for ($star = 1; $star <= 5; $star++)
+                                <span class="{{ $star <= $roundedRating ? 'filled' : 'empty' }}">★</span>
+                            @endfor
+                        </div>
+                        <div class="reviews-based">Based on {{ $reviewCount }} {{ $reviewCount === 1 ? 'review' : 'reviews' }}</div>
+                    </div>
+                    <div class="rating-breakdown">
+                        @for ($star = 5; $star >= 1; $star--)
+                            @php
+                                $starTotal = (int) ($ratingBreakdown->get($star, 0));
+                                $starPercent = $reviewCount > 0 ? ($starTotal / $reviewCount) * 100 : 0;
+                            @endphp
+                            <div class="rating-bar">
+                                <span>{{ $star }} stars</span>
+                                <span class="rating-track"><span class="rating-fill" style="width: {{ $starPercent }}%"></span></span>
+                                <span>{{ $starTotal }}</span>
+                            </div>
+                        @endfor
+                    </div>
+                </div>
+
+                @if ($reviews->count())
+                    <div class="review-list">
+                        @foreach ($reviews as $review)
+                            <article class="review-card">
+                                <div class="review-head">
+                                    <div>
+                                        <div class="review-name">{{ $review->user?->name ?? 'Lumora buyer' }}</div>
+                                        <div class="stars" aria-label="{{ $review->rating }} out of 5 stars">
+                                            @for ($star = 1; $star <= 5; $star++)
+                                                <span class="{{ $star <= $review->rating ? 'filled' : 'empty' }}">★</span>
+                                            @endfor
+                                        </div>
+                                        @if ($review->order_id)
+                                            <span class="verified-badge">Verified Purchase</span>
+                                        @endif
+                                    </div>
+                                    <time class="review-date" datetime="{{ $review->created_at?->toDateString() }}">{{ $review->created_at?->format('M d, Y') }}</time>
+                                </div>
+                                @if ($review->review)
+                                    <p class="review-text">{{ $review->review }}</p>
+                                @endif
+                            </article>
+                        @endforeach
+                    </div>
+                    <div class="pagination">{{ $reviews->links() }}</div>
+                @else
+                    <p class="review-note">No reviews yet. Be the first to review this product after purchase.</p>
+                @endif
+
+                @if ($userReview)
+                    <form class="review-form" method="POST" action="{{ route('buyer.products.reviews.update', ['product' => $product->id, 'review' => $userReview->id]) }}">
+                        @csrf
+                        @method('PATCH')
+                        <h3>Edit Review</h3>
+                        <div class="star-input" aria-label="Choose a rating">
+                            @for ($star = 5; $star >= 1; $star--)
+                                <input type="radio" id="rating-edit-{{ $star }}" name="rating" value="{{ $star }}" @checked((int) old('rating', $userReview->rating) === $star)>
+                                <label for="rating-edit-{{ $star }}">★</label>
+                            @endfor
+                        </div>
+                        <textarea class="review-textarea" name="review" maxlength="2000" placeholder="Share your experience with this product...">{{ old('review', $userReview->review) }}</textarea>
+                        <div class="review-actions">
+                            <button class="review-submit" type="submit">Update Review</button>
+                        </div>
+                    </form>
+                    <form method="POST" action="{{ route('buyer.products.reviews.destroy', ['product' => $product->id, 'review' => $userReview->id]) }}" class="review-actions">
+                        @csrf
+                        @method('DELETE')
+                        <button class="review-delete" type="submit">Delete Review</button>
+                    </form>
+                @elseif ($canReview)
+                    <form class="review-form" method="POST" action="{{ route('buyer.products.reviews.store', ['product' => $product->id]) }}">
+                        @csrf
+                        <h3>Write a Review</h3>
+                        <div class="star-input" aria-label="Choose a rating">
+                            @for ($star = 5; $star >= 1; $star--)
+                                <input type="radio" id="rating-{{ $star }}" name="rating" value="{{ $star }}" @checked((int) old('rating') === $star)>
+                                <label for="rating-{{ $star }}">★</label>
+                            @endfor
+                        </div>
+                        <textarea class="review-textarea" name="review" maxlength="2000" placeholder="Share your experience with this product...">{{ old('review') }}</textarea>
+                        <div class="review-actions">
+                            <button class="review-submit" type="submit">Submit Review</button>
+                        </div>
+                    </form>
+                @else
+                    <p class="review-note">Only buyers who have received this product can leave a review.</p>
+                @endif
+            </div>
             <div class="tab-panel" id="shipping">Shipping and return information will be shown according to the seller and checkout options.</div>
             @if ($relatedProducts->count())
                 <div class="related"><h2>You may also like</h2><div class="related-grid">
                     @foreach ($relatedProducts as $related)
-                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image">@if (!empty($related->image))<img src="{{ Storage::url($related->image) }}" alt="{{ $related->name }}">@else<span>Lumora</span>@endif</div><div class="related-name">{{ $related->name }}</div><div class="related-price">&#8369;{{ number_format((float) $related->price, 2) }}</div></a>
+                        @php
+                            $relatedRating = round((float) ($related->reviews_avg_rating ?? 0), 1);
+                            $relatedCount = (int) ($related->reviews_count ?? 0);
+                        @endphp
+                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image">@if (!empty($related->image))<img src="{{ Storage::url($related->image) }}" alt="{{ $related->name }}">@else<span>Lumora</span>@endif</div><div class="related-name">{{ $related->name }}</div><div class="rating"><span class="stars">@for ($star = 1; $star <= 5; $star++)<span class="{{ $star <= (int) round($relatedRating) ? 'filled' : 'empty' }}">★</span>@endfor</span> <span>{{ number_format($relatedRating, 1) }} ({{ $relatedCount }})</span></div><div class="related-price">&#8369;{{ number_format((float) $related->price, 2) }}</div></a>
                     @endforeach
                 </div></div>
             @endif
@@ -170,11 +325,13 @@
 <script>
     const output = document.getElementById('quantityOutput');
     const quantityInput = document.getElementById('quantityInput');
+    const buyNowQuantityInput = document.getElementById('buy-now-quantity');
     const maxStock = {{ max(1, (int) ($product->stock ?? 0)) }};
     function setQuantity(value) {
         const quantity = Math.max(1, Math.min(maxStock, Number(value) || 1));
         output.textContent = String(quantity);
         quantityInput.value = String(quantity);
+        if (buyNowQuantityInput) buyNowQuantityInput.value = String(quantity);
     }
     document.getElementById('quantityMinus')?.addEventListener('click', () => setQuantity(Number(output.textContent) - 1));
     document.getElementById('quantityPlus')?.addEventListener('click', () => setQuantity(Number(output.textContent) + 1));
@@ -182,6 +339,11 @@
         document.querySelectorAll('[data-tab], .tab-panel').forEach(item => item.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(tab.dataset.tab)?.classList.add('active');
+    }));
+    document.querySelectorAll('[data-open-reviews]').forEach(link => link.addEventListener('click', event => {
+        event.preventDefault();
+        document.querySelector('[data-tab="reviews"]')?.click();
+        document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
 </script>
 </body>
