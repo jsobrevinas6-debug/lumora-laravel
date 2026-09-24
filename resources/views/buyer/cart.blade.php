@@ -252,11 +252,7 @@
                             <article class="cart-item" data-item data-product-id="{{ $item['product_id'] }}" data-price="{{ $item['unit_price'] }}" data-original-price="{{ $item['original_price'] }}" data-stock="{{ $product->stock }}">
                                 <input class="item-check" type="checkbox" value="{{ $item['product_id'] }}" {{ $selectedIds->contains($item['product_id']) ? 'checked' : '' }} aria-label="Select {{ $product->name }}">
 
-                                @if($product->image)
-                                    <img class="item-image" src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
-                                @else
-                                    <div class="item-image" aria-hidden="true">L</div>
-                                @endif
+                                <img class="item-image" src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
 
                                 <div class="item-copy">
                                     <div class="seller">Lumora seller</div>
@@ -379,11 +375,7 @@
                             <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">&#9825;</button>
                             @if($discountPercent > 0)<span class="sale">{{ $discountLabel }}% OFF</span>@endif
                             <a class="product-image" href="{{ route('shop.product', ['id' => $product->id]) }}" aria-label="View {{ $product->name }}">
-                                @if($product->image)
-                                    <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
-                                @else
-                                    <span class="fallback">Lumora</span>
-                                @endif
+                                <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                             </a>
                             <div class="product-info">
                                 <div class="seller">Lumora seller</div>

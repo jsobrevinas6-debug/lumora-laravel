@@ -884,7 +884,7 @@
                 <article class="homepage-product-card">
                     <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">â™¡</button>
                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
-                    <div class="homepage-product-image">@if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="fallback">Lumora</span>@endif</div>
+                    <div class="homepage-product-image"><img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div>
                     <div class="homepage-product-info">
                         <div class="seller">Lumora seller</div>
                         <h3>{{ $product->name }}</h3>
@@ -900,7 +900,7 @@
                         </div>
                         <div class="homepage-product-actions">
                             <a href="{{ route('shop.product', ['id' => $product->id]) }}">View product</a>
-                            <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" class="homepage-cart-form lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+                            <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" class="homepage-cart-form lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ $product->image_url }}">
     @csrf
     <input type="hidden" name="quantity" value="1">
     <button type="submit">Add to cart</button>
@@ -1035,8 +1035,8 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                             </button>
                             <div class="product-thumb" style="background:linear-gradient(135deg,#5A2E5A,#3D1B3D)">
-                                @if(is_object($item) && !empty($item->image))
-                                    <img src="{{ Storage::url($item->image) }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ $item->name }}">
+                                @if(is_object($item))
+                                    <img src="{{ $item->image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ $item->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                                 @else
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2C8 6 5 10 5 14a7 7 0 0 0 14 0c0-4-3-8-7-12Z"/></svg>
                                 @endif

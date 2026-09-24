@@ -324,8 +324,8 @@
                                 @foreach ($previewItems as $item)
                                     @php($product = $item->product)
                                     <div class="product-thumb" title="{{ $product?->name ?? 'Product unavailable' }}">
-                                        @if ($product?->image)
-                                            <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
+                                        @if ($product)
+                                            <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                                         @else
                                             <span>L</span>
                                         @endif

@@ -32,11 +32,7 @@
                     @if ($hasDiscount)
                         <span style="position:absolute;top:8px;left:8px;background:#B85C3B;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">{{ rtrim(rtrim(number_format($product->discount_percent, 1), '0'), '.') }}% OFF</span>
                     @endif
-                    @if ($product->image)
-                        <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}">
-                    @else
-                        No image
-                    @endif
+                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                 </div>
                 <div class="product-body">
                     <div class="product-name">{{ $product->name }}</div>

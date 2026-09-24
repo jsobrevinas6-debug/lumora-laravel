@@ -197,11 +197,7 @@
                     <article class="product-card">
                         <button class="heart" aria-label="Add {{ $product->name }} to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                         <div class="product-image">
-                            @if (!empty($product->image))
-                                <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
-                            @else
-                                <span class="product-placeholder">Lumora</span>
-                            @endif
+                            <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                         </div>
                         <div class="product-content">
                             <div class="seller">Lumora seller</div>

@@ -387,11 +387,7 @@
                         $product = $item['product'];
                     @endphp
                     <div class="item">
-                        @if($product->image)
-                            <img class="item-image" src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">
-                        @else
-                            <div class="item-image"></div>
-                        @endif
+                        <img class="item-image" src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                         <div class="item-details">
                             <div class="item-name">{{ $product->name }}</div>
                             <div class="item-meta">Quantity: {{ $item['quantity'] }}</div>

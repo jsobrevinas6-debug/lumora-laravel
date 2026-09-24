@@ -62,7 +62,7 @@
         const image = form.dataset.cartProductImage || '';
         nameEl.textContent = name;
         priceEl.textContent = price ? '₱' + Number(price).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-        thumbEl.innerHTML = image ? `<img src="${image}" alt="">` : 'L';
+        thumbEl.innerHTML = image ? `<img src="${image}" alt="" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">` : 'L';
         modal.classList.add('is-open');
         modal.setAttribute('aria-hidden','false');
         closeTimer = setTimeout(closeModal, 5000);

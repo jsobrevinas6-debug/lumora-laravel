@@ -136,11 +136,11 @@
             <div class="gallery">
                 <div class="thumbs">
                     <button class="thumb active" type="button" aria-label="Product image">
-                        @if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="thumb-placeholder">&#9671;</span>@endif
+                        <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                     </button>
                 </div>
                 <div class="main-photo">
-                    @if (!empty($product->image))<img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}">@else<span class="photo-placeholder">Lumora</span>@endif
+                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                     <button class="zoom" type="button" aria-label="Zoom image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5M10.8 7.8v6M7.8 10.8h6"/></svg></button>
                 </div>
             </div>
@@ -176,7 +176,7 @@
                 <label class="quantity-label" for="quantityOutput">Quantity</label>
                 <div class="purchase-row">
                     <div class="quantity"><button type="button" id="quantityMinus" aria-label="Decrease quantity">&#8722;</button><output id="quantityOutput">1</output><button type="button" id="quantityPlus" aria-label="Increase quantity">+</button></div>
-                    <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" id="detailCartForm" class="lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ !empty($product->image) ? Storage::url($product->image) : '' }}">
+                    <form method="POST" action="{{ route('buyer.cart.add', ['product' => $product->id]) }}" id="detailCartForm" class="lumora-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $finalPrice }}" data-cart-product-image="{{ $product->image_url }}">
                         @csrf
                         <input type="hidden" name="quantity" id="quantityInput" value="1">
                         <button type="submit" class="button primary add-detail-cart" @disabled($stock < 1)>Add to cart</button>
@@ -308,7 +308,7 @@
                             $relatedRating = round((float) ($related->reviews_avg_rating ?? 0), 1);
                             $relatedCount = (int) ($related->reviews_count ?? 0);
                         @endphp
-                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image">@if (!empty($related->image))<img src="{{ Storage::url($related->image) }}" alt="{{ $related->name }}">@else<span>Lumora</span>@endif</div><div class="related-name">{{ $related->name }}</div><div class="rating"><span class="stars">@for ($star = 1; $star <= 5; $star++)<span class="{{ $star <= (int) round($relatedRating) ? 'filled' : 'empty' }}">★</span>@endfor</span> <span>{{ number_format($relatedRating, 1) }} ({{ $relatedCount }})</span></div><div class="related-price">&#8369;{{ number_format((float) $related->price, 2) }}</div></a>
+                        <a class="related-card" href="{{ route('shop.product', ['id' => $related->id]) }}"><div class="related-image"><img src="{{ $related->image_url }}" alt="{{ $related->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div><div class="related-name">{{ $related->name }}</div><div class="rating"><span class="stars">@for ($star = 1; $star <= 5; $star++)<span class="{{ $star <= (int) round($relatedRating) ? 'filled' : 'empty' }}">★</span>@endfor</span> <span>{{ number_format($relatedRating, 1) }} ({{ $relatedCount }})</span></div><div class="related-price">&#8369;{{ number_format((float) $related->price, 2) }}</div></a>
                     @endforeach
                 </div></div>
             @endif

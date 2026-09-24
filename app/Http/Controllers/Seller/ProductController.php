@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Support\CategoryCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +16,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $view = $request->query('view', 'active');
-        $query = DB::table('products')->where('seller_id', Auth::id());
+        $query = Product::query()->where('seller_id', Auth::id());
 
         if ($view === 'archived') {
             $query->where('status', 'archived');
@@ -99,9 +100,12 @@ class ProductController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
+            $oldImagePath = Product::normalizeImagePath($product->image);
+
+            if ($oldImagePath) {
+                Storage::disk('public')->delete($oldImagePath);
             }
+
             $data['image'] = $request->file('image')->store('products', 'public');
         }
 
@@ -121,7 +125,7 @@ class ProductController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:90'],
             'stock' => ['nullable', 'integer', 'min:0'],
-            'image' => ['nullable', 'image', 'max:2048'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'variant_type' => ['nullable', 'string', 'max:100'],
             'variants' => ['nullable', 'array'],
             'variants.*.name' => ['nullable', 'string', 'max:255'],
@@ -166,9 +170,12 @@ class ProductController extends Controller
     public function destroy($id)
     {
         $product = DB::table('products')->where('id', $id)->where('seller_id', Auth::id())->first();
-        if ($product && $product->image) {
-            Storage::disk('public')->delete($product->image);
+        $imagePath = Product::normalizeImagePath($product?->image);
+
+        if ($imagePath) {
+            Storage::disk('public')->delete($imagePath);
         }
+
         DB::table('products')->where('id', $id)->where('seller_id', Auth::id())->delete();
         return back()->with('success', 'Product permanently deleted.');
     }
