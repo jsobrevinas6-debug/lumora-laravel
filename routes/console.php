@@ -123,16 +123,26 @@ Artisan::command('products:migrate-images-to-public', function () {
     $this->line('-----------------------------------------');
 })->purpose('Copy legacy product images into public/products and update product image paths safely');
 
-Artisan::command('google:check-oauth', function () {
+function reportGoogleOauthConfig($command): void
+{
     $clientId = config('services.google.client_id');
     $clientSecret = config('services.google.client_secret');
     $redirectUri = config('services.google.redirect');
 
-    $this->line('Google redirect route exists: '.(Route::has('google.redirect') ? 'YES' : 'NO'));
-    $this->line('Google callback route exists: '.(Route::has('google.callback') ? 'YES' : 'NO'));
-    $this->line('Google redirect path: /auth/google/redirect');
-    $this->line('Google callback path: /auth/google/callback');
-    $this->line('Configured redirect URI: '.($redirectUri ?: 'NULL'));
-    $this->line('Client ID configured: '.(filled($clientId) ? 'YES' : 'NO'));
-    $this->line('Client secret configured: '.(filled($clientSecret) ? 'YES' : 'NO'));
+    $command->line('APP_URL: '.config('app.url'));
+    $command->line('GOOGLE_CLIENT_ID: '.(filled($clientId) ? 'CONFIGURED' : 'MISSING'));
+    $command->line('GOOGLE_CLIENT_SECRET: '.(filled($clientSecret) ? 'CONFIGURED' : 'MISSING'));
+    $command->line('GOOGLE_REDIRECT_URI: '.($redirectUri ?: 'MISSING'));
+    $command->line('Google redirect route exists: '.(Route::has('google.redirect') ? 'YES' : 'NO'));
+    $command->line('Google callback route exists: '.(Route::has('google.callback') ? 'YES' : 'NO'));
+    $command->line('Google redirect path: /auth/google/redirect');
+    $command->line('Google callback path: /auth/google/callback');
+}
+
+Artisan::command('google:check-oauth', function () {
+    reportGoogleOauthConfig($this);
 })->purpose('Check Google OAuth route/config status without printing secrets');
+
+Artisan::command('google:check-config', function () {
+    reportGoogleOauthConfig($this);
+})->purpose('Check Google OAuth environment/config status without printing secrets');
