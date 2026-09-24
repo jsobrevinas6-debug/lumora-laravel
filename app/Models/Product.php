@@ -63,7 +63,7 @@ class Product extends Model
 
         $path = ltrim($path, '/');
 
-        foreach (['storage/app/public/', 'public/storage/', 'storage/'] as $prefix) {
+        foreach (['storage/app/public/', 'public/storage/', 'public/', 'storage/'] as $prefix) {
             $position = stripos($path, $prefix);
 
             if ($position !== false) {
@@ -92,6 +92,15 @@ class Product extends Model
         return blank($filename) ? null : self::PUBLIC_PRODUCT_IMAGE_DIRECTORY.'/'.$filename;
     }
 
+    public static function isPublicProductImagePath(?string $value): bool
+    {
+        $path = self::normalizeImagePath($value);
+
+        return (bool) $path
+            && Str::startsWith($path, self::PUBLIC_PRODUCT_IMAGE_DIRECTORY.'/')
+            && basename($path) !== basename(self::PLACEHOLDER_IMAGE_PATH);
+    }
+
     public function getImageUrlAttribute(): string
     {
         if (blank($this->image)) {
@@ -106,14 +115,6 @@ class Product extends Model
 
         $path = self::normalizeImagePath($value);
 
-        if ($path && Storage::disk('public')->exists($path)) {
-            $url = Storage::disk('public')->url($path);
-
-            return Str::startsWith($url, ['http://', 'https://'])
-                ? $url
-                : asset($url);
-        }
-
         $publicCandidates = array_filter(array_unique([
             ltrim($value, '/'),
             $path,
@@ -125,6 +126,14 @@ class Product extends Model
             if (file_exists(public_path($publicPath))) {
                 return asset($publicPath);
             }
+        }
+
+        if ($path && Storage::disk('public')->exists($path)) {
+            $url = Storage::disk('public')->url($path);
+
+            return Str::startsWith($url, ['http://', 'https://'])
+                ? $url
+                : asset($url);
         }
 
         return self::placeholderImageUrl();

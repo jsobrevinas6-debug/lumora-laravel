@@ -3,7 +3,9 @@
 use App\Models\Product;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -53,3 +55,69 @@ Artisan::command('products:check-images', function () {
 
     $this->line('-----------------------------------------');
 })->purpose('Report product image paths, disk existence, and generated URLs without changing data');
+
+Artisan::command('products:migrate-images-to-public', function () {
+    $targetDirectory = public_path(Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY);
+
+    if (! File::exists($targetDirectory)) {
+        File::makeDirectory($targetDirectory, 0755, true);
+    }
+
+    Product::query()
+        ->select('id', 'name', 'image')
+        ->orderBy('id')
+        ->each(function (Product $product) use ($targetDirectory) {
+            $stored = $product->image;
+            $normalizedPath = Product::normalizeImagePath($stored);
+            $publicPath = Product::publicProductImagePath($stored);
+
+            $this->line('-----------------------------------------');
+            $this->line('Product #'.$product->id.' '.$product->name);
+            $this->line('OLD: '.($stored ?: 'NULL'));
+
+            if (! $normalizedPath || ! $publicPath) {
+                $this->line('SKIPPED: no image value');
+                return;
+            }
+
+            if (file_exists(public_path($normalizedPath)) && $stored !== $normalizedPath) {
+                $product->forceFill(['image' => $normalizedPath])->save();
+                $this->line('SOURCE: '.public_path($normalizedPath));
+                $this->line('DATABASE: '.$normalizedPath);
+                $this->line('RESULT: normalized existing public path');
+                return;
+            }
+
+            if (file_exists(public_path($publicPath))) {
+                if ($stored !== $publicPath) {
+                    $product->forceFill(['image' => $publicPath])->save();
+                }
+
+                $this->line('SOURCE: '.public_path($publicPath));
+                $this->line('DATABASE: '.$publicPath);
+                $this->line('RESULT: already in public/products');
+                return;
+            }
+
+            if (! Storage::disk('public')->exists($normalizedPath)) {
+                $this->line('SOURCE: '.Storage::disk('public')->path($normalizedPath));
+                $this->line('SKIPPED: source file missing');
+                return;
+            }
+
+            $source = Storage::disk('public')->path($normalizedPath);
+            $extension = strtolower(pathinfo($normalizedPath, PATHINFO_EXTENSION) ?: pathinfo($source, PATHINFO_EXTENSION) ?: 'jpg');
+            $filename = Str::uuid()->toString().'.'.$extension;
+            $newPublicPath = Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY.'/'.$filename;
+            $target = $targetDirectory.DIRECTORY_SEPARATOR.$filename;
+
+            File::copy($source, $target);
+            $product->forceFill(['image' => $newPublicPath])->save();
+
+            $this->line('SOURCE: '.$source);
+            $this->line('COPIED: '.$target);
+            $this->line('DATABASE: '.$newPublicPath);
+        });
+
+    $this->line('-----------------------------------------');
+})->purpose('Copy legacy product images into public/products and update product image paths safely');

@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
@@ -45,10 +45,8 @@ class ProductController extends Controller
     {
         $validated = $this->validateProduct($request);
         $imagePath = $request->hasFile('image')
-            ? $request->file('image')->store('products', 'public')
+            ? $this->storeProductImage($request)
             : null;
-
-        $this->publishProductImage($imagePath);
 
         $variantRows = collect($request->input('variants', []))
             ->filter(fn ($v) => !empty($v['name']));
@@ -106,12 +104,10 @@ class ProductController extends Controller
             $oldImagePath = Product::normalizeImagePath($product->image);
 
             if ($oldImagePath) {
-                Storage::disk('public')->delete($oldImagePath);
-                $this->deletePublishedProductImage($oldImagePath);
+                $this->deleteProductImageIfUnused($oldImagePath, (int) $id);
             }
 
-            $data['image'] = $request->file('image')->store('products', 'public');
-            $this->publishProductImage($data['image']);
+            $data['image'] = $this->storeProductImage($request);
         }
 
         DB::table('products')->where('id', $id)->update($data);
@@ -151,28 +147,56 @@ class ProductController extends Controller
         }
     }
 
-    private function publishProductImage(?string $imagePath): void
+    private function storeProductImage(Request $request): ?string
     {
-        $normalizedPath = Product::normalizeImagePath($imagePath);
-        $publicPath = Product::publicProductImagePath($imagePath);
+        $file = $request->file('image');
 
-        if (! $normalizedPath || ! $publicPath || ! Storage::disk('public')->exists($normalizedPath)) {
+        if (! $file) {
+            return null;
+        }
+
+        $directory = public_path(Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY);
+
+        if (! File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $filename = Str::uuid()->toString().'.'.$extension;
+
+        $file->move($directory, $filename);
+
+        return Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY.'/'.$filename;
+    }
+
+    private function deleteProductImageIfUnused(?string $imagePath, ?int $currentProductId = null): void
+    {
+        if (! Product::isPublicProductImagePath($imagePath)) {
             return;
         }
 
-        $source = Storage::disk('public')->path($normalizedPath);
-        $target = public_path($publicPath);
+        $publicPath = Product::normalizeImagePath($imagePath);
 
-        File::ensureDirectoryExists(dirname($target));
-        File::copy($source, $target);
-    }
+        if (! $publicPath) {
+            return;
+        }
 
-    private function deletePublishedProductImage(?string $imagePath): void
-    {
-        $publicPath = Product::publicProductImagePath($imagePath);
+        $isShared = Product::query()
+            ->select('id', 'image')
+            ->when($currentProductId, fn ($query) => $query->where('id', '!=', $currentProductId))
+            ->get()
+            ->contains(fn (Product $product) => Product::normalizeImagePath($product->image) === $publicPath);
 
-        if ($publicPath) {
-            File::delete(public_path($publicPath));
+        if ($isShared) {
+            return;
+        }
+
+        $fullPath = public_path($publicPath);
+        $productsDirectory = realpath(public_path(Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY));
+        $resolvedFile = file_exists($fullPath) ? realpath($fullPath) : false;
+
+        if ($productsDirectory && $resolvedFile && Str::startsWith($resolvedFile, $productsDirectory)) {
+            File::delete($resolvedFile);
         }
     }
 
@@ -203,8 +227,7 @@ class ProductController extends Controller
         $imagePath = Product::normalizeImagePath($product?->image);
 
         if ($imagePath) {
-            Storage::disk('public')->delete($imagePath);
-            $this->deletePublishedProductImage($imagePath);
+            $this->deleteProductImageIfUnused($imagePath, (int) $id);
         }
 
         DB::table('products')->where('id', $id)->where('seller_id', Auth::id())->delete();
