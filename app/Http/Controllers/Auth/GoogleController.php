@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
@@ -14,13 +17,33 @@ class GoogleController extends Controller
 {
     public function redirect()
     {
-        return Socialite::driver('google')->redirect();
+        $clientId = config('services.google.client_id');
+        $clientSecret = config('services.google.client_secret');
+        $redirectUri = config('services.google.redirect');
+
+        if (blank($clientId) || blank($clientSecret) || blank($redirectUri)) {
+            Log::warning('Google sign-in is not configured.', [
+                'client_id_configured' => filled($clientId),
+                'client_secret_configured' => filled($clientSecret),
+                'redirect_uri_configured' => filled($redirectUri),
+            ]);
+
+            return redirect()
+                ->route('login')
+                ->withErrors(['email' => 'Google sign-in is not configured yet. Please try again later.']);
+        }
+
+        return Socialite::driver('google')
+            ->redirectUrl($redirectUri)
+            ->redirect();
     }
 
     public function callback(Request $request)
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = Socialite::driver('google')
+                ->redirectUrl(config('services.google.redirect'))
+                ->user();
         } catch (Throwable $exception) {
             Log::warning('Google sign-in failed.', [
                 'message' => $exception->getMessage(),
@@ -28,7 +51,7 @@ class GoogleController extends Controller
 
             return redirect()
                 ->route('login')
-                ->withErrors(['email' => 'Google sign-in was cancelled or could not be completed.']);
+                ->withErrors(['email' => 'Google sign-in could not be completed. Please try again.']);
         }
 
         $googleId = (string) $googleUser->getId();
@@ -64,7 +87,17 @@ class GoogleController extends Controller
         $existingUser = User::where('email', $email)->first();
 
         if ($existingUser) {
-            $existingUser->google_id = $googleId;
+            if (filled($existingUser->google_id) && $existingUser->google_id !== $googleId) {
+                Log::warning('Google sign-in email matched a user already linked to a different Google account.', [
+                    'user_id' => $existingUser->id,
+                ]);
+
+                return redirect()
+                    ->route('login')
+                    ->withErrors(['email' => 'This email is already linked to another Google account.']);
+            }
+
+            $existingUser->google_id ??= $googleId;
             $existingUser->provider ??= 'google';
             $existingUser->avatar = $googleUser->getAvatar() ?: $existingUser->avatar;
             $existingUser->email_verified_at ??= now();
@@ -80,20 +113,26 @@ class GoogleController extends Controller
         $fullName = trim((string) ($googleUser->getName() ?: $googleUser->getNickname() ?: 'Lumora Buyer'));
         $nameParts = preg_split('/\s+/', $fullName, 2);
 
-        $request->session()->put('google_onboarding', [
-            'google_id' => $googleId,
-            'email' => $email,
-            'first_name' => $nameParts[0] ?? '',
-            'last_name' => $nameParts[1] ?? '',
-            'avatar' => $googleUser->getAvatar(),
+        $user = User::create([
             'name' => $fullName,
+            'first_name' => $nameParts[0] ?? null,
+            'last_name' => $nameParts[1] ?? null,
+            'email' => $email,
+            'google_id' => $googleId,
+            'avatar' => $googleUser->getAvatar(),
             'provider' => 'google',
-            'email_verified' => true,
+            'email_verified' => 1,
             'email_verified_at' => now(),
+            'password' => Hash::make(Str::random(40)),
+            'role' => 'buyer',
+            'status' => 'active',
         ]);
 
-        return redirect()
-            ->route('register')
-            ->with('google_connected', true);
+        event(new Registered($user));
+
+        Auth::login($user, true);
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('shop.index'));
     }
 }

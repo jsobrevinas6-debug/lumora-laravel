@@ -4,6 +4,7 @@ use App\Models\Product;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -121,3 +122,17 @@ Artisan::command('products:migrate-images-to-public', function () {
 
     $this->line('-----------------------------------------');
 })->purpose('Copy legacy product images into public/products and update product image paths safely');
+
+Artisan::command('google:check-oauth', function () {
+    $clientId = config('services.google.client_id');
+    $clientSecret = config('services.google.client_secret');
+    $redirectUri = config('services.google.redirect');
+
+    $this->line('Google redirect route exists: '.(Route::has('google.redirect') ? 'YES' : 'NO'));
+    $this->line('Google callback route exists: '.(Route::has('google.callback') ? 'YES' : 'NO'));
+    $this->line('Google redirect path: /auth/google/redirect');
+    $this->line('Google callback path: /auth/google/callback');
+    $this->line('Configured redirect URI: '.($redirectUri ?: 'NULL'));
+    $this->line('Client ID configured: '.(filled($clientId) ? 'YES' : 'NO'));
+    $this->line('Client secret configured: '.(filled($clientSecret) ? 'YES' : 'NO'));
+})->purpose('Check Google OAuth route/config status without printing secrets');
