@@ -8,6 +8,7 @@ use App\Support\CategoryCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -46,6 +47,8 @@ class ProductController extends Controller
         $imagePath = $request->hasFile('image')
             ? $request->file('image')->store('products', 'public')
             : null;
+
+        $this->publishProductImage($imagePath);
 
         $variantRows = collect($request->input('variants', []))
             ->filter(fn ($v) => !empty($v['name']));
@@ -104,9 +107,11 @@ class ProductController extends Controller
 
             if ($oldImagePath) {
                 Storage::disk('public')->delete($oldImagePath);
+                $this->deletePublishedProductImage($oldImagePath);
             }
 
             $data['image'] = $request->file('image')->store('products', 'public');
+            $this->publishProductImage($data['image']);
         }
 
         DB::table('products')->where('id', $id)->update($data);
@@ -146,6 +151,31 @@ class ProductController extends Controller
         }
     }
 
+    private function publishProductImage(?string $imagePath): void
+    {
+        $normalizedPath = Product::normalizeImagePath($imagePath);
+        $publicPath = Product::publicProductImagePath($imagePath);
+
+        if (! $normalizedPath || ! $publicPath || ! Storage::disk('public')->exists($normalizedPath)) {
+            return;
+        }
+
+        $source = Storage::disk('public')->path($normalizedPath);
+        $target = public_path($publicPath);
+
+        File::ensureDirectoryExists(dirname($target));
+        File::copy($source, $target);
+    }
+
+    private function deletePublishedProductImage(?string $imagePath): void
+    {
+        $publicPath = Product::publicProductImagePath($imagePath);
+
+        if ($publicPath) {
+            File::delete(public_path($publicPath));
+        }
+    }
+
     public function updateStock(Request $request, $id)
     {
         $request->validate(['stock' => 'required|integer|min:0']);
@@ -174,6 +204,7 @@ class ProductController extends Controller
 
         if ($imagePath) {
             Storage::disk('public')->delete($imagePath);
+            $this->deletePublishedProductImage($imagePath);
         }
 
         DB::table('products')->where('id', $id)->where('seller_id', Auth::id())->delete();

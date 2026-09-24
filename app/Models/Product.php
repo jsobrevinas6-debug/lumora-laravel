@@ -14,6 +14,7 @@ class Product extends Model
     use HasFactory;
 
     public const PLACEHOLDER_IMAGE_PATH = 'images/product-placeholder.png';
+    public const PUBLIC_PRODUCT_IMAGE_DIRECTORY = 'products';
 
     protected $fillable = [
         'seller_id',
@@ -78,6 +79,19 @@ class Product extends Model
         return blank($path) ? null : $path;
     }
 
+    public static function publicProductImagePath(?string $value): ?string
+    {
+        $path = self::normalizeImagePath($value);
+
+        if (! $path) {
+            return null;
+        }
+
+        $filename = basename($path);
+
+        return blank($filename) ? null : self::PUBLIC_PRODUCT_IMAGE_DIRECTORY.'/'.$filename;
+    }
+
     public function getImageUrlAttribute(): string
     {
         if (blank($this->image)) {
@@ -103,6 +117,7 @@ class Product extends Model
         $publicCandidates = array_filter(array_unique([
             ltrim($value, '/'),
             $path,
+            self::publicProductImagePath($value),
             $path ? 'storage/'.$path : null,
         ]));
 
@@ -125,9 +140,14 @@ class Product extends Model
     public function imageExists(): bool
     {
         $path = self::normalizeImagePath($this->image);
+        $publicPath = self::publicProductImagePath($this->image);
 
         return (bool) $path
-            && (Storage::disk('public')->exists($path) || file_exists(public_path('storage/'.$path)));
+            && (
+                Storage::disk('public')->exists($path)
+                || file_exists(public_path('storage/'.$path))
+                || ($publicPath && file_exists(public_path($publicPath)))
+            );
     }
 
     private static function isAppUrl(string $url): bool

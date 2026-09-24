@@ -29,10 +29,13 @@ Artisan::command('products:check-images', function () {
         ->orderBy('id')
         ->each(function (Product $product) {
             $normalizedPath = Product::normalizeImagePath($product->image);
+            $publicProductPath = Product::publicProductImagePath($product->image);
             $storagePath = $normalizedPath ? Storage::disk('public')->path($normalizedPath) : null;
-            $publicPath = $normalizedPath ? public_path('storage/'.$normalizedPath) : null;
+            $publicStoragePath = $normalizedPath ? public_path('storage/'.$normalizedPath) : null;
+            $publicProductsPath = $publicProductPath ? public_path($publicProductPath) : null;
             $storageExists = $normalizedPath && Storage::disk('public')->exists($normalizedPath);
-            $publicExists = $publicPath && file_exists($publicPath);
+            $publicStorageExists = $publicStoragePath && file_exists($publicStoragePath);
+            $publicProductsExists = $publicProductsPath && file_exists($publicProductsPath);
 
             $this->line('-----------------------------------------');
             $this->line('ID: '.$product->id);
@@ -41,8 +44,10 @@ Artisan::command('products:check-images', function () {
             $this->line('Normalized Path: '.($normalizedPath ?: 'NULL'));
             $this->line('Expected Storage Path: '.($storagePath ?: 'NULL'));
             $this->line('Storage File Exists: '.($storageExists ? 'YES' : 'NO'));
-            $this->line('Expected Public Path: '.($publicPath ?: 'NULL'));
-            $this->line('Public File Exists: '.($publicExists ? 'YES' : 'NO'));
+            $this->line('Expected Public Storage Path: '.($publicStoragePath ?: 'NULL'));
+            $this->line('Public Storage File Exists: '.($publicStorageExists ? 'YES' : 'NO'));
+            $this->line('Expected Public Products Path: '.($publicProductsPath ?: 'NULL'));
+            $this->line('Public Products File Exists: '.($publicProductsExists ? 'YES' : 'NO'));
             $this->line('Generated image_url: '.$product->image_url);
         });
 
