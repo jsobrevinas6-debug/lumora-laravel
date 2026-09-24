@@ -276,7 +276,8 @@
         .account-menu-link:hover, .account-menu-button:hover { background:var(--blush-1); color:var(--plum); }
         .account-menu-button.switch-seller { border:1px solid var(--plum); color:var(--plum); margin:4px 0; }
         .account-menu-button.switch-seller:hover { background:var(--plum); color:#fff; }
-        .account-menu-icon { width:18px; text-align:center; font-size:16px; }
+        .account-menu-icon { width:18px; display:inline-flex; align-items:center; justify-content:center; color:currentColor; }
+        .account-menu-icon svg { width:16px; height:16px; }
         .account-menu-divider { height:1px; margin:6px 2px; background:var(--line); }
         .account-menu-button.logout-menu { color:var(--muted); }
         @media (max-width:900px) { .account-dropdown { right:-4px; } }
@@ -397,6 +398,7 @@
         .benefit{ display:flex; align-items:center; justify-content:center; gap:12px; padding:8px; border-right:1px solid var(--line); }
         .benefit:last-child{ border-right:0; }
         .benefit-icon{ color:var(--rose); font-size:25px; }
+        .benefit-icon svg{ width:25px; height:25px; }
         .benefit strong{ display:block; color:var(--plum); font-size:13px; }
         .benefit span{ display:block; margin-top:3px; color:var(--muted); font-size:11px; }
         .section{ max-width:1240px; }
@@ -435,6 +437,7 @@
         .benefit{ display:flex; align-items:center; justify-content:center; gap:12px; padding:8px; border-right:1px solid var(--line); }
         .benefit:last-child{ border-right:0; }
         .benefit-icon{ color:var(--rose); font-size:25px; }
+        .benefit-icon svg{ width:25px; height:25px; }
         .benefit strong{ display:block; color:var(--plum); font-size:13px; }
         .benefit span{ display:block; margin-top:3px; color:var(--muted); font-size:11px; }
         .section{ max-width:1240px; }
@@ -449,7 +452,8 @@
         .homepage-product-image{ height:220px; display:grid; place-items:center; overflow:hidden; background:linear-gradient(135deg,#f4e2db,#e2beb0); }
         .homepage-product-image img{ width:100%; height:100%; object-fit:cover; }
         .homepage-product-image .fallback{ color:rgba(61,27,61,.45); font-family:'Playfair Display',serif; font-size:34px; }
-        .homepage-product-card .wish{ position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; border:0; border-radius:50%; background:rgba(255,255,255,.9); color:var(--plum); font-size:18px; }
+        .homepage-product-card .wish{ position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; display:grid; place-items:center; border:0; border-radius:50%; background:rgba(255,255,255,.9); color:var(--plum); font-size:18px; }
+        .homepage-product-card .wish svg{ width:16px; height:16px; }
         .homepage-product-card .sale{ position:absolute; top:10px; left:10px; padding:5px 8px; border-radius:4px; background:var(--rose); color:white; font-size:10px; font-weight:800; }
         .homepage-product-info{ padding:13px 14px 16px; }
         .homepage-product-info .seller{ color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
@@ -541,7 +545,7 @@
         .curated-card{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--cream)}
         .curated-card img{display:block;width:100%;height:112px;object-fit:cover}
         .curated-card span{display:flex;align-items:center;justify-content:space-between;padding:12px 13px;color:var(--plum);font-size:12px;font-weight:700}
-        .curated-card span::after{content:'â†’';color:var(--rose);font-size:16px}
+        .curated-card span::after{content:'\2192';color:var(--rose);font-size:16px}
         .developers-section{max-width:1240px;margin:58px auto 0;padding:0 24px}
         .developers-head{text-align:center;margin-bottom:24px}
         .developers-head h2{margin:0;color:var(--plum);font-family:'Playfair Display',serif;font-size:34px;font-weight:600;line-height:1.1}
@@ -732,12 +736,12 @@
                             </div>
 
                             <a href="{{ route('profile.edit') }}" class="account-menu-link" role="menuitem">
-                                <span class="account-menu-icon">â™™</span>
+                                <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
                                 <span>Profile / Settings</span>
                             </a>
 
                             <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
-                                <span class="account-menu-icon">â–¤</span>
+                                <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg></span>
                                 <span>My Orders</span>
                             </a>
 
@@ -745,7 +749,7 @@
                                 <form method="POST" action="{{ route('switchToSeller') }}">
                                     @csrf
                                     <button type="submit" class="account-menu-button switch-seller" role="menuitem">
-                                        <span class="account-menu-icon">â–£</span>
+                                        <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h12"/><path d="m12 6 6 6-6 6"/><path d="M4 4h6M4 20h6"/></svg></span>
                                         <span>Switch to Seller Dashboard</span>
                                     </button>
                                 </form>
@@ -755,7 +759,7 @@
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="account-menu-button logout-menu" role="menuitem">
-                                    <span class="account-menu-icon">â†ª</span>
+                                    <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 17 5 12l5-5"/><path d="M5 12h12"/><path d="M14 4h5v16h-5"/></svg></span>
                                     <span>Log out</span>
                                 </button>
                             </form>
@@ -786,13 +790,13 @@
                         <p class="hero-eyebrow">{{ $slide['eyebrow'] }}</p>
                         <h1 class="hero-title">{{ $slide['title'] }}</h1>
                         <p class="hero-description">{{ $slide['description'] }}</p>
-                        <a class="hero-cta" href="{{ $slide['url'] }}">{{ $slide['button'] }} <span class="hero-cta-arrow">â†’</span></a>
+                        <a class="hero-cta" href="{{ $slide['url'] }}">{{ $slide['button'] }} <span class="hero-cta-arrow">&rarr;</span></a>
                     </div>
                 </article>
             @endforeach
         </div>
-        <button class="hero-arrow prev" type="button" data-carousel-prev aria-label="Previous slide">â€¹</button>
-        <button class="hero-arrow next" type="button" data-carousel-next aria-label="Next slide">â€º</button>
+        <button class="hero-arrow prev" type="button" data-carousel-prev aria-label="Previous slide">&lsaquo;</button>
+        <button class="hero-arrow next" type="button" data-carousel-next aria-label="Next slide">&rsaquo;</button>
         <div class="hero-footer">
             <div class="hero-counter"><b data-carousel-current>01</b> <span>/ {{ str_pad(count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span></div>
             <div class="hero-dots" role="tablist" aria-label="Choose a hero slide">
@@ -842,36 +846,36 @@
     <div class="categories">
         <a href="{{ route('shop.index') }}?category=apple" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-phone.jpg') }}" alt="Phone"></div>
-            <span>Phone</span><small>EXPLORE&nbsp; â†’</small>
+            <span>Phone</span><small>EXPLORE&nbsp; &rarr;</small>
         </a>
         <a href="{{ route('shop.index') }}?category=computers" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-laptop.jpg') }}" alt="Laptop"></div>
-            <span>Laptop</span><small>EXPLORE&nbsp; â†’</small>
+            <span>Laptop</span><small>EXPLORE&nbsp; &rarr;</small>
         </a>
         <a href="{{ route('shop.index') }}?category=basketball" class="cat-card">
             <div class="cat-icon"><img src="{{ asset('images/lumora-basketball-shoes.jpg') }}" alt="Basketball Shoes"></div>
-            <span>Basketball Shoes</span><small>EXPLORE&nbsp; â†’</small>
+            <span>Basketball Shoes</span><small>EXPLORE&nbsp; &rarr;</small>
         </a>
         <a href="{{ route('shop.index') }}?category=mens-clothing" class="cat-card">
-            <div class="cat-icon"><img src="{{ asset('images/lumora-mens-clothing.jpg') }}" alt="Menâ€™s Clothing"></div>
-            <span>Menâ€™s Clothing</span><small>EXPLORE&nbsp; â†’</small>
+            <div class="cat-icon"><img src="{{ asset('images/lumora-mens-clothing.jpg') }}" alt="Men's Clothing"></div>
+            <span>Men's Clothing</span><small>EXPLORE&nbsp; &rarr;</small>
         </a>
         <a href="{{ route('shop.index') }}?category=womens-clothing" class="cat-card">
-            <div class="cat-icon"><img src="{{ asset('images/lumora-womens-dress.jpg') }}" alt="Womenâ€™s Dress"></div>
-            <span>Womenâ€™s Dress</span><small>EXPLORE&nbsp; â†’</small>
+            <div class="cat-icon"><img src="{{ asset('images/lumora-womens-dress.jpg') }}" alt="Women's Dress"></div>
+            <span>Women's Dress</span><small>EXPLORE&nbsp; &rarr;</small>
         </a>
     </div>
 
     <!-- ===================== BENEFITS ===================== -->
     <section class="benefits-strip" aria-label="Lumora shopping benefits">
-        <div class="benefit"><span class="benefit-icon">â™§</span><div><strong>Free Shipping</strong><span>On selected orders</span></div></div>
-        <div class="benefit"><span class="benefit-icon">â†º</span><div><strong>Easy Returns</strong><span>Simple return policy</span></div></div>
-        <div class="benefit"><span class="benefit-icon">âŒ‘</span><div><strong>Secure Payment</strong><span>Protected checkout</span></div></div>
+        <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="1.5"/><circle cx="18" cy="19" r="1.5"/></svg></span><div><strong>Free Shipping</strong><span>On selected orders</span></div></div>
+        <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h11a5 5 0 0 1 0 10H7"/><path d="m7 12-4-5 4-5"/></svg></span><div><strong>Easy Returns</strong><span>Simple return policy</span></div></div>
+        <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></svg></span><div><strong>Secure Payment</strong><span>Protected checkout</span></div></div>
     </section>
 
     <!-- ===================== BEST SELLERS ===================== -->
     <section class="homepage-best-sellers" aria-labelledby="bestSellersHeading">
-        <div class="homepage-best-sellers-head"><h2 id="bestSellersHeading">Best Sellers</h2><a href="{{ route('shop.index') }}?sort=top_sales">View all â†’</a></div>
+        <div class="homepage-best-sellers-head"><h2 id="bestSellersHeading">Best Sellers</h2><a href="{{ route('shop.index') }}?sort=top_sales">View all &rarr;</a></div>
         <div class="homepage-product-grid">
             @forelse (collect($products ?? [])->sortByDesc(fn($item) => (int) ($item->sales_count ?? 0))->take(4) as $product)
                 @php
@@ -882,7 +886,7 @@
                     $reviewCount = (int) ($product->reviews_count ?? 0);
                 @endphp
                 <article class="homepage-product-card">
-                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">â™¡</button>
+                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                     <div class="homepage-product-image"><img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div>
                     <div class="homepage-product-info">
@@ -920,11 +924,11 @@
         </div>
         <div class="deals-strip">
             @foreach ([
-                ['name'=>'Rose Clay Mask','now'=>'â‚±349','was'=>'â‚±499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
-                ['name'=>'Silk Lip Tint','now'=>'â‚±199','was'=>'â‚±280','disc'=>'29% off','color'=>'linear-gradient(135deg,#E2703A,#B4502A)'],
-                ['name'=>'Amber Eau de Parfum','now'=>'â‚±899','was'=>'â‚±1,299','disc'=>'31% off','color'=>'linear-gradient(135deg,#7A5A9E,#3D1B3D)'],
-                ['name'=>'Gold Hoop Earrings','now'=>'â‚±450','was'=>'â‚±620','disc'=>'27% off','color'=>'linear-gradient(135deg,#C9972B,#8A6314)'],
-                ['name'=>'Linen Candle Set','now'=>'â‚±520','was'=>'â‚±690','disc'=>'25% off','color'=>'linear-gradient(135deg,#5A8A6E,#2E4F3C)'],
+                ['name'=>'Rose Clay Mask','now'=>'&#8369;349','was'=>'&#8369;499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
+                ['name'=>'Silk Lip Tint','now'=>'&#8369;199','was'=>'&#8369;280','disc'=>'29% off','color'=>'linear-gradient(135deg,#E2703A,#B4502A)'],
+                ['name'=>'Amber Eau de Parfum','now'=>'&#8369;899','was'=>'&#8369;1,299','disc'=>'31% off','color'=>'linear-gradient(135deg,#7A5A9E,#3D1B3D)'],
+                ['name'=>'Gold Hoop Earrings','now'=>'&#8369;450','was'=>'&#8369;620','disc'=>'27% off','color'=>'linear-gradient(135deg,#C9972B,#8A6314)'],
+                ['name'=>'Linen Candle Set','now'=>'&#8369;520','was'=>'&#8369;690','disc'=>'25% off','color'=>'linear-gradient(135deg,#5A8A6E,#2E4F3C)'],
             ] as $d)
                 <div class="deal-card">
                     <div class="deal-thumb" style="background:{{ $d['color'] }}">
@@ -1044,10 +1048,10 @@
                             <div class="product-body">
                                 @if (is_object($item))
                                     <p class="name">{{ $item->name }}</p>
-                                    <p class="product-price">â‚±{{ number_format($item->price, 2) }}</p>
+                                    <p class="product-price">&#8369;{{ number_format($item->price, 2) }}</p>
                                 @else
                                     <p class="name">{{ $item['name'] }}</p>
-                                    <p class="product-price">â‚±{{ $item['price'] }}</p>
+                                    <p class="product-price">&#8369;{{ $item['price'] }}</p>
                                 @endif
                                 @php
                                     $compactRating = is_object($item) ? round((float) ($item->reviews_avg_rating ?? 0), 1) : 0;
