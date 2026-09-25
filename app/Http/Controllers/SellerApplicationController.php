@@ -30,7 +30,16 @@ class SellerApplicationController extends Controller
             return $eligibilityRedirect;
         }
 
-        $request->validate(SellerApplicationFields::applicationRules());
+        $validated = $request->validate(SellerApplicationFields::applicationRules());
+
+        $request->user()->update([
+            'contact_number' => $validated['contact_number'],
+            'province' => $validated['province'],
+            'municipality' => $validated['municipality'],
+            'barangay' => $validated['barangay'],
+            'street' => $validated['street'] ?? null,
+            'house_number' => $validated['house_number'] ?? null,
+        ]);
 
         SellerApplicationFields::createFromRequest($request, $request->user()->id);
 

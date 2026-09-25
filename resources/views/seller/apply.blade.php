@@ -73,7 +73,8 @@
                     </div>
                     <div class="form-group">
                         <label for="contact_number">Contact Number</label>
-                        <input id="contact_number" value="{{ old('contact_number', $user->contact_number ?: 'Not provided') }}" readonly>
+                        <input id="contact_number" name="contact_number" type="tel" value="{{ old('contact_number', $user->contact_number) }}" placeholder="09XXXXXXXXX" autocomplete="tel" required>
+                        @error('contact_number')<span class="field-error">{{ $message }}</span>@enderror
                     </div>
                     <div class="form-group">
                         <label for="provider">Account Type</label>
@@ -92,29 +93,13 @@
 
             <section class="section-card">
                 <h2 class="section-title">Business Address</h2>
-                <div class="grid">
-                    <div class="form-group">
-                        <label for="province">Province</label>
-                        <input id="province" value="{{ old('province', $user->province ?: 'Not provided') }}" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="municipality">Municipality</label>
-                        <input id="municipality" value="{{ old('municipality', $user->municipality ?: 'Not provided') }}" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="barangay">Barangay</label>
-                        <input id="barangay" value="{{ old('barangay', $user->barangay ?: 'Not provided') }}" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="street">Street</label>
-                        <input id="street" value="{{ old('street', $user->street ?: 'Not provided') }}" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="house_number">House / Unit No.</label>
-                        <input id="house_number" value="{{ old('house_number', $user->house_number ?: 'Not provided') }}" readonly>
-                    </div>
-                </div>
-                <p class="hint">Update your shipping address from Profile if these details need to change.</p>
+                @include('partials.address-fields', [
+                    'user' => $user,
+                    'fieldPrefix' => 'sellerApplyAddress',
+                    'selectGridClass' => 'grid',
+                    'streetGridClass' => 'grid',
+                ])
+                <p class="hint">This uses the same province, municipality, and barangay lookup used by registration and profile address forms.</p>
             </section>
 
             <section class="section-card">

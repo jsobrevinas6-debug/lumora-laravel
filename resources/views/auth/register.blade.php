@@ -27,6 +27,7 @@
 
         .error-box { background:#fdece6; color:#b8451f; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
         .error-box ul { margin:4px 0 0 18px; padding:0; }
+        .field-error { display:block; margin-top:6px; color:#b8451f; font-size:.74rem; line-height:1.4; }
         .success-box { background:#eef3ec; color:#5C7355; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
 
         .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -155,30 +156,11 @@
             </div>
 
             <div class="section-label">Address</div>
-            <div class="row-3" style="grid-template-columns:1fr 1fr 1fr;">
-                <div class="form-group">
-                    <label>Province</label>
-                    <select name="province" id="provinceSelect" required onchange="onProvinceChange()">
-                        <option value="">Loading...</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Municipality</label>
-                    <select name="municipality" id="municipalitySelect" required disabled onchange="onMunicipalityChange()">
-                        <option value="">Select province first</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Barangay</label>
-                    <select name="barangay" id="barangaySelect" required disabled>
-                        <option value="">Select municipality first</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row-2">
-                <div class="form-group"><label>Street</label><input type="text" name="street" value="{{ old('street') }}"></div>
-                <div class="form-group"><label>House / Unit No.</label><input type="text" name="house_number" value="{{ old('house_number') }}"></div>
-            </div>
+            @include('partials.address-fields', [
+                'fieldPrefix' => 'registerAddress',
+                'selectGridClass' => 'row-3',
+                'streetGridClass' => 'row-2',
+            ])
 
             <div class="section-label">Account</div>
             <div class="row-2">
@@ -234,96 +216,6 @@ function computeAge() {
     document.getElementById('ageDisplay').value = age;
     document.getElementById('ageHidden').value = age;
 }
-
-// ---------- Address cascading dropdowns ----------
-function fillSelect(selectEl, items, placeholder) {
-    selectEl.innerHTML = '';
-    const first = document.createElement('option');
-    first.value = '';
-    first.textContent = placeholder;
-    selectEl.appendChild(first);
-    items.forEach(item => {
-        const opt = document.createElement('option');
-        // psgc.cloud responses use "code" and "name" fields
-        opt.value = item.name;
-        opt.dataset.code = item.code;
-        opt.textContent = item.name;
-        selectEl.appendChild(opt);
-    });
-}
-
-async function loadProvinces() {
-    const select = document.getElementById('provinceSelect');
-    try {
-        const res = await fetch('{{ route('address.provinces') }}');
-        const payload = await res.json();
-        const data = payload.data || payload;
-        fillSelect(select, data, 'Select province');
-    } catch (e) {
-        select.innerHTML = '<option value="">Could not load provinces</option>';
-    }
-}
-
-async function onProvinceChange() {
-    const provinceSelect = document.getElementById('provinceSelect');
-    const municipalitySelect = document.getElementById('municipalitySelect');
-    const barangaySelect = document.getElementById('barangaySelect');
-
-    const selectedOption = provinceSelect.selectedOptions[0];
-    const code = selectedOption ? selectedOption.dataset.code : null;
-
-    municipalitySelect.innerHTML = '<option value="">Loading...</option>';
-    municipalitySelect.disabled = true;
-    barangaySelect.innerHTML = '<option value="">Select municipality first</option>';
-    barangaySelect.disabled = true;
-
-    if (!code) return;
-
-    try {
-        const res = await fetch(`{{ url('/address/provinces') }}/${code}/municipalities`);
-        const payload = await res.json();
-        const data = payload.data || payload;
-        fillSelect(municipalitySelect, data, 'Select municipality');
-        municipalitySelect.disabled = false;
-    } catch (e) {
-        municipalitySelect.innerHTML = '<option value="">Could not load municipalities</option>';
-    }
-}
-
-async function onMunicipalityChange() {
-    const municipalitySelect = document.getElementById('municipalitySelect');
-    const barangaySelect = document.getElementById('barangaySelect');
-
-    const selectedOption = municipalitySelect.selectedOptions[0];
-    const code = selectedOption ? selectedOption.dataset.code : null;
-
-    barangaySelect.innerHTML = '<option value="">Loading...</option>';
-    barangaySelect.disabled = true;
-
-    if (!code) return;
-
-    try {
-        const res = await fetch(`{{ url('/address/municipalities') }}/${code}/barangays`);
-        if (!res.ok) throw new Error('bad response');
-        const payload = await res.json();
-        const data = payload.data || payload;
-        if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
-        fillSelect(barangaySelect, data, 'Select barangay');
-        barangaySelect.disabled = false;
-    } catch (e) {
-        // Fallback: swap the select for a plain text input so registration isn't blocked
-        const parent = barangaySelect.parentElement;
-        const textInput = document.createElement('input');
-        textInput.type = 'text';
-        textInput.name = 'barangay';
-        textInput.placeholder = 'Type your barangay';
-        textInput.required = true;
-        barangaySelect.remove();
-        parent.appendChild(textInput);
-    }
-}
-
-loadProvinces();
 
 // ---------- Email verification (unchanged) ----------
 function sendCode() {

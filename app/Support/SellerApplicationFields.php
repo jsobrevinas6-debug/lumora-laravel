@@ -23,6 +23,12 @@ class SellerApplicationFields
     public static function applicationRules(): array
     {
         return [
+            'contact_number' => ['required', 'string', 'max:20'],
+            'province' => ['required', 'string', 'max:255'],
+            'municipality' => ['required', 'string', 'max:255'],
+            'barangay' => ['required', 'string', 'max:255'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'house_number' => ['nullable', 'string', 'max:100'],
             'business_name' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:255'],
             'id_document' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
