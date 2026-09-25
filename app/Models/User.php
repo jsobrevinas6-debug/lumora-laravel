@@ -86,6 +86,11 @@ class User extends Authenticatable
         return $this->hasMany(ProductReview::class);
     }
 
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class, 'seller_id');
+    }
+
     public function soldOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'seller_id');
@@ -99,5 +104,12 @@ class User extends Authenticatable
     public function sellerApplication(): HasOne
     {
         return $this->hasOne(SellerApplication::class)->latestOfMany();
+    }
+
+    public function approvedSellerApplication(): HasOne
+    {
+        return $this->hasOne(SellerApplication::class)
+            ->where('status', 'approved')
+            ->latestOfMany();
     }
 }

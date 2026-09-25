@@ -42,6 +42,10 @@
         .stars { letter-spacing:1px; white-space:nowrap; }
         .stars .filled { color:#C98F72; }
         .stars .empty { color:#EAE3DD; }
+        .sold-by { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin:-3px 0 15px; color:var(--muted); font-size:13px; }
+        .sold-by strong { color:var(--plum); }
+        .sold-by a { color:var(--rose); font-weight:800; }
+        .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:22px; padding:0 8px; border-radius:999px; background:rgba(102,148,94,.13); color:var(--green); font-size:10px; font-weight:900; text-transform:uppercase; }
         .purchase-row form { flex:1; display:flex; margin:0; }
         .purchase-row .button.primary { width:100%; }
         .muted { color:var(--muted); }
@@ -73,6 +77,26 @@
         .tab.active { border-bottom-color:var(--rose); color:var(--plum); font-weight:700; }
         .tab-panel { display:none; min-height:130px; padding:22px; color:var(--muted); font-size:13px; line-height:1.7; white-space:pre-line; }
         .tab-panel.active { display:block; }
+        .shop-profile { padding:24px 22px 26px; border-top:1px solid var(--line); }
+        .shop-profile h2 { margin:0 0 16px; font-family:Georgia,serif; font-size:24px; font-weight:500; }
+        .shop-box { display:grid; grid-template-columns:minmax(240px,.52fr) minmax(280px,.48fr); gap:22px; align-items:start; }
+        .shop-head { display:grid; grid-template-columns:72px 1fr; gap:15px; align-items:center; margin-bottom:15px; }
+        .shop-avatar { width:72px; height:72px; display:grid; place-items:center; overflow:hidden; border:1px solid var(--line); border-radius:50%; background:#f6eee9; color:var(--plum); font-family:Georgia,serif; font-size:24px; }
+        .shop-avatar img { width:100%; height:100%; object-fit:cover; }
+        .shop-name { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--plum); font-family:Georgia,serif; font-size:24px; }
+        .shop-location { margin-top:6px; color:var(--muted); font-size:13px; }
+        .shop-description { margin:0; color:var(--muted); font-size:13px; line-height:1.7; }
+        .shop-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .shop-stat { min-height:78px; padding:14px; border:1px solid var(--line); border-radius:8px; background:#FFFDFC; }
+        .shop-stat strong { display:block; color:var(--plum); font-size:20px; }
+        .shop-stat span { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; }
+        .shop-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+        .shop-action { min-height:42px; padding:0 15px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--plum); border-radius:8px; background:var(--plum); color:white; font-size:12px; font-weight:800; cursor:pointer; }
+        .shop-action.secondary { background:white; color:var(--plum); }
+        .shop-action[disabled] { border-color:var(--line); background:#f6eee9; color:#9d8e93; cursor:not-allowed; }
+        .shop-products { margin-top:24px; }
+        .shop-products h3 { margin:0 0 13px; font-family:Georgia,serif; font-size:19px; font-weight:500; }
+        .shop-empty { margin:0; color:var(--muted); font-size:13px; }
         #reviews.tab-panel { white-space:normal; }
         .reviews-summary { display:grid; grid-template-columns:minmax(180px,.4fr) minmax(260px,.6fr); gap:24px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
         .reviews-score { color:var(--plum); font-family:Georgia,serif; font-size:46px; line-height:1; }
@@ -109,8 +133,8 @@
         .related-image span { color:rgba(61,27,61,.4); font-family:Georgia,serif; font-size:22px; }
         .related-name { margin-top:8px; font-family:Georgia,serif; font-size:13px; }
         .related-price { margin-top:4px; color:var(--rose); font-size:12px; font-weight:700; }
-        @media (max-width:1050px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } }
-        @media (max-width:720px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:1050px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } .shop-box { grid-template-columns:1fr; } }
+        @media (max-width:720px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } .shop-stats { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -154,11 +178,24 @@
                     $discountPercent = (float) ($product->discount_percent ?? 0);
                     $originalPrice = (float) $product->price;
                     $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - ($discountPercent / 100)) : $originalPrice;
-                    $sellerName = $product->seller?->shop_name ?: ($product->seller?->name ?: 'Lumora seller');
+                    $shopProfile = $shopProfile ?? [];
+                    $sellerName = $shopProfile['name'] ?? ($product->seller?->shop_name ?: ($product->seller?->name ?: 'Lumora seller'));
                     $stock = (int) ($product->stock ?? 0);
                 @endphp
                 <div class="eyebrow">{{ $sellerName }}</div>
                 <h1>{{ $product->name }}</h1>
+                @if (! empty($shopProfile['seller']))
+                    <div class="sold-by">
+                        <span>Sold by</span>
+                        <strong>{{ $sellerName }}</strong>
+                        @if (! empty($shopProfile['verified']))
+                            <span class="seller-badge">Verified Seller</span>
+                        @endif
+                        @if (! empty($shopProfile['url']))
+                            <a href="{{ $shopProfile['url'] }}">View Shop</a>
+                        @endif
+                    </div>
+                @endif
                 <div class="rating">
                     <a href="#reviews" class="rating-link" data-open-reviews>
                         <span class="stars" aria-label="{{ number_format($averageRating, 1) }} out of 5 stars">
@@ -301,6 +338,85 @@
                 @endif
             </div>
             <div class="tab-panel" id="shipping">Shipping and return information will be shown according to the seller and checkout options.</div>
+            @if (! empty($shopProfile['seller']))
+                <section class="shop-profile" aria-labelledby="shopProfileTitle">
+                    <h2 id="shopProfileTitle">Shop Profile</h2>
+                    <div class="shop-box">
+                        <div>
+                            <div class="shop-head">
+                                <div class="shop-avatar" aria-hidden="true">
+                                    @if (! empty($shopProfile['avatar']))
+                                        <img src="{{ $shopProfile['avatar'] }}" alt="">
+                                    @else
+                                        <span>{{ $shopProfile['initials'] }}</span>
+                                    @endif
+                                </div>
+                                <div>
+                                    <div class="shop-name">
+                                        <span>{{ $shopProfile['name'] }}</span>
+                                        @if (! empty($shopProfile['verified']))
+                                            <span class="seller-badge">Verified Seller</span>
+                                        @endif
+                                    </div>
+                                    @if (! empty($shopProfile['location']))
+                                        <div class="shop-location">{{ $shopProfile['location'] }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                            <p class="shop-description">{{ $shopProfile['description'] }}</p>
+                            <div class="shop-actions">
+                                @if (! empty($shopProfile['url']))
+                                    <a class="shop-action" href="{{ $shopProfile['url'] }}">Visit Shop</a>
+                                @endif
+                                <button class="shop-action secondary" type="button" disabled title="Buyer-to-seller chat is not available yet.">Chat Seller</button>
+                                <button class="shop-action secondary" type="button" disabled title="Shop following is not available yet.">Follow Shop</button>
+                            </div>
+                        </div>
+                        <div class="shop-stats" aria-label="Shop statistics">
+                            <div class="shop-stat">
+                                <strong>{{ $shopProfile['rating_average'] !== null ? number_format($shopProfile['rating_average'], 1) : 'No ratings' }}</strong>
+                                <span>{{ number_format((int) $shopProfile['review_count']) }} {{ (int) $shopProfile['review_count'] === 1 ? 'review' : 'reviews' }}</span>
+                            </div>
+                            <div class="shop-stat">
+                                <strong>{{ number_format((int) $shopProfile['active_products']) }}</strong>
+                                <span>Active products</span>
+                            </div>
+                            <div class="shop-stat">
+                                <strong>{{ number_format((int) $shopProfile['sold_count']) }}</strong>
+                                <span>Products sold</span>
+                            </div>
+                            <div class="shop-stat">
+                                <strong>{{ $shopProfile['joined'] ?? 'Not available' }}</strong>
+                                <span>Seller since</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shop-products">
+                        <h3>More from this shop</h3>
+                        @if (($moreFromSeller ?? collect())->count())
+                            <div class="related-grid">
+                                @foreach ($moreFromSeller as $sellerProduct)
+                                    @php
+                                        $sellerProductRating = round((float) ($sellerProduct->reviews_avg_rating ?? 0), 1);
+                                        $sellerProductCount = (int) ($sellerProduct->reviews_count ?? 0);
+                                        $sellerProductDiscount = (float) ($sellerProduct->discount_percent ?? 0);
+                                        $sellerProductPrice = (float) $sellerProduct->price;
+                                        $sellerProductFinalPrice = $sellerProductDiscount > 0 ? $sellerProductPrice * (1 - ($sellerProductDiscount / 100)) : $sellerProductPrice;
+                                    @endphp
+                                    <a class="related-card" href="{{ route('shop.product', ['id' => $sellerProduct->id]) }}">
+                                        <div class="related-image"><img src="{{ $sellerProduct->image_url }}" alt="{{ $sellerProduct->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div>
+                                        <div class="related-name">{{ $sellerProduct->name }}</div>
+                                        <div class="rating"><span class="stars">@for ($star = 1; $star <= 5; $star++)<span class="{{ $star <= (int) round($sellerProductRating) ? 'filled' : 'empty' }}">&#9733;</span>@endfor</span> <span>{{ number_format($sellerProductRating, 1) }} ({{ $sellerProductCount }})</span></div>
+                                        <div class="related-price">&#8369;{{ number_format($sellerProductFinalPrice, 2) }}</div>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="shop-empty">No other active products from this shop yet.</p>
+                        @endif
+                    </div>
+                </section>
+            @endif
             @if ($relatedProducts->count())
                 <div class="related"><h2>You may also like</h2><div class="related-grid">
                     @foreach ($relatedProducts as $related)

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductReview;
+use App\Models\User;
 use App\Support\CategoryCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,7 @@ class ShopController extends Controller
     public function show(int $id): View
     {
         $product = Product::query()
-            ->with(['seller'])
+            ->with(['seller.approvedSellerApplication', 'seller.sellerApplication'])
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')
             ->where('products.id', $id)
@@ -63,14 +65,49 @@ class ShopController extends Controller
             ->limit(4)
             ->get();
 
+        $shopProfile = $this->sellerShopProfile($product->seller);
+
+        $moreFromSeller = $product->seller
+            ? $product->seller->products()
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
+                ->where('status', 'active')
+                ->where('id', '!=', $product->id)
+                ->latest()
+                ->limit(4)
+                ->get()
+            : collect();
+
         return view('buyer.product', [
             'product' => $product,
             'relatedProducts' => $relatedProducts,
+            'shopProfile' => $shopProfile,
+            'moreFromSeller' => $moreFromSeller,
             'reviews' => $reviews,
             'ratingBreakdown' => $ratingBreakdown,
             'userReview' => $userReview,
             'canReview' => (bool) $deliveredOrder,
             'categoryTitle' => CategoryCatalog::label((string) ($product->category ?? '')),
+        ]);
+    }
+
+    public function sellerStore(User $seller): View
+    {
+        $seller->load(['approvedSellerApplication', 'sellerApplication']);
+
+        abort_unless($seller->role === 'seller' || $seller->approvedSellerApplication, 404);
+
+        $products = $seller->products()
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
+            ->where('status', 'active')
+            ->latest()
+            ->paginate(12);
+
+        return view('buyer.store', [
+            'seller' => $seller,
+            'shopProfile' => $this->sellerShopProfile($seller),
+            'products' => $products,
         ]);
     }
 
@@ -165,5 +202,73 @@ class ShopController extends Controller
             'categoryCounts' => $categoryCounts,
             'categoryTree' => CategoryCatalog::tree(),
         ]);
+    }
+
+    private function sellerShopProfile(?User $seller): array
+    {
+        if (! $seller) {
+            return [
+                'seller' => null,
+                'name' => 'Lumora seller',
+                'description' => 'This seller has not added a shop description yet.',
+                'avatar' => null,
+                'initials' => 'LS',
+                'location' => null,
+                'verified' => false,
+                'active_products' => 0,
+                'sold_count' => 0,
+                'rating_average' => null,
+                'review_count' => 0,
+                'joined' => null,
+                'url' => null,
+            ];
+        }
+
+        $seller->loadMissing(['approvedSellerApplication', 'sellerApplication']);
+
+        $approvedApplication = $seller->approvedSellerApplication;
+        $latestApplication = $seller->sellerApplication;
+        $shopName = $seller->shop_name
+            ?: ($approvedApplication?->business_name ?: ($latestApplication?->business_name ?: $seller->name));
+
+        $activeProducts = $seller->products()->where('status', 'active');
+        $activeProductCount = (clone $activeProducts)->count();
+        $soldCount = (int) (clone $activeProducts)->sum('sales_count');
+
+        $reviews = ProductReview::query()
+            ->join('products', 'product_reviews.product_id', '=', 'products.id')
+            ->where('products.seller_id', $seller->id)
+            ->where('products.status', 'active');
+
+        $reviewCount = (clone $reviews)->count('product_reviews.id');
+        $ratingAverage = $reviewCount > 0
+            ? round((float) (clone $reviews)->avg('product_reviews.rating'), 1)
+            : null;
+
+        $location = collect([$seller->municipality, $seller->province])
+            ->filter(fn ($value) => filled($value))
+            ->implode(', ');
+
+        $initials = collect(preg_split('/\s+/', trim((string) $shopName)))
+            ->filter()
+            ->map(fn ($part) => mb_substr($part, 0, 1))
+            ->take(2)
+            ->implode('');
+
+        return [
+            'seller' => $seller,
+            'name' => $shopName ?: 'Lumora seller',
+            'description' => $seller->shop_description ?: 'This seller has not added a shop description yet.',
+            'avatar' => $seller->avatar,
+            'initials' => mb_strtoupper($initials ?: 'LS'),
+            'location' => $location ?: null,
+            'verified' => (bool) $approvedApplication,
+            'active_products' => $activeProductCount,
+            'sold_count' => $soldCount,
+            'rating_average' => $ratingAverage,
+            'review_count' => $reviewCount,
+            'joined' => ($approvedApplication?->updated_at ?: $seller->created_at)?->format('M Y'),
+            'url' => route('shop.seller', ['seller' => $seller->id]),
+        ];
     }
 }

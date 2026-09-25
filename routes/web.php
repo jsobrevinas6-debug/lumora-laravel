@@ -95,6 +95,9 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
 
 // Buyer/Guest routes
 Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+Route::get('/shop/store/{seller}', [ShopController::class, 'sellerStore'])
+    ->whereNumber('seller')
+    ->name('shop.seller');
 Route::get('/cart', [CartController::class, 'index'])->name('buyer.cart');
 Route::post('/cart/select', [CartController::class, 'select'])->name('buyer.cart.select');
 Route::patch('/cart/{product}', [CartController::class, 'update'])->name('buyer.cart.update');
