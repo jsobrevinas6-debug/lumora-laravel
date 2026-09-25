@@ -274,6 +274,7 @@
         .buyer-badge { padding:2px 7px; border-radius:999px; background:#f3d8de; color:var(--plum); font-size:10px; font-weight:700; }
         .account-menu-link, .account-menu-button { width:100%; display:flex; align-items:center; gap:10px; padding:10px; border:0; border-radius:10px; background:transparent; color:var(--ink); font:inherit; font-size:13px; text-align:left; text-decoration:none; cursor:pointer; }
         .account-menu-link:hover, .account-menu-button:hover { background:var(--blush-1); color:var(--plum); }
+        .account-menu-note { width:100%; display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background:transparent; color:var(--muted); font-size:13px; cursor:default; }
         .account-menu-button.switch-seller { border:1px solid var(--plum); color:var(--plum); margin:4px 0; }
         .account-menu-button.switch-seller:hover { background:var(--plum); color:#fff; }
         .account-menu-icon { width:18px; display:inline-flex; align-items:center; justify-content:center; color:currentColor; }
@@ -716,11 +717,16 @@
                 @endauth
 
                 @auth
+                    @php
+                        $authUser = Auth::user();
+                        $sellerApplication = $authUser->sellerApplication;
+                        $isGoogleBuyer = $authUser->provider === 'google' && $authUser->role === 'buyer';
+                    @endphp
                     <div class="account-menu-wrap" id="accountMenuWrap">
                         <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-controls="accountDropdown">
-                            <div class="avatar">{{ strtoupper(substr(Auth::user()->name,0,1)) }}</div>
+                            <div class="avatar">{{ strtoupper(substr($authUser->name,0,1)) }}</div>
                             <div>
-                                <div class="account-name">{{ Auth::user()->name }}</div>
+                                <div class="account-name">{{ $authUser->name }}</div>
                                 <div class="account-mode">Shopping as Buyer <span class="buyer-badge">Buyer</span></div>
                             </div>
                             <svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
@@ -728,9 +734,9 @@
 
                         <div class="account-dropdown" id="accountDropdown" role="menu">
                             <div class="account-dropdown-head">
-                                <div class="avatar">{{ strtoupper(substr(Auth::user()->name,0,1)) }}</div>
+                                <div class="avatar">{{ strtoupper(substr($authUser->name,0,1)) }}</div>
                                 <div>
-                                    <div class="account-dropdown-name">{{ Auth::user()->name }}</div>
+                                    <div class="account-dropdown-name">{{ $authUser->name }}</div>
                                     <div class="account-mode">Currently shopping as <span class="buyer-badge">Buyer</span></div>
                                 </div>
                             </div>
@@ -740,12 +746,7 @@
                                 <span>Profile / Settings</span>
                             </a>
 
-                            <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
-                                <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg></span>
-                                <span>My Orders</span>
-                            </a>
-
-                            @if (Auth::user()->role === 'seller')
+                            @if ($authUser->role === 'seller')
                                 <form method="POST" action="{{ route('switchToSeller') }}">
                                     @csrf
                                     <button type="submit" class="account-menu-button switch-seller" role="menuitem">
@@ -753,7 +754,34 @@
                                         <span>Switch to Seller Dashboard</span>
                                     </button>
                                 </form>
+                            @elseif ($isGoogleBuyer)
+                                @if (! $sellerApplication)
+                                    <a href="{{ route('seller.apply') }}" class="account-menu-link" role="menuitem">
+                                        <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16"/><path d="M5 10l1.2-5h11.6L19 10"/><path d="M6 10v9h12v-9"/><path d="M9 19v-5h6v5"/></svg></span>
+                                        <span>Apply as Seller</span>
+                                    </a>
+                                @elseif ($sellerApplication->status === 'pending')
+                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                        <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+                                        <span>Seller Application Pending</span>
+                                    </div>
+                                @elseif ($sellerApplication->status === 'rejected')
+                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                        <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg></span>
+                                        <span>Seller Application Rejected</span>
+                                    </div>
+                                @elseif ($sellerApplication->status === 'approved')
+                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                        <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5L16 9"/></svg></span>
+                                        <span>Seller Application Approved</span>
+                                    </div>
+                                @endif
                             @endif
+
+                            <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
+                                <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg></span>
+                                <span>My Orders</span>
+                            </a>
 
                             <div class="account-menu-divider"></div>
                             <form method="POST" action="{{ route('logout') }}">

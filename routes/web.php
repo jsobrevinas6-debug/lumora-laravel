@@ -5,6 +5,7 @@ use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SellerApplicationController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Seller\ProductController;
@@ -123,6 +124,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
 
     Route::view('/seller/application-pending', 'seller.pending')->name('seller.pending');
+    Route::get('/seller/apply', [SellerApplicationController::class, 'create'])->name('seller.apply');
+    Route::post('/seller/apply', [SellerApplicationController::class, 'store'])->name('seller.apply.store');
 
     Route::get('/shop/product/{id}', [ShopController::class, 'show'])
     ->whereNumber('id')
