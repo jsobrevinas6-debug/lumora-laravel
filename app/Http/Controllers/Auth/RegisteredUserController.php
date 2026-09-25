@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\SellerApplicationFields;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,10 +44,7 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'signup_type' => ['in:buyer,seller'],
-            'business_name' => ['required_if:signup_type,seller', 'nullable', 'string', 'max:255'],
-            'category' => ['required_if:signup_type,seller', 'nullable', 'string', 'max:255'],
-            'id_document' => ['required_if:signup_type,seller', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'business_permit' => ['required_if:signup_type,seller', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ...SellerApplicationFields::registrationRules(),
         ];
 
         $validated = $request->validate($rules);
@@ -87,19 +85,7 @@ class RegisteredUserController extends Controller
         ]);
 
         if ($signupType === 'seller') {
-            $idDocumentPath = $request->file('id_document')?->store('seller_documents', 'public');
-            $businessPermitPath = $request->file('business_permit')?->store('seller_documents', 'public');
-
-            DB::table('seller_applications')->insert([
-                'user_id' => $user->id,
-                'business_name' => $request->business_name,
-                'category' => $request->category,
-                'id_document' => $idDocumentPath,
-                'business_permit' => $businessPermitPath,
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            SellerApplicationFields::createFromRequest($request, $user->id);
 
             session()->flash('flash_success', 'Account created! Your seller application is pending admin approval.');
         } else {

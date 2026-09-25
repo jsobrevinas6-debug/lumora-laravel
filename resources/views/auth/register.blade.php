@@ -204,27 +204,10 @@
         <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:4px;color:var(--maroon);">Seller Information</h2>
         <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:18px;">Tell us about your business. This is submitted along with the account details you already filled in.</p>
 
-        <div class="form-group">
-            <label>Business Name</label>
-            <input type="text" form="registerForm" name="business_name" id="business_name" value="{{ old('business_name') }}">
-        </div>
-        <div class="form-group">
-            <label>Line of Business (Category)</label>
-            <select form="registerForm" name="category" id="category">
-                <option value="">Select a category</option>
-                @foreach (config('categories') as $cat)
-                    <option value="{{ $cat }}" @selected(old('category') === $cat)>{{ $cat }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Upload Valid ID</label>
-            <input type="file" form="registerForm" name="id_document" id="id_document" accept="image/*,.pdf">
-        </div>
-        <div class="form-group">
-            <label>Upload Business Permit</label>
-            <input type="file" form="registerForm" name="business_permit" id="business_permit" accept="image/*,.pdf">
-        </div>
+        @include('partials.seller-application-fields', [
+            'formId' => 'registerForm',
+            'required' => false,
+        ])
 
         <button type="submit" form="registerForm" name="signup_type" value="seller" class="submit-btn buyer-btn" style="width:100%;margin-top:6px;">
             Submit Seller Application

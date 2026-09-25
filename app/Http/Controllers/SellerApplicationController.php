@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SellerApplication;
+use App\Support\SellerApplicationFields;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,7 +17,9 @@ class SellerApplicationController extends Controller
             return $eligibilityRedirect;
         }
 
-        return view('seller.apply');
+        return view('seller.apply', [
+            'user' => $request->user(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -28,17 +30,9 @@ class SellerApplicationController extends Controller
             return $eligibilityRedirect;
         }
 
-        $validated = $request->validate([
-            'business_name' => ['required', 'string', 'max:255'],
-            'reason' => ['nullable', 'string', 'max:2000'],
-        ]);
+        $request->validate(SellerApplicationFields::applicationRules());
 
-        SellerApplication::create([
-            'user_id' => $request->user()->id,
-            'business_name' => $validated['business_name'],
-            'reason' => $validated['reason'] ?? null,
-            'status' => 'pending',
-        ]);
+        SellerApplicationFields::createFromRequest($request, $request->user()->id);
 
         return redirect()
             ->route('seller.pending')

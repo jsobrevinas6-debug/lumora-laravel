@@ -10,6 +10,9 @@ class SellerApplication extends Model
     protected $fillable = [
         'user_id',
         'business_name',
+        'category',
+        'id_document',
+        'business_permit',
         'reason',
         'status',
     ];
