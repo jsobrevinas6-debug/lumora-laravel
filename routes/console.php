@@ -4,7 +4,6 @@ use App\Models\Product;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -123,26 +122,18 @@ Artisan::command('products:migrate-images-to-public', function () {
     $this->line('-----------------------------------------');
 })->purpose('Copy legacy product images into public/products and update product image paths safely');
 
-function reportGoogleOauthConfig($command): void
-{
+Artisan::command('google:check-config', function () {
+    $appUrl = config('app.url');
     $clientId = config('services.google.client_id');
     $clientSecret = config('services.google.client_secret');
-    $redirectUri = config('services.google.redirect');
+    $redirect = config('services.google.redirect');
 
-    $command->line('APP_URL: '.config('app.url'));
-    $command->line('GOOGLE_CLIENT_ID: '.(filled($clientId) ? 'CONFIGURED' : 'MISSING'));
-    $command->line('GOOGLE_CLIENT_SECRET: '.(filled($clientSecret) ? 'CONFIGURED' : 'MISSING'));
-    $command->line('GOOGLE_REDIRECT_URI: '.($redirectUri ?: 'MISSING'));
-    $command->line('Google redirect route exists: '.(Route::has('google.redirect') ? 'YES' : 'NO'));
-    $command->line('Google callback route exists: '.(Route::has('google.callback') ? 'YES' : 'NO'));
-    $command->line('Google redirect path: /auth/google/redirect');
-    $command->line('Google callback path: /auth/google/callback');
-}
+    $this->line('APP_URL: '.($appUrl ?: 'MISSING'));
+    $this->line('GOOGLE_CLIENT_ID: '.($clientId ? 'CONFIGURED' : 'MISSING'));
+    $this->line('GOOGLE_CLIENT_SECRET: '.($clientSecret ? 'CONFIGURED' : 'MISSING'));
+    $this->line('GOOGLE_REDIRECT_URI: '.($redirect ?: 'MISSING'));
+})->purpose('Check Google OAuth configuration safely');
 
 Artisan::command('google:check-oauth', function () {
-    reportGoogleOauthConfig($this);
-})->purpose('Check Google OAuth route/config status without printing secrets');
-
-Artisan::command('google:check-config', function () {
-    reportGoogleOauthConfig($this);
-})->purpose('Check Google OAuth environment/config status without printing secrets');
+    $this->call('google:check-config');
+})->purpose('Check Google OAuth configuration safely');
