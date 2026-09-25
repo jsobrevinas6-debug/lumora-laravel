@@ -67,29 +67,14 @@ class GoogleController extends Controller
                 ->withErrors(['email' => 'Google did not provide a verified email for this account.']);
         }
 
-        // Returning Google users can sign in immediately.
-        $user = User::where('google_id', $googleId)->first();
+        $user = User::where('google_id', $googleId)
+            ->orWhere('email', $email)
+            ->first();
 
         if ($user) {
-            $user->provider ??= 'google';
-            $user->avatar = $googleUser->getAvatar() ?: $user->avatar;
-            $user->email_verified_at ??= now();
-            $user->email_verified = 1;
-            $user->save();
-
-            Auth::login($user, true);
-            $request->session()->regenerate();
-
-            return redirect()->intended(route('shop.index'));
-        }
-
-        // A verified Google email can be linked to an existing Lumora account.
-        $existingUser = User::where('email', $email)->first();
-
-        if ($existingUser) {
-            if (filled($existingUser->google_id) && $existingUser->google_id !== $googleId) {
+            if (filled($user->google_id) && $user->google_id !== $googleId) {
                 Log::warning('Google sign-in email matched a user already linked to a different Google account.', [
-                    'user_id' => $existingUser->id,
+                    'user_id' => $user->id,
                 ]);
 
                 return redirect()
@@ -97,14 +82,14 @@ class GoogleController extends Controller
                     ->withErrors(['email' => 'This email is already linked to another Google account.']);
             }
 
-            $existingUser->google_id ??= $googleId;
-            $existingUser->provider ??= 'google';
-            $existingUser->avatar = $googleUser->getAvatar() ?: $existingUser->avatar;
-            $existingUser->email_verified_at ??= now();
-            $existingUser->email_verified = 1;
-            $existingUser->save();
+            $user->google_id ??= $googleId;
+            $user->provider ??= 'google';
+            $user->avatar ??= $googleUser->getAvatar();
+            $user->email_verified_at ??= now();
+            $user->email_verified = 1;
+            $user->save();
 
-            Auth::login($existingUser, true);
+            Auth::login($user, true);
             $request->session()->regenerate();
 
             return redirect()->intended(route('shop.index'));

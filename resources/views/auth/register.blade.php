@@ -57,11 +57,6 @@
         .verify-btn:hover { background:#FBF3F0; }
         .verify-btn.verified { background:#6C8A63; border-color:#6C8A63; color:#fff; cursor:default; }
         .verify-note { font-size:.74rem; color:var(--text-muted); margin-top:5px; }
-        .google-connected-note { display:inline-block; margin-bottom:14px; padding:7px 10px; border-radius:10px; background:#eef3ec; color:#5C7355; font-size:.78rem; line-height:1.4; }
-        .google-email-meta { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:4px 8px; border-radius:999px; background:#eef3ec; color:#5C7355; font-size:.72rem; font-weight:600; }
-        .google-email-meta svg { width:12px; height:12px; flex:0 0 auto; }
-        input[readonly] { color:var(--text-muted); background:#F3E9E6; cursor:default; }
-
         .btn-row { display:flex; gap:10px; margin-top:20px; }
         button.submit-btn { flex:1; padding:12px; border-radius:24px; border:none; font-weight:600; font-size:.85rem; font-family:inherit; cursor:pointer; }
         button.buyer-btn { background:var(--maroon-dark); color:#fff; }
@@ -78,10 +73,6 @@
     </style>
 </head>
 <body>
-@php
-    $google = $google ?? session('google_onboarding');
-    $isGoogleSignup = is_array($google);
-@endphp
 <main class="login-shell">
 <section class="login-frame" aria-labelledby="signup-title">
     <aside class="login-art" aria-label="Lumora brand message">
@@ -92,15 +83,11 @@
     <section class="login-panel">
     <div class="login-card">
         <a href="{{ route('home') }}" class="back-home" aria-label="Back to Lumora homepage">&larr; Back to homepage</a>
-        <h1 id="signup-title" class="title">{{ $isGoogleSignup ? 'Complete your profile' : 'Create your account' }}</h1>
-        <p class="subtitle">{{ $isGoogleSignup ? 'Your Google account has already been verified. Please complete the remaining information to finish creating your Lumora account.' : 'All fields marked required must be filled in.' }}</p>
+        <h1 id="signup-title" class="title">Create your account</h1>
+        <p class="subtitle">All fields marked required must be filled in.</p>
 
         @if (session('flash_success'))
             <div class="success-box">{{ session('flash_success') }}</div>
-        @endif
-
-        @if ($isGoogleSignup)
-            <div class="google-connected-note">&#10003; Google account connected. Complete the remaining details below.</div>
         @endif
 
         @if ($errors->any())
@@ -113,8 +100,8 @@
             @csrf
 
             <div class="row-3">
-                <div class="form-group"><label>Last Name</label><input type="text" name="last_name" value="{{ old('last_name', $isGoogleSignup ? ($google['last_name'] ?? '') : '') }}" required></div>
-                <div class="form-group"><label>First Name</label><input type="text" name="first_name" value="{{ old('first_name', $isGoogleSignup ? ($google['first_name'] ?? '') : '') }}" required></div>
+                <div class="form-group"><label>Last Name</label><input type="text" name="last_name" value="{{ old('last_name') }}" required></div>
+                <div class="form-group"><label>First Name</label><input type="text" name="first_name" value="{{ old('first_name') }}" required></div>
                 <div class="form-group"><label>M.I.</label><input type="text" name="middle_initial" value="{{ old('middle_initial') }}" maxlength="4"></div>
             </div>
 
@@ -156,24 +143,15 @@
             <div class="form-group">
                 <label>Email</label>
                 <div class="email-row">
-                    <input type="email" name="email" id="email" value="{{ $isGoogleSignup ? ($google['email'] ?? '') : old('email') }}" {{ $isGoogleSignup ? 'readonly aria-readonly=true' : '' }} required>
-                    @unless ($isGoogleSignup)
-                        <button type="button" class="verify-btn" id="verifyBtn" onclick="sendCode()">Verify</button>
-                    @endunless
+                    <input type="email" name="email" id="email" value="{{ old('email') }}" required>
+                    <button type="button" class="verify-btn" id="verifyBtn" onclick="sendCode()">Verify</button>
                 </div>
-                @if ($isGoogleSignup)
-                    <div class="google-email-meta">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.3 2.2 2.2 4.8-5"/></svg>
-                        <span>Verified by Google</span>
-                    </div>
-                @else
-                    <div class="verify-note" id="verifyNote"></div>
-                    <div class="email-row" id="codeRow" style="display:none;margin-top:8px;">
-                        <input type="text" id="codeInput" placeholder="6-digit code" maxlength="6" inputmode="numeric">
-                        <button type="button" class="verify-btn" id="confirmBtn" onclick="confirmCode()">Confirm</button>
-                    </div>
-                @endif
-                <input type="hidden" id="emailVerifiedFlag" value="{{ $isGoogleSignup ? '1' : '0' }}">
+                <div class="verify-note" id="verifyNote"></div>
+                <div class="email-row" id="codeRow" style="display:none;margin-top:8px;">
+                    <input type="text" id="codeInput" placeholder="6-digit code" maxlength="6" inputmode="numeric">
+                    <button type="button" class="verify-btn" id="confirmBtn" onclick="confirmCode()">Confirm</button>
+                </div>
+                <input type="hidden" id="emailVerifiedFlag" value="0">
             </div>
 
             <div class="section-label">Address</div>
@@ -202,16 +180,14 @@
                 <div class="form-group"><label>House / Unit No.</label><input type="text" name="house_number" value="{{ old('house_number') }}"></div>
             </div>
 
-            @unless ($isGoogleSignup)
-                <div class="section-label">Account</div>
-                <div class="row-2">
-                    <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8"></div>
-                    <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8"></div>
-                </div>
-            @endunless
+            <div class="section-label">Account</div>
+            <div class="row-2">
+                <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8"></div>
+                <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8"></div>
+            </div>
 
             <div class="btn-row">
-                <button type="submit" name="signup_type" value="buyer" class="submit-btn buyer-btn">{{ $isGoogleSignup ? 'Complete Profile' : 'Sign Up' }}</button>
+                <button type="submit" name="signup_type" value="buyer" class="submit-btn buyer-btn">Sign Up</button>
                 <button type="button" class="submit-btn seller-btn" onclick="openSellerModal()">Sign Up as Seller</button>
             </div>
         </form>
@@ -262,7 +238,6 @@
 
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-const isGoogleSignup = @json($isGoogleSignup);
 
 // ---------- Age auto-compute ----------
 function computeAge() {
@@ -445,7 +420,7 @@ function confirmCode() {
 }
 
 document.getElementById('registerForm').addEventListener('submit', function(e) {
-    if (!isGoogleSignup && document.getElementById('emailVerifiedFlag').value !== '1') {
+    if (document.getElementById('emailVerifiedFlag').value !== '1') {
         e.preventDefault();
         const note = document.getElementById('verifyNote');
         note.textContent = 'Please verify your email before signing up.';
