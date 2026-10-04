@@ -99,10 +99,11 @@
         .shop-meta-divider { width:1px; height:15px; background:#EAE3DD; }
         .shop-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
         .shop-stat { min-height:92px; display:flex; align-items:center; gap:14px; padding:18px 20px; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; }
-        .shop-stat-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:#F8EEE9; color:#C98F72; }
-        .shop-stat-icon svg { width:19px; height:19px; }
+        .shop-stat-icon { width:42px; height:42px; display:flex; align-items:center; justify-content:center; flex:0 0 42px; margin:0; border-radius:9999px; background:#F7EEE8; color:#B98973; }
+        .shop-stat-icon svg { width:18px; height:18px; display:block; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        .shop-stat-text { min-width:0; }
         .shop-stat strong { display:block; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
-        .shop-stat span { display:block; margin-top:5px; color:#8B7B78; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+        .shop-stat-label { display:block; margin-top:5px; color:#8A7A76; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
         .shop-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
         .shop-action { height:46px; padding:0 24px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #3B1E34; border-radius:12px; background:#3B1E34; color:white; font-size:12px; font-weight:700; cursor:pointer; }
         .shop-action svg { width:16px; height:16px; }
@@ -450,31 +451,31 @@
                         </div>
                         <div class="shop-stats" aria-label="Shop statistics">
                             <div class="shop-stat">
-                                <span class="shop-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></span>
-                                <div>
+                                <x-shop-stat-icon name="star" />
+                                <div class="shop-stat-text">
                                     <strong>{{ $shopProfile['rating_average'] !== null ? number_format($shopProfile['rating_average'], 1) : 'No ratings' }}</strong>
-                                    <span>{{ number_format((int) $shopProfile['review_count']) }} {{ (int) $shopProfile['review_count'] === 1 ? 'review' : 'reviews' }}</span>
+                                    <span class="shop-stat-label">{{ number_format((int) $shopProfile['review_count']) }} {{ (int) $shopProfile['review_count'] === 1 ? 'review' : 'reviews' }}</span>
                                 </div>
                             </div>
                             <div class="shop-stat">
-                                <span class="shop-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
-                                <div>
+                                <x-shop-stat-icon name="package" />
+                                <div class="shop-stat-text">
                                     <strong>{{ number_format((int) $shopProfile['active_products']) }}</strong>
-                                    <span>Active products</span>
+                                    <span class="shop-stat-label">Active products</span>
                                 </div>
                             </div>
                             <div class="shop-stat">
-                                <span class="shop-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></span>
-                                <div>
+                                <x-shop-stat-icon name="bag" />
+                                <div class="shop-stat-text">
                                     <strong>{{ number_format((int) $shopProfile['sold_count']) }}</strong>
-                                    <span>Products sold</span>
+                                    <span class="shop-stat-label">Products sold</span>
                                 </div>
                             </div>
                             <div class="shop-stat">
-                                <span class="shop-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2v4M16 2v4M4 9h16"/><path d="M5 5h14v16H5z"/></svg></span>
-                                <div>
+                                <x-shop-stat-icon name="calendar" />
+                                <div class="shop-stat-text">
                                     <strong>{{ $shopProfile['joined'] ?? 'Not available' }}</strong>
-                                    <span>Seller since</span>
+                                    <span class="shop-stat-label">Seller since</span>
                                 </div>
                             </div>
                         </div>
