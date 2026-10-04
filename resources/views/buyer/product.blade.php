@@ -80,59 +80,62 @@
         .tab.active { border-bottom-color:var(--rose); color:var(--plum); font-weight:700; }
         .tab-panel { display:none; min-height:130px; padding:22px; color:var(--muted); font-size:13px; line-height:1.7; white-space:pre-line; }
         .tab-panel.active { display:block; }
-        .shop-profile { position:relative; margin:26px 22px 28px; padding:32px; overflow:hidden; border:1px solid #EAE3DD; border-radius:24px; background:#FFFDFC; box-shadow:0 10px 30px rgba(59,30,52,.05); }
+        .shop-profile { position:relative; margin:26px 22px 28px; padding:32px; overflow:hidden; border:1px solid #EAE3DD; border-radius:24px; background:#FFFDFC; box-shadow:0 8px 26px rgba(59,30,52,.045); }
         .shop-profile-title { position:relative; z-index:1; margin:0 0 22px; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:26px; font-weight:600; line-height:1.15; }
-        .shop-box { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,58fr) minmax(310px,42fr); gap:32px; align-items:start; }
-        .shop-head { display:grid; grid-template-columns:88px 1fr; gap:18px; align-items:center; margin-bottom:16px; }
-        .shop-avatar { width:88px; height:88px; display:grid; place-items:center; overflow:hidden; border:1px solid #EAE3DD; border-radius:50%; background:#F8EEE9; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; box-shadow:0 8px 24px rgba(59,30,52,.05); }
+        .shop-profile-top { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(420px,.85fr); gap:40px; align-items:center; }
+        .shop-identity { min-width:0; }
+        .shop-identity-row { display:flex; align-items:center; gap:20px; min-width:0; }
+        .shop-avatar { width:92px; height:92px; display:grid; place-items:center; flex:0 0 92px; overflow:hidden; border:1px solid #EAE3DD; border-radius:50%; background:#F8EEE9; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:31px; font-weight:600; box-shadow:0 8px 22px rgba(59,30,52,.05); }
         .shop-avatar img { width:100%; height:100%; object-fit:cover; }
-        .shop-name { display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; line-height:1.1; }
-        .shop-description { max-width:620px; margin:0; color:#8B7B78; font-size:14px; line-height:1.6; }
+        .shop-copy { min-width:0; }
+        .shop-name-line { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+        .shop-name { color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; line-height:1.1; overflow-wrap:anywhere; }
+        .shop-description { max-width:520px; margin:9px 0 0; color:#8B7B78; font-size:14px; line-height:1.6; }
         .shop-profile .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:5px 9px; border-radius:999px; background:rgba(111,143,120,.14); color:#6F8F78; font-size:11px; font-weight:600; line-height:1; text-transform:uppercase; }
         .shop-profile .seller-badge svg { width:13px; height:13px; }
-        .shop-meta { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; color:#8B7B78; font-size:13px; font-weight:600; }
+        .shop-meta { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; color:#8B7B78; font-size:13px; font-weight:600; }
         .shop-meta-item { display:inline-flex; align-items:center; gap:7px; }
         .shop-meta-item svg { width:16px; height:16px; color:#C98F72; }
         .shop-meta-divider { width:1px; height:15px; background:#EAE3DD; }
         .shop-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-        .shop-stat { min-height:92px; display:grid; grid-template-columns:44px 1fr; gap:13px; align-items:center; padding:18px; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; }
+        .shop-stat { min-height:92px; display:flex; align-items:center; gap:14px; padding:18px 20px; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; }
         .shop-stat-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:#F8EEE9; color:#C98F72; }
         .shop-stat-icon svg { width:19px; height:19px; }
         .shop-stat strong { display:block; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
-        .shop-stat span { display:block; margin-top:5px; color:#8B7B78; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
-        .shop-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
-        .shop-action { min-height:46px; padding:0 17px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #3B1E34; border-radius:12px; background:#3B1E34; color:white; font-size:12px; font-weight:700; cursor:pointer; }
+        .shop-stat span { display:block; margin-top:5px; color:#8B7B78; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+        .shop-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+        .shop-action { height:46px; padding:0 24px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #3B1E34; border-radius:12px; background:#3B1E34; color:white; font-size:12px; font-weight:700; cursor:pointer; }
         .shop-action svg { width:16px; height:16px; }
-        .shop-action.secondary { border-color:#C98F72; background:#FFFDFC; color:#3B1E34; }
-        .shop-action[disabled] { border-color:rgba(201,143,114,.42); background:#FFFDFC; color:rgba(139,123,120,.72); cursor:not-allowed; opacity:1; }
+        .shop-action.secondary { padding:0 22px; border-color:#C98F72; background:#FFFDFC; color:#3B1E34; }
+        .shop-action[disabled] { border-color:#EAE3DD; background:#F8F4F1; color:#8B7B78; cursor:not-allowed; opacity:1; }
         .shop-divider { position:relative; z-index:1; margin:28px 0 26px; border:0; border-top:1px solid #EAE3DD; }
         .shop-about, .shop-products { position:relative; z-index:1; }
-        .shop-about { min-height:142px; padding-right:190px; }
+        .shop-about { padding-right:210px; }
         .shop-about h3, .shop-products h3 { margin:0; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:26px; font-weight:600; line-height:1.18; }
         .shop-about p { max-width:760px; margin:12px 0 0; color:#6F6260; font-size:14px; line-height:1.7; }
-        .shop-trust { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; max-width:760px; margin-top:20px; }
-        .shop-trust-item { display:grid; grid-template-columns:36px 1fr; gap:10px; align-items:center; min-width:0; }
-        .shop-trust-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; background:#F8EEE9; color:#C98F72; }
-        .shop-trust-icon svg { width:17px; height:17px; }
+        .shop-trust { display:flex; align-items:center; gap:40px; flex-wrap:wrap; max-width:760px; margin-top:22px; }
+        .shop-trust-item { display:flex; align-items:center; gap:12px; min-width:0; }
+        .shop-trust-icon { width:42px; height:42px; display:grid; place-items:center; flex:0 0 42px; border-radius:50%; background:#F8EEE9; color:#C98F72; }
+        .shop-trust-icon svg { width:19px; height:19px; }
         .shop-trust-copy { display:block; min-width:0; }
-        .shop-trust-copy strong { display:block; color:#3B1E34; font-size:13px; font-weight:700; line-height:1.2; }
+        .shop-trust-copy strong { display:block; color:#3B1E34; font-size:13px; font-weight:600; line-height:1.2; }
         .shop-trust-copy span { display:block; margin-top:3px; color:#8B7B78; font-size:12px; line-height:1.35; }
-        .shop-botanical { position:absolute; right:18px; top:4px; width:145px; height:150px; color:#C98F72; opacity:.18; pointer-events:none; }
+        .shop-botanical { position:absolute; right:20px; bottom:20px; width:180px; height:190px; color:#C98F72; opacity:.12; pointer-events:none; }
         .shop-botanical svg { width:100%; height:100%; }
         .shop-products { margin-top:28px; padding-top:26px; border-top:1px solid #EAE3DD; }
         .shop-products-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
         .shop-view-all { color:#C98F72; font-size:13px; font-weight:600; white-space:nowrap; }
-        .shop-product-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .shop-product-card { min-width:0; overflow:hidden; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; transition:transform .18s ease, box-shadow .18s ease; }
+        .shop-product-grid { display:grid; grid-template-columns:repeat(4,250px); justify-content:start; gap:16px; overflow-x:auto; padding-bottom:2px; }
+        .shop-product-card { width:250px; min-width:0; overflow:hidden; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; transition:transform .18s ease, box-shadow .18s ease; }
         .shop-product-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(59,30,52,.07); }
-        .shop-product-image { height:160px; display:grid; place-items:center; overflow:hidden; background:#F8EEE9; }
+        .shop-product-image { width:100%; height:140px; display:grid; place-items:center; overflow:hidden; background:#F8EEE9; }
         .shop-product-image img { width:100%; height:100%; object-fit:cover; }
-        .shop-product-body { padding:14px 16px 15px; }
-        .shop-product-name { min-height:38px; color:#3B1E34; font-size:15px; font-weight:600; line-height:1.25; }
-        .shop-product-rating { margin-top:7px; color:#8B7B78; font-size:12px; }
-        .shop-product-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; }
-        .shop-product-price { color:#C98F72; font-size:14px; font-weight:700; }
-        .shop-product-button { width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border:1px solid #C98F72; border-radius:50%; background:#FFFDFC; color:#3B1E34; }
+        .shop-product-body { position:relative; padding:14px 58px 14px 14px; }
+        .shop-product-name { min-height:35px; color:#3B1E34; font-size:14px; font-weight:600; line-height:1.25; }
+        .shop-product-rating { margin-top:7px; color:#8B7B78; font-size:11px; }
+        .shop-product-foot { margin-top:9px; }
+        .shop-product-price { color:#C98F72; font-size:15px; font-weight:700; }
+        .shop-product-button { position:absolute; right:14px; bottom:14px; width:36px; height:36px; display:grid; place-items:center; border:1px solid #C98F72; border-radius:50%; background:#FFFDFC; color:#3B1E34; }
         .shop-product-button svg { width:15px; height:15px; }
         .shop-empty { margin:0; color:#8B7B78; font-size:13px; }
         #reviews.tab-panel { white-space:normal; }
@@ -171,8 +174,8 @@
         .related-image span { color:rgba(61,27,61,.4); font-family:Georgia,serif; font-size:22px; }
         .related-name { margin-top:8px; font-family:Georgia,serif; font-size:13px; }
         .related-price { margin-top:4px; color:var(--rose); font-size:12px; font-weight:700; }
-        @media (max-width:1050px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } .shop-box { grid-template-columns:1fr; } .shop-about { padding-right:0; } .shop-botanical { display:none; } .shop-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media (max-width:720px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } .shop-profile { margin:22px 22px 24px; padding:24px 18px; border-radius:22px; } .shop-head { grid-template-columns:1fr; } .shop-name { font-size:27px; } .shop-meta { align-items:flex-start; flex-direction:column; gap:8px; } .shop-meta-divider { display:none; } .shop-actions { display:grid; grid-template-columns:1fr; } .shop-action { width:100%; } .shop-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .shop-stat { grid-template-columns:1fr; gap:9px; padding:14px; } .shop-trust { grid-template-columns:1fr; } .shop-product-grid { display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; } .shop-product-card { min-width:78%; scroll-snap-align:start; } .shop-product-image { height:152px; } }
+        @media (max-width:1199px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } .shop-profile-top { grid-template-columns:1fr; align-items:start; } .shop-stats { max-width:620px; } .shop-about { padding-right:0; } .shop-botanical { display:none; } .shop-product-grid { grid-template-columns:repeat(2,250px); } }
+        @media (max-width:767px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } .shop-profile { margin:22px 22px 24px; padding:24px 18px; border-radius:22px; } .shop-identity-row { align-items:flex-start; flex-direction:column; gap:14px; } .shop-avatar { width:92px; height:92px; flex-basis:92px; } .shop-name { font-size:27px; } .shop-meta { align-items:flex-start; flex-direction:column; gap:8px; } .shop-meta-divider { display:none; } .shop-actions { display:grid; grid-template-columns:1fr; } .shop-action { width:100%; } .shop-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:none; } .shop-stat { align-items:flex-start; flex-direction:column; gap:9px; padding:14px; } .shop-trust { display:grid; grid-template-columns:1fr; gap:14px; } .shop-products-head { align-items:flex-start; flex-direction:column; } .shop-product-grid { display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; } .shop-product-card { width:auto; min-width:230px; scroll-snap-align:start; } }
     </style>
 </head>
 <body>
@@ -379,15 +382,18 @@
             @if (! empty($shopProfile['seller']))
                 <section class="shop-profile" aria-labelledby="shopProfileTitle">
                     @php
+                        $shopDescriptionFallback = 'This seller has not added a shop description yet.';
+                        $shopDescription = $shopProfile['description'] ?? $shopDescriptionFallback;
+                        $hasShopDescription = trim((string) $shopDescription) !== $shopDescriptionFallback;
                         $shopLocation = $shopProfile['location'] ?? null;
                         $shipsFrom = $shopLocation
                             ? trim(\Illuminate\Support\Str::afterLast($shopLocation, ','))
                             : null;
                     @endphp
                     <h2 class="shop-profile-title" id="shopProfileTitle">Shop Profile</h2>
-                    <div class="shop-box">
-                        <div>
-                            <div class="shop-head">
+                    <div class="shop-profile-top">
+                        <div class="shop-identity">
+                            <div class="shop-identity-row">
                                 <div class="shop-avatar" aria-hidden="true">
                                     @if (! empty($shopProfile['avatar']))
                                         <img src="{{ $shopProfile['avatar'] }}" alt="">
@@ -395,9 +401,9 @@
                                         <span>{{ $shopProfile['initials'] }}</span>
                                     @endif
                                 </div>
-                                <div>
-                                    <div class="shop-name">
-                                        <span>{{ $shopProfile['name'] }}</span>
+                                <div class="shop-copy">
+                                    <div class="shop-name-line">
+                                        <span class="shop-name">{{ $shopProfile['name'] }}</span>
                                         @if (! empty($shopProfile['verified']))
                                             <span class="seller-badge">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4Z"/><path d="m8.8 12 2.1 2.1 4.4-5"/></svg>
@@ -405,24 +411,26 @@
                                             </span>
                                         @endif
                                     </div>
-                                </div>
-                            </div>
-                            <p class="shop-description">{{ \Illuminate\Support\Str::limit($shopProfile['description'], 160) }}</p>
-                            @if ($shopLocation)
-                                <div class="shop-meta" aria-label="Shop location and shipping origin">
-                                    <span class="shop-meta-item">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>
-                                        {{ $shopLocation }}
-                                    </span>
-                                    @if ($shipsFrom)
-                                        <span class="shop-meta-divider" aria-hidden="true"></span>
-                                        <span class="shop-meta-item">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
-                                            Ships from {{ $shipsFrom }}
-                                        </span>
+                                    @if ($hasShopDescription)
+                                        <p class="shop-description">{{ \Illuminate\Support\Str::limit($shopDescription, 160) }}</p>
+                                    @endif
+                                    @if ($shopLocation)
+                                        <div class="shop-meta" aria-label="Shop location and shipping origin">
+                                            <span class="shop-meta-item">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+                                                {{ $shopLocation }}
+                                            </span>
+                                            @if ($shipsFrom)
+                                                <span class="shop-meta-divider" aria-hidden="true"></span>
+                                                <span class="shop-meta-item">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+                                                    Ships from {{ $shipsFrom }}
+                                                </span>
+                                            @endif
+                                        </div>
                                     @endif
                                 </div>
-                            @endif
+                            </div>
                             <div class="shop-actions">
                                 @if (! empty($shopProfile['url']))
                                     <a class="shop-action" href="{{ $shopProfile['url'] }}">
@@ -474,7 +482,7 @@
                     <hr class="shop-divider">
                     <div class="shop-about">
                         <h3>About this shop</h3>
-                        <p>{{ $shopProfile['description'] }}</p>
+                        <p>{{ $shopDescription }}</p>
                         <div class="shop-trust" aria-label="Shop trust indicators">
                             <div class="shop-trust-item">
                                 <span class="shop-trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 7 4v5c0 4.3-2.8 7.3-7 9-4.2-1.7-7-4.7-7-9V7l7-4Z"/><path d="m8.8 12 2.1 2.1 4.4-5"/></svg></span>
