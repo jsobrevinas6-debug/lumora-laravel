@@ -105,6 +105,7 @@
         .shop-stat strong { display:block; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
         .shop-stat-label { display:block; margin-top:5px; color:#8A7A76; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
         .shop-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+        .shop-actions form { margin:0; display:inline-flex; }
         .shop-action { height:46px; padding:0 24px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #3B1E34; border-radius:12px; background:#3B1E34; color:white; font-size:12px; font-weight:700; cursor:pointer; }
         .shop-action svg { width:16px; height:16px; }
         .shop-action.secondary { padding:0 22px; border-color:#C98F72; background:#FFFDFC; color:#3B1E34; }
@@ -439,10 +440,20 @@
                                         Visit Shop
                                     </a>
                                 @endif
-                                <button class="shop-action secondary" type="button" disabled title="Buyer-to-seller chat is not available yet.">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
-                                    Chat Seller
-                                </button>
+                                @if (Auth::id() && (int) Auth::id() === (int) $product->seller_id)
+                                    <button class="shop-action secondary" type="button" disabled title="You cannot chat with your own shop.">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
+                                        Chat Seller
+                                    </button>
+                                @else
+                                    <form method="POST" action="{{ route('buyer.chats.start-product', ['product' => $product->id]) }}">
+                                        @csrf
+                                        <button class="shop-action secondary" type="submit">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
+                                            Chat Seller
+                                        </button>
+                                    </form>
+                                @endif
                                 <button class="shop-action secondary" type="button" disabled title="Shop following is not available yet.">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-4.5-9.2-8.5A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.2 6.5C19 16.5 12 21 12 21Z"/></svg>
                                     Follow Shop

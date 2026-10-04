@@ -149,6 +149,16 @@
     @stack('styles')
 </head>
 <body>
+@php
+    $sellerUnreadChatCount = 0;
+    if (Auth::check() && \Illuminate\Support\Facades\Schema::hasColumn('conversations', 'seller_id')) {
+        $sellerUnreadChatCount = \App\Models\Message::query()
+            ->whereNull('read_at')
+            ->where('sender_id', '!=', Auth::id())
+            ->whereHas('conversation', fn ($conversation) => $conversation->where('seller_id', Auth::id()))
+            ->count();
+    }
+@endphp
 <aside class="sidebar">
     <x-logo class="mb-9 max-[680px]:origin-center max-[680px]:scale-[0.45]" />
     <a href="{{ route('seller.dashboard') }}" class="nav-link {{ request()->routeIs('seller.dashboard') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Dashboard</span></span></a>
@@ -156,6 +166,12 @@
     <a href="{{ route('seller.orders.index') }}" class="nav-link {{ request()->routeIs('seller.orders.*') ? 'active' : '' }}">
         <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><span>Orders</span></span>
         <span class="nav-badge" id="sidebarOrdersBadge" style="display:none;"></span>
+    </a>
+    <a href="{{ route('seller.chats.index') }}" class="nav-link {{ request()->routeIs('seller.chats.*') ? 'active' : '' }}">
+        <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg></span><span>Chats</span></span>
+        @if ($sellerUnreadChatCount > 0)
+            <span class="nav-badge">{{ $sellerUnreadChatCount }}</span>
+        @endif
     </a>
     <a href="{{ route('seller.payouts.index') }}" class="nav-link {{ request()->routeIs('seller.payouts.*') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 14h2"/></svg></span><span>Payouts / Earnings</span></span></a>
     <a href="{{ route('seller.profile.index') }}" class="nav-link {{ request()->routeIs('seller.profile.*') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-3.4 3.1-5 7-5s6.3 1.6 7 5"/></svg></span><span>Profile / Settings</span></span></a>

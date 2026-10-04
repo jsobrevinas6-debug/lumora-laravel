@@ -10,6 +10,8 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
         return false;
     }
 
-    // Allow the conversation's owner (buyer/seller) OR any admin to listen
-    return $user->id === $conversation->user_id || $user->role === 'admin';
+    return $user->id === $conversation->user_id
+        || $user->id === $conversation->buyer_id
+        || $user->id === $conversation->seller_id
+        || $user->role === 'admin';
 });

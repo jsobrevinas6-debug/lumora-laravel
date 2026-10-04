@@ -11,7 +11,9 @@ use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Seller\ProductController;
 use App\Http\Controllers\Seller\PayoutController;
 use App\Http\Controllers\Seller\OrderController;
+use App\Http\Controllers\Seller\ChatController as SellerChatController;
 use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
+use App\Http\Controllers\Buyer\ChatController as BuyerChatController;
 use App\Http\Controllers\Buyer\PaymentMethodController;
 use App\Http\Controllers\Buyer\ProductReviewController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
@@ -84,6 +86,11 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
     Route::post('/orders/{id}/pack', [OrderController::class, 'markPacked'])->name('orders.pack');
     Route::get('/orders/{id}/waybill', [OrderController::class, 'waybill'])->name('orders.waybill');
 
+    Route::get('/chats', [SellerChatController::class, 'index'])->name('chats.index');
+    Route::get('/chats/{conversation}', [SellerChatController::class, 'show'])->name('chats.show');
+    Route::post('/chats/{conversation}/messages', [SellerChatController::class, 'store'])->name('chats.messages.store');
+    Route::post('/chats/{conversation}/read', [SellerChatController::class, 'read'])->name('chats.read');
+
     Route::get('/profile', [SellerProfileController::class, 'index'])->name('profile.index');
     Route::patch('/profile', [SellerProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/password', [SellerProfileController::class, 'updatePassword'])->name('profile.updatePassword');
@@ -125,6 +132,17 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/my-conversation', [ChatController::class, 'myConversation'])->name('chat.mine');
     Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
+
+    Route::post('/shop/store/{seller}/chat', [BuyerChatController::class, 'startSeller'])
+        ->whereNumber('seller')
+        ->name('buyer.chats.start-seller');
+    Route::post('/shop/product/{product}/chat', [BuyerChatController::class, 'startProduct'])
+        ->whereNumber('product')
+        ->name('buyer.chats.start-product');
+    Route::get('/account/chats/{conversation}', [BuyerChatController::class, 'show'])
+        ->name('buyer.chats.show');
+    Route::post('/account/chats/{conversation}/messages', [BuyerChatController::class, 'store'])
+        ->name('buyer.chats.messages.store');
 
     Route::view('/seller/application-pending', 'seller.pending')->name('seller.pending');
     Route::get('/seller/apply', [SellerApplicationController::class, 'create'])->name('seller.apply');
