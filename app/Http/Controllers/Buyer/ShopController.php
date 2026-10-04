@@ -91,23 +91,128 @@ class ShopController extends Controller
         ]);
     }
 
-    public function sellerStore(User $seller): View
+    public function sellerStore(Request $request, User $seller): View
     {
         $seller->load(['approvedSellerApplication', 'sellerApplication']);
 
         abort_unless($seller->role === 'seller' || $seller->approvedSellerApplication, 404);
 
-        $products = $seller->products()
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0'],
+            'sort' => ['nullable', 'in:newest,price_asc,price_desc,best_selling,top_rated'],
+            'view' => ['nullable', 'in:grid,list'],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $category = trim((string) ($validated['category'] ?? ''));
+        $minPrice = isset($validated['min_price']) ? (float) $validated['min_price'] : null;
+        $maxPrice = isset($validated['max_price']) ? (float) $validated['max_price'] : null;
+
+        if ($minPrice !== null && $maxPrice !== null && $minPrice > $maxPrice) {
+            [$minPrice, $maxPrice] = [$maxPrice, $minPrice];
+        }
+
+        $sort = $validated['sort'] ?? 'newest';
+        $viewMode = $validated['view'] ?? 'grid';
+
+        $baseProducts = Product::query()
+            ->where('seller_id', $seller->id)
+            ->where('status', 'active');
+
+        $totalProductCount = (clone $baseProducts)->count();
+        $categoryCounts = (clone $baseProducts)
+            ->select('category', DB::raw('COUNT(*) as total'))
+            ->whereNotNull('category')
+            ->groupBy('category')
+            ->orderBy('category')
+            ->pluck('total', 'category')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
+        $priceBounds = (clone $baseProducts)
+            ->selectRaw('MIN(price) as min_price, MAX(price) as max_price')
+            ->first();
+
+        $productsQuery = (clone $baseProducts)
             ->withAvg('reviews', 'rating')
-            ->withCount('reviews')
-            ->where('status', 'active')
+            ->withCount('reviews');
+
+        if ($search !== '') {
+            $productsQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
+
+        if ($category !== '') {
+            $productsQuery->where('category', $category);
+        }
+
+        if ($minPrice !== null) {
+            $productsQuery->where('price', '>=', $minPrice);
+        }
+
+        if ($maxPrice !== null) {
+            $productsQuery->where('price', '<=', $maxPrice);
+        }
+
+        if ($sort === 'price_asc') {
+            $productsQuery->orderBy('price')->orderByDesc('created_at');
+        } elseif ($sort === 'price_desc') {
+            $productsQuery->orderByDesc('price')->orderByDesc('created_at');
+        } elseif ($sort === 'best_selling' && Schema::hasColumn('products', 'sales_count')) {
+            $productsQuery->orderByDesc('sales_count')->orderByDesc('created_at');
+        } elseif ($sort === 'top_rated') {
+            $productsQuery->orderByDesc('reviews_avg_rating')->orderByDesc('reviews_count')->orderByDesc('created_at');
+        } else {
+            $productsQuery->orderByDesc('created_at');
+        }
+
+        $products = $productsQuery->paginate(12)->withQueryString();
+
+        $reviewsBase = ProductReview::query()
+            ->whereHas('product', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                    ->where('status', 'active');
+            });
+
+        $ratingBreakdown = (clone $reviewsBase)
+            ->select('rating', DB::raw('COUNT(*) as total'))
+            ->groupBy('rating')
+            ->pluck('total', 'rating')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+
+        $recentReviews = (clone $reviewsBase)
+            ->with(['user', 'product'])
             ->latest()
-            ->paginate(12);
+            ->limit(6)
+            ->get();
 
         return view('buyer.store', [
             'seller' => $seller,
             'shopProfile' => $this->sellerShopProfile($seller),
             'products' => $products,
+            'categoryCounts' => $categoryCounts,
+            'totalProductCount' => $totalProductCount,
+            'priceBounds' => [
+                'min' => $priceBounds?->min_price !== null ? (float) $priceBounds->min_price : null,
+                'max' => $priceBounds?->max_price !== null ? (float) $priceBounds->max_price : null,
+            ],
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+                'min_price' => $minPrice,
+                'max_price' => $maxPrice,
+                'sort' => $sort,
+                'view' => $viewMode,
+            ],
+            'businessCategory' => $seller->approvedSellerApplication?->category ?: $seller->sellerApplication?->category,
+            'ratingBreakdown' => $ratingBreakdown,
+            'recentReviews' => $recentReviews,
         ]);
     }
 
