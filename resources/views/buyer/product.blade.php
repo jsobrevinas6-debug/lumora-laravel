@@ -80,49 +80,61 @@
         .tab.active { border-bottom-color:var(--rose); color:var(--plum); font-weight:700; }
         .tab-panel { display:none; min-height:130px; padding:22px; color:var(--muted); font-size:13px; line-height:1.7; white-space:pre-line; }
         .tab-panel.active { display:block; }
-        .shop-profile { position:relative; margin:26px 22px 28px; padding:30px; overflow:hidden; border:1px solid var(--line); border-radius:24px; background:var(--paper); box-shadow:0 10px 30px rgba(59,30,52,.05); }
-        .shop-profile::after { content:""; position:absolute; right:-52px; bottom:-58px; width:180px; height:180px; opacity:.18; pointer-events:none; border:1px solid rgba(201,143,114,.55); border-radius:50%; }
-        .shop-profile-title { position:relative; z-index:1; margin:0 0 18px; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:26px; font-weight:600; line-height:1.15; }
-        .shop-box { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,.6fr) minmax(310px,.4fr); gap:30px; align-items:start; }
-        .shop-head { display:grid; grid-template-columns:86px 1fr; gap:18px; align-items:center; margin-bottom:16px; }
-        .shop-avatar { width:86px; height:86px; display:grid; place-items:center; overflow:hidden; border:1px solid var(--line); border-radius:50%; background:#FDF8F5; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:28px; font-weight:600; box-shadow:0 8px 24px rgba(59,30,52,.06); }
+        .shop-profile { position:relative; margin:26px 22px 28px; padding:32px; overflow:hidden; border:1px solid #EAE3DD; border-radius:24px; background:#FFFDFC; box-shadow:0 10px 30px rgba(59,30,52,.05); }
+        .shop-profile-title { position:relative; z-index:1; margin:0 0 22px; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:26px; font-weight:600; line-height:1.15; }
+        .shop-box { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,58fr) minmax(310px,42fr); gap:32px; align-items:start; }
+        .shop-head { display:grid; grid-template-columns:88px 1fr; gap:18px; align-items:center; margin-bottom:16px; }
+        .shop-avatar { width:88px; height:88px; display:grid; place-items:center; overflow:hidden; border:1px solid #EAE3DD; border-radius:50%; background:#F8EEE9; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; box-shadow:0 8px 24px rgba(59,30,52,.05); }
         .shop-avatar img { width:100%; height:100%; object-fit:cover; }
-        .shop-name { display:flex; align-items:center; gap:9px; flex-wrap:wrap; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; line-height:1.1; }
-        .shop-location { margin-top:7px; color:var(--muted); font-size:13px; font-weight:600; }
-        .shop-description { max-width:540px; margin:0; color:#6F6260; font-size:14px; line-height:1.65; }
-        .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 9px; border-radius:999px; background:rgba(111,143,120,.14); color:#6F8F78; font-size:11px; font-weight:800; text-transform:uppercase; }
-        .seller-badge svg { width:13px; height:13px; }
-        .shop-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-        .shop-stat { min-height:86px; display:grid; grid-template-columns:38px 1fr; gap:12px; align-items:center; padding:17px 18px; border:1px solid var(--line); border-radius:14px; background:#FDF8F5; }
-        .shop-stat-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:rgba(201,143,114,.14); color:var(--rose); }
-        .shop-stat-icon svg { width:18px; height:18px; }
-        .shop-stat strong { display:block; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:21px; font-weight:600; line-height:1.1; }
-        .shop-stat span { display:block; margin-top:5px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-        .shop-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
-        .shop-action { min-height:46px; padding:0 16px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--plum); border-radius:12px; background:var(--plum); color:white; font-size:12px; font-weight:800; cursor:pointer; }
+        .shop-name { display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:30px; font-weight:600; line-height:1.1; }
+        .shop-description { max-width:620px; margin:0; color:#8B7B78; font-size:14px; line-height:1.6; }
+        .shop-profile .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:5px 9px; border-radius:999px; background:rgba(111,143,120,.14); color:#6F8F78; font-size:11px; font-weight:600; line-height:1; text-transform:uppercase; }
+        .shop-profile .seller-badge svg { width:13px; height:13px; }
+        .shop-meta { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; color:#8B7B78; font-size:13px; font-weight:600; }
+        .shop-meta-item { display:inline-flex; align-items:center; gap:7px; }
+        .shop-meta-item svg { width:16px; height:16px; color:#C98F72; }
+        .shop-meta-divider { width:1px; height:15px; background:#EAE3DD; }
+        .shop-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+        .shop-stat { min-height:92px; display:grid; grid-template-columns:44px 1fr; gap:13px; align-items:center; padding:18px; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; }
+        .shop-stat-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:#F8EEE9; color:#C98F72; }
+        .shop-stat-icon svg { width:19px; height:19px; }
+        .shop-stat strong { display:block; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
+        .shop-stat span { display:block; margin-top:5px; color:#8B7B78; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .shop-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
+        .shop-action { min-height:46px; padding:0 17px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #3B1E34; border-radius:12px; background:#3B1E34; color:white; font-size:12px; font-weight:700; cursor:pointer; }
         .shop-action svg { width:16px; height:16px; }
-        .shop-action.secondary { border-color:var(--rose); background:white; color:var(--plum); }
-        .shop-action[disabled] { border-color:#E2D8D2; background:#FBF6F3; color:#A79794; cursor:not-allowed; opacity:1; }
-        .shop-divider { position:relative; z-index:1; margin:24px 0; border:0; border-top:1px solid var(--line); }
+        .shop-action.secondary { border-color:#C98F72; background:#FFFDFC; color:#3B1E34; }
+        .shop-action[disabled] { border-color:rgba(201,143,114,.42); background:#FFFDFC; color:rgba(139,123,120,.72); cursor:not-allowed; opacity:1; }
+        .shop-divider { position:relative; z-index:1; margin:28px 0 26px; border:0; border-top:1px solid #EAE3DD; }
         .shop-about, .shop-products { position:relative; z-index:1; }
-        .shop-about h3, .shop-products h3 { margin:0; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:24px; font-weight:600; line-height:1.18; }
-        .shop-about p { max-width:780px; margin:12px 0 0; color:#6F6260; font-size:14px; line-height:1.65; }
-        .shop-products { margin-top:24px; }
-        .shop-products-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:15px; }
-        .shop-view-all { color:var(--rose); font-size:13px; font-weight:800; white-space:nowrap; }
+        .shop-about { min-height:142px; padding-right:190px; }
+        .shop-about h3, .shop-products h3 { margin:0; color:#3B1E34; font-family:'Playfair Display',Georgia,serif; font-size:26px; font-weight:600; line-height:1.18; }
+        .shop-about p { max-width:760px; margin:12px 0 0; color:#6F6260; font-size:14px; line-height:1.7; }
+        .shop-trust { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; max-width:760px; margin-top:20px; }
+        .shop-trust-item { display:grid; grid-template-columns:36px 1fr; gap:10px; align-items:center; min-width:0; }
+        .shop-trust-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; background:#F8EEE9; color:#C98F72; }
+        .shop-trust-icon svg { width:17px; height:17px; }
+        .shop-trust-copy { display:block; min-width:0; }
+        .shop-trust-copy strong { display:block; color:#3B1E34; font-size:13px; font-weight:700; line-height:1.2; }
+        .shop-trust-copy span { display:block; margin-top:3px; color:#8B7B78; font-size:12px; line-height:1.35; }
+        .shop-botanical { position:absolute; right:18px; top:4px; width:145px; height:150px; color:#C98F72; opacity:.18; pointer-events:none; }
+        .shop-botanical svg { width:100%; height:100%; }
+        .shop-products { margin-top:28px; padding-top:26px; border-top:1px solid #EAE3DD; }
+        .shop-products-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+        .shop-view-all { color:#C98F72; font-size:13px; font-weight:600; white-space:nowrap; }
         .shop-product-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .shop-product-card { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:14px; background:var(--paper); transition:transform .18s ease, box-shadow .18s ease; }
+        .shop-product-card { min-width:0; overflow:hidden; border:1px solid #EAE3DD; border-radius:16px; background:#FFFDFC; transition:transform .18s ease, box-shadow .18s ease; }
         .shop-product-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(59,30,52,.07); }
-        .shop-product-image { height:132px; display:grid; place-items:center; overflow:hidden; background:#F5E7E0; }
+        .shop-product-image { height:160px; display:grid; place-items:center; overflow:hidden; background:#F8EEE9; }
         .shop-product-image img { width:100%; height:100%; object-fit:cover; }
-        .shop-product-body { padding:12px; }
-        .shop-product-name { min-height:36px; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:15px; font-weight:600; line-height:1.2; }
-        .shop-product-rating { margin-top:7px; color:var(--muted); font-size:12px; }
+        .shop-product-body { padding:14px 16px 15px; }
+        .shop-product-name { min-height:38px; color:#3B1E34; font-size:15px; font-weight:600; line-height:1.25; }
+        .shop-product-rating { margin-top:7px; color:#8B7B78; font-size:12px; }
         .shop-product-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; }
-        .shop-product-price { color:var(--rose); font-size:14px; font-weight:800; }
-        .shop-product-button { width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border:1px solid var(--line); border-radius:50%; background:#FFFDFC; color:var(--plum); }
+        .shop-product-price { color:#C98F72; font-size:14px; font-weight:700; }
+        .shop-product-button { width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border:1px solid #C98F72; border-radius:50%; background:#FFFDFC; color:#3B1E34; }
         .shop-product-button svg { width:15px; height:15px; }
-        .shop-empty { margin:0; color:var(--muted); font-size:13px; }
+        .shop-empty { margin:0; color:#8B7B78; font-size:13px; }
         #reviews.tab-panel { white-space:normal; }
         .reviews-summary { display:grid; grid-template-columns:minmax(180px,.4fr) minmax(260px,.6fr); gap:24px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
         .reviews-score { color:var(--plum); font-family:Georgia,serif; font-size:46px; line-height:1; }
@@ -159,8 +171,8 @@
         .related-image span { color:rgba(61,27,61,.4); font-family:Georgia,serif; font-size:22px; }
         .related-name { margin-top:8px; font-family:Georgia,serif; font-size:13px; }
         .related-price { margin-top:4px; color:var(--rose); font-size:12px; font-weight:700; }
-        @media (max-width:1050px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } .shop-box { grid-template-columns:1fr; } .shop-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media (max-width:720px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } .shop-profile { margin:22px 14px 24px; padding:24px 18px; border-radius:22px; } .shop-head { grid-template-columns:1fr; } .shop-name { font-size:27px; } .shop-actions { display:grid; grid-template-columns:1fr; } .shop-action { width:100%; } .shop-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .shop-stat { grid-template-columns:1fr; gap:8px; padding:14px; } .shop-product-grid { display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; } .shop-product-card { min-width:74%; scroll-snap-align:start; } }
+        @media (max-width:1050px) { .product-detail { grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); } .service-stack { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,1fr); } .shop-box { grid-template-columns:1fr; } .shop-about { padding-right:0; } .shop-botanical { display:none; } .shop-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:720px) { .topbar-inner,.product-shell { width:min(100% - 28px,1380px); } .product-detail { display:block; } .gallery { margin-bottom:30px; } .main-photo,.main-photo img { min-height:420px; } .service-stack { display:grid; grid-template-columns:1fr; margin-top:30px; } h1 { font-size:37px; } .tabs { gap:18px; overflow-x:auto; } .tabs .tab { white-space:nowrap; } .related-grid { grid-template-columns:repeat(2,1fr); } .shop-profile { margin:22px 22px 24px; padding:24px 18px; border-radius:22px; } .shop-head { grid-template-columns:1fr; } .shop-name { font-size:27px; } .shop-meta { align-items:flex-start; flex-direction:column; gap:8px; } .shop-meta-divider { display:none; } .shop-actions { display:grid; grid-template-columns:1fr; } .shop-action { width:100%; } .shop-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .shop-stat { grid-template-columns:1fr; gap:9px; padding:14px; } .shop-trust { grid-template-columns:1fr; } .shop-product-grid { display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; } .shop-product-card { min-width:78%; scroll-snap-align:start; } .shop-product-image { height:152px; } }
     </style>
 </head>
 <body>
@@ -366,6 +378,12 @@
             <div class="tab-panel" id="shipping">Shipping and return information will be shown according to the seller and checkout options.</div>
             @if (! empty($shopProfile['seller']))
                 <section class="shop-profile" aria-labelledby="shopProfileTitle">
+                    @php
+                        $shopLocation = $shopProfile['location'] ?? null;
+                        $shipsFrom = $shopLocation
+                            ? trim(\Illuminate\Support\Str::afterLast($shopLocation, ','))
+                            : null;
+                    @endphp
                     <h2 class="shop-profile-title" id="shopProfileTitle">Shop Profile</h2>
                     <div class="shop-box">
                         <div>
@@ -387,12 +405,24 @@
                                             </span>
                                         @endif
                                     </div>
-                                    @if (! empty($shopProfile['location']))
-                                        <div class="shop-location">{{ $shopProfile['location'] }}</div>
-                                    @endif
                                 </div>
                             </div>
                             <p class="shop-description">{{ \Illuminate\Support\Str::limit($shopProfile['description'], 160) }}</p>
+                            @if ($shopLocation)
+                                <div class="shop-meta" aria-label="Shop location and shipping origin">
+                                    <span class="shop-meta-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+                                        {{ $shopLocation }}
+                                    </span>
+                                    @if ($shipsFrom)
+                                        <span class="shop-meta-divider" aria-hidden="true"></span>
+                                        <span class="shop-meta-item">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+                                            Ships from {{ $shipsFrom }}
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
                             <div class="shop-actions">
                                 @if (! empty($shopProfile['url']))
                                     <a class="shop-action" href="{{ $shopProfile['url'] }}">
@@ -445,6 +475,31 @@
                     <div class="shop-about">
                         <h3>About this shop</h3>
                         <p>{{ $shopProfile['description'] }}</p>
+                        <div class="shop-trust" aria-label="Shop trust indicators">
+                            <div class="shop-trust-item">
+                                <span class="shop-trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 7 4v5c0 4.3-2.8 7.3-7 9-4.2-1.7-7-4.7-7-9V7l7-4Z"/><path d="m8.8 12 2.1 2.1 4.4-5"/></svg></span>
+                                <span class="shop-trust-copy"><strong>Quality Products</strong><span>Trusted seller products</span></span>
+                            </div>
+                            <div class="shop-trust-item">
+                                <span class="shop-trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
+                                <span class="shop-trust-copy"><strong>Secure Packaging</strong><span>Safe and sealed</span></span>
+                            </div>
+                            <div class="shop-trust-item">
+                                <span class="shop-trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg></span>
+                                <span class="shop-trust-copy"><strong>Fast Shipping</strong><span>Ships from seller location</span></span>
+                            </div>
+                        </div>
+                        <div class="shop-botanical" aria-hidden="true">
+                            <svg viewBox="0 0 120 140" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M72 130c-13-28-12-62 8-100"/>
+                                <path d="M79 31c-12 1-22-4-29-15 13-2 23 3 29 15Z"/>
+                                <path d="M70 53c13-2 24 2 33 13-13 4-24 0-33-13Z"/>
+                                <path d="M65 76c-14 0-25-6-34-19 15-2 26 4 34 19Z"/>
+                                <path d="M66 101c14-4 27-1 38 9-13 6-26 3-38-9Z"/>
+                                <path d="M52 120c-10-12-16-26-18-42"/>
+                                <path d="M34 79c10 2 18 8 23 19-11 0-19-6-23-19Z"/>
+                            </svg>
+                        </div>
                     </div>
                     <div class="shop-products">
                         <div class="shop-products-head">
