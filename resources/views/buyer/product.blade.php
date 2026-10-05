@@ -446,13 +446,10 @@
                                         Chat Seller
                                     </button>
                                 @else
-                                    <form method="POST" action="{{ route('buyer.chats.start-product', ['product' => $product->id]) }}">
-                                        @csrf
-                                        <button class="shop-action secondary" type="submit">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
-                                            Chat Seller
-                                        </button>
-                                    </form>
+                                    <a class="shop-action secondary" href="{{ route('buyer.chats.start', ['product' => $product->id]) }}">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
+                                        Chat Seller
+                                    </a>
                                 @endif
                                 <button class="shop-action secondary" type="button" disabled title="Shop following is not available yet.">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-4.5-9.2-8.5A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.2 6.5C19 16.5 12 21 12 21Z"/></svg>

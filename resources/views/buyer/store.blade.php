@@ -331,13 +331,10 @@
                                 Chat Seller
                             </button>
                         @else
-                            <form method="POST" action="{{ route('buyer.chats.start-seller', ['seller' => $seller->id]) }}">
-                                @csrf
-                                <button class="store-action" type="submit">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
-                                    Chat Seller
-                                </button>
-                            </form>
+                            <a class="store-action" href="{{ route('buyer.chats.start', ['seller' => $seller->id]) }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg>
+                                Chat Seller
+                            </a>
                         @endif
                         <button class="store-action" type="button" data-share-shop data-share-url="{{ $storeUrl }}" data-share-title="{{ $shopProfile['name'] }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>

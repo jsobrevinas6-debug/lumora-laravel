@@ -55,6 +55,8 @@
         .profile-nav-item.active{border-left-color:var(--accent);background:var(--active);color:var(--primary)}
         .profile-nav-icon{width:18px;height:18px;display:grid;place-items:center;flex:0 0 auto}
         .profile-nav-icon svg{width:17px;height:17px}
+        .profile-nav-label{min-width:0;flex:1}
+        .profile-nav-badge{min-width:20px;height:20px;display:grid;place-items:center;border-radius:999px;background:var(--accent);padding:0 6px;color:var(--card);font-size:11px;font-weight:700}
         .logout-nav-form{margin:8px 0 0;padding-top:10px;border-top:1px solid var(--border)}
         .profile-content{min-width:0}
         .profile-scroll-section{scroll-margin-top:130px}

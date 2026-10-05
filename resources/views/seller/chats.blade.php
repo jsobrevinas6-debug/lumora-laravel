@@ -5,8 +5,10 @@
 @push('styles')
 <style>
     .chat-subtitle { margin:-20px 0 24px; color:var(--text-muted); font-size:14px; }
-    .chat-layout { min-height:calc(100vh - 170px); display:grid; grid-template-columns:320px minmax(0,1fr) 260px; gap:18px; }
-    .chat-panel { background:#fff; border:1px solid var(--border); border-radius:18px; box-shadow:0 4px 18px rgba(91,26,53,.04); overflow:hidden; }
+    .chat-layout { min-height:calc(100vh - 170px); display:grid; grid-template-columns:300px minmax(0,1fr) 260px; gap:0; overflow:hidden; border:1px solid var(--border); border-radius:20px; background:#FFFDFC; box-shadow:0 4px 18px rgba(91,26,53,.04); }
+    .chat-panel { background:#FFFDFC; overflow:hidden; }
+    .conversation-panel { border-right:1px solid var(--border); }
+    .context-panel { border-left:1px solid var(--border); }
     .conversation-panel { display:flex; flex-direction:column; min-height:620px; }
     .conversation-tabs { display:flex; gap:8px; padding:14px; border-bottom:1px solid var(--border); }
     .conversation-tab { flex:1; min-height:36px; display:grid; place-items:center; border-radius:10px; color:var(--text-muted); text-decoration:none; font-size:12px; font-weight:700; }
@@ -29,16 +31,15 @@
     .messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:20px; background:#FFFDFC; }
     .message-row { display:flex; }
     .message-row.mine { justify-content:flex-end; }
-    .message-bubble { max-width:min(560px,78%); padding:11px 13px; border-radius:16px; background:#F8F4F1; color:var(--text-dark); font-size:13.5px; line-height:1.55; }
-    .message-row.mine .message-bubble { background:var(--maroon); color:#fff; border-bottom-right-radius:6px; }
-    .message-row:not(.mine) .message-bubble { border-bottom-left-radius:6px; }
+    .message-bubble { max-width:70%; padding:11px 13px; border-radius:14px 14px 14px 4px; background:#F7F1EC; color:var(--text-dark); font-size:13.5px; line-height:1.55; }
+    .message-row.mine .message-bubble { background:var(--maroon); color:#fff; border-radius:14px 14px 4px 14px; }
     .message-time { margin-top:5px; color:rgba(139,122,128,.85); font-size:10.5px; }
     .message-row.mine .message-time { color:rgba(255,255,255,.72); text-align:right; }
     .composer { display:flex; align-items:flex-end; gap:10px; padding:14px; border-top:1px solid var(--border); background:#fff; }
     .composer textarea { flex:1; min-height:48px; max-height:120px; resize:vertical; border:1px solid var(--border); border-radius:14px; padding:13px 14px; font:inherit; }
     .send-btn { width:48px; height:48px; display:grid; place-items:center; border:0; border-radius:14px; background:var(--maroon); color:#fff; cursor:pointer; }
     .send-btn svg { width:19px; height:19px; }
-    .context-panel { padding:18px; }
+    .context-panel { padding:18px; overflow-y:auto; }
     .context-panel h3 { margin:0 0 14px; font-size:15px; font-weight:800; }
     .context-product { border:1px solid var(--border); border-radius:14px; overflow:hidden; }
     .context-product img { width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--bg); }
@@ -46,6 +47,10 @@
     .context-product-title { font-size:13px; font-weight:800; }
     .context-product-price { margin-top:5px; color:var(--coral); font-size:13px; font-weight:800; }
     .context-link { min-height:38px; display:flex; align-items:center; justify-content:center; margin-top:10px; border-radius:10px; background:var(--maroon); color:#fff; text-decoration:none; font-size:12px; font-weight:800; }
+    .customer-card { display:flex; align-items:center; gap:11px; border:1px solid var(--border); border-radius:14px; padding:12px; }
+    .customer-card + .customer-card { margin-top:12px; }
+    .customer-name { color:var(--maroon); font-size:13px; font-weight:800; }
+    .customer-meta { margin-top:4px; color:var(--text-muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
     .empty-chat { height:100%; display:grid; place-items:center; padding:32px; color:var(--text-muted); text-align:center; }
     @media (max-width:1200px) { .chat-layout { grid-template-columns:300px minmax(0,1fr); } .context-panel { display:none; } }
     @media (max-width:820px) { .chat-layout { grid-template-columns:1fr; } .conversation-panel, .chat-main { min-height:auto; } }
@@ -60,7 +65,6 @@
             <div class="conversation-tabs">
                 <a class="conversation-tab {{ $tab === 'all' ? 'active' : '' }}" href="{{ route('seller.chats.index', ['tab' => 'all']) }}">All</a>
                 <a class="conversation-tab {{ $tab === 'unread' ? 'active' : '' }}" href="{{ route('seller.chats.index', ['tab' => 'unread']) }}">Unread</a>
-                <a class="conversation-tab {{ $tab === 'customers' ? 'active' : '' }}" href="{{ route('seller.chats.index', ['tab' => 'customers']) }}">Customers</a>
             </div>
             <form class="conversation-search" method="GET" action="{{ route('seller.chats.index') }}">
                 <input type="hidden" name="tab" value="{{ $tab }}">
@@ -88,7 +92,7 @@
                         </div>
                     </a>
                 @empty
-                    <div class="empty-chat">No customer conversations yet.</div>
+                    <div class="empty-chat"><div><strong>No conversations yet.</strong><br>Customer messages will appear here.</div></div>
                 @endforelse
             </div>
         </aside>
@@ -116,7 +120,7 @@
                             </div>
                         </div>
                     @empty
-                        <div class="empty-chat">No messages yet. Reply when your customer starts the conversation.</div>
+                    <div class="empty-chat">No messages yet. Reply when your customer starts the conversation.</div>
                     @endforelse
                 </div>
                 <form class="composer" method="POST" action="{{ route('seller.chats.messages.store', $activeConversation) }}">
@@ -130,7 +134,7 @@
         </section>
 
         <aside class="chat-panel context-panel">
-            <h3>Product Context</h3>
+            <h3>Order / Product Context</h3>
             @if ($activeConversation?->product)
                 @php $product = $activeConversation->product; @endphp
                 <div class="context-product">
@@ -143,6 +147,25 @@
                 </div>
             @else
                 <p style="color:var(--text-muted);font-size:13px;line-height:1.6;">No product was attached to this conversation.</p>
+            @endif
+
+            <h3 style="margin-top:22px;">Customer Information</h3>
+            @if ($activeConversation?->buyer)
+                @php
+                    $buyer = $activeConversation->buyer;
+                    $buyerName = $buyer->name ?? 'Lumora customer';
+                    $buyerInitial = strtoupper(substr($buyerName, 0, 1));
+                @endphp
+                <div class="customer-card">
+                    <div class="chat-avatar">@if ($buyer->avatar)<img src="{{ $buyer->avatar }}" alt="">@else{{ $buyerInitial }}@endif</div>
+                    <div>
+                        <div class="customer-name">{{ $buyerName }}</div>
+                        <div class="customer-meta">{{ $buyer->email }}</div>
+                        <div class="customer-meta">Joined {{ $buyer->created_at?->format('M Y') ?? 'recently' }}</div>
+                    </div>
+                </div>
+            @else
+                <p style="color:var(--text-muted);font-size:13px;line-height:1.6;">Select a conversation to view customer details.</p>
             @endif
         </aside>
     </div>

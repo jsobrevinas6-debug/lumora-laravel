@@ -7,6 +7,8 @@
         $active = 'payment-methods';
     } elseif (request()->routeIs('buyer.orders.*')) {
         $active = 'orders';
+    } elseif (request()->routeIs('buyer.chats.*')) {
+        $active = 'messages';
     }
 
     $onProfilePage = $active === 'profile';
@@ -41,6 +43,13 @@
                 <x-buyer-profile.nav-item :href="route('buyer.orders.index')" label="My Orders" :active="$active === 'orders'">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6"/><path d="M9 12h6"/></svg></x-slot>
                 </x-buyer-profile.nav-item>
+                <a href="{{ route('buyer.chats.index') }}" class="profile-nav-item {{ $active === 'messages' ? 'active' : '' }}" data-profile-nav-item @if ($active === 'messages') aria-current="page" @endif>
+                    <span class="profile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg></span>
+                    <span class="profile-nav-label">Messages</span>
+                    @if (($buyerUnreadChatCount ?? 0) > 0)
+                        <span class="profile-nav-badge">{{ $buyerUnreadChatCount }}</span>
+                    @endif
+                </a>
                 <x-buyer-profile.nav-item :href="$wishlistHref" label="Wishlist">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></x-slot>
                 </x-buyer-profile.nav-item>

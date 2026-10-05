@@ -25,7 +25,7 @@ class ChatController extends Controller
         return view('seller.chats', [
             'conversations' => $conversations,
             'activeConversation' => $activeConversation,
-            'tab' => $request->query('tab', 'all'),
+            'tab' => $this->tab($request),
             'search' => trim((string) $request->query('search', '')),
         ]);
     }
@@ -40,7 +40,7 @@ class ChatController extends Controller
         return view('seller.chats', [
             'conversations' => $conversations,
             'activeConversation' => $conversation->load(['buyer', 'product', 'messages.sender']),
-            'tab' => $request->query('tab', 'all'),
+            'tab' => $this->tab($request),
             'search' => trim((string) $request->query('search', '')),
         ]);
     }
@@ -78,7 +78,7 @@ class ChatController extends Controller
     private function conversationData(Request $request, ?Conversation $preferred = null): array
     {
         $sellerId = (int) Auth::id();
-        $tab = $request->query('tab', 'all');
+        $tab = $this->tab($request);
         $search = trim((string) $request->query('search', ''));
 
         $query = Conversation::query()
@@ -115,6 +115,13 @@ class ChatController extends Controller
     private function authorizeConversation(Conversation $conversation): void
     {
         abort_unless((int) $conversation->seller_id === (int) Auth::id(), 403);
+    }
+
+    private function tab(Request $request): string
+    {
+        $tab = $request->query('tab', 'all');
+
+        return in_array($tab, ['all', 'unread'], true) ? $tab : 'all';
     }
 
     private function markConversationRead(Conversation $conversation): void

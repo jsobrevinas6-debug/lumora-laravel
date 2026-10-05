@@ -139,6 +139,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/shop/product/{product}/chat', [BuyerChatController::class, 'startProduct'])
         ->whereNumber('product')
         ->name('buyer.chats.start-product');
+    Route::get('/chats/start', [BuyerChatController::class, 'start'])
+        ->name('buyer.chats.start');
+    Route::post('/chats/start', [BuyerChatController::class, 'begin'])
+        ->name('buyer.chats.begin');
+    Route::get('/account/chats', [BuyerChatController::class, 'index'])
+        ->name('buyer.chats.index');
     Route::get('/account/chats/{conversation}', [BuyerChatController::class, 'show'])
         ->name('buyer.chats.show');
     Route::post('/account/chats/{conversation}/messages', [BuyerChatController::class, 'store'])

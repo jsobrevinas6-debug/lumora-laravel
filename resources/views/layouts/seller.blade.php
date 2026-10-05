@@ -149,16 +149,6 @@
     @stack('styles')
 </head>
 <body>
-@php
-    $sellerUnreadChatCount = 0;
-    if (Auth::check() && \Illuminate\Support\Facades\Schema::hasColumn('conversations', 'seller_id')) {
-        $sellerUnreadChatCount = \App\Models\Message::query()
-            ->whereNull('read_at')
-            ->where('sender_id', '!=', Auth::id())
-            ->whereHas('conversation', fn ($conversation) => $conversation->where('seller_id', Auth::id()))
-            ->count();
-    }
-@endphp
 <aside class="sidebar">
     <x-logo class="mb-9 max-[680px]:origin-center max-[680px]:scale-[0.45]" />
     <a href="{{ route('seller.dashboard') }}" class="nav-link {{ request()->routeIs('seller.dashboard') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Dashboard</span></span></a>

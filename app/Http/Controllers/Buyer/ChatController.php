@@ -15,24 +15,74 @@ use Illuminate\View\View;
 
 class ChatController extends Controller
 {
+    public function index(): View
+    {
+        $conversations = $this->conversationList();
+
+        return view('buyer.chats.index', [
+            'conversations' => $conversations,
+        ]);
+    }
+
+    public function start(Request $request): View|RedirectResponse
+    {
+        [$seller, $product] = $this->sellerAndProductFromRequest($request);
+        $this->authorizeStart($seller);
+
+        $conversation = $this->findConversation($seller, $product);
+
+        if ($conversation?->messages()->exists()) {
+            return redirect()->route('buyer.chats.show', $conversation);
+        }
+
+        return view('buyer.chats.start', [
+            'seller' => $seller,
+            'product' => $product,
+            'conversation' => $conversation,
+            'sellerProfile' => $this->sellerProfile($seller),
+        ]);
+    }
+
+    public function begin(Request $request): RedirectResponse
+    {
+        [$seller, $product] = $this->sellerAndProductFromRequest($request);
+        $this->authorizeStart($seller);
+
+        $body = trim((string) $request->input('message'));
+
+        if ($body === '') {
+            throw ValidationException::withMessages(['message' => 'Please enter a message.']);
+        }
+
+        $request->validate([
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $conversation = $this->findOrCreateConversation($seller, $product);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => Auth::id(),
+            'body' => $body,
+        ]);
+
+        $conversation->update(['last_message_at' => now()]);
+
+        return redirect()->route('buyer.chats.show', $conversation);
+    }
+
     public function startSeller(User $seller): RedirectResponse
     {
         abort_unless($seller->role === 'seller' || $seller->approvedSellerApplication, 404);
-        abort_if((int) Auth::id() === (int) $seller->id, 403, 'You cannot chat with your own shop.');
 
-        $conversation = $this->findOrCreateConversation($seller);
-
-        return redirect()->route('buyer.chats.show', $conversation);
+        return redirect()->route('buyer.chats.start', ['seller' => $seller->id]);
     }
 
     public function startProduct(Product $product): RedirectResponse
     {
         abort_unless($product->status === 'active' && $product->seller, 404);
-        abort_if((int) Auth::id() === (int) $product->seller_id, 403, 'You cannot chat with your own shop.');
 
-        $conversation = $this->findOrCreateConversation($product->seller, $product);
-
-        return redirect()->route('buyer.chats.show', $conversation);
+        return redirect()->route('buyer.chats.start', ['product' => $product->id]);
     }
 
     public function show(Conversation $conversation): View
@@ -44,6 +94,7 @@ class ChatController extends Controller
 
         return view('buyer.chats.show', [
             'conversation' => $conversation,
+            'conversations' => $this->conversationList(),
             'sellerProfile' => $this->sellerProfile($conversation->seller),
         ]);
     }
@@ -72,23 +123,26 @@ class ChatController extends Controller
 
     private function findOrCreateConversation(User $seller, ?Product $product = null): Conversation
     {
-        $conversation = Conversation::firstOrCreate(
+        return Conversation::firstOrCreate(
             [
                 'buyer_id' => Auth::id(),
                 'seller_id' => $seller->id,
+                'product_id' => $product?->id,
             ],
             [
                 'user_id' => Auth::id(),
-                'product_id' => $product?->id,
                 'last_message_at' => now(),
             ]
         );
+    }
 
-        if ($product && ! $conversation->product_id) {
-            $conversation->update(['product_id' => $product->id]);
-        }
-
-        return $conversation;
+    private function findConversation(User $seller, ?Product $product = null): ?Conversation
+    {
+        return Conversation::query()
+            ->where('buyer_id', Auth::id())
+            ->where('seller_id', $seller->id)
+            ->where('product_id', $product?->id)
+            ->first();
     }
 
     private function authorizeConversation(Conversation $conversation): void
@@ -124,5 +178,58 @@ class ChatController extends Controller
             ->where('sender_id', '!=', Auth::id())
             ->whereNull('read_at')
             ->update(['read_at' => now(), 'is_read' => true]);
+    }
+
+    private function sellerAndProductFromRequest(Request $request): array
+    {
+        $request->validate([
+            'seller' => ['nullable', 'integer', 'exists:users,id'],
+            'seller_id' => ['nullable', 'integer', 'exists:users,id'],
+            'product' => ['nullable', 'integer', 'exists:products,id'],
+            'product_id' => ['nullable', 'integer', 'exists:products,id'],
+        ]);
+
+        $productId = $request->integer('product') ?: $request->integer('product_id');
+        $sellerId = $request->integer('seller') ?: $request->integer('seller_id');
+        $product = null;
+
+        if ($productId) {
+            $product = Product::query()
+                ->with('seller.approvedSellerApplication', 'seller.sellerApplication')
+                ->where('status', 'active')
+                ->findOrFail($productId);
+            $seller = $product->seller;
+        } else {
+            abort_unless($sellerId, 404);
+
+            $seller = User::query()
+                ->with(['approvedSellerApplication', 'sellerApplication'])
+                ->findOrFail($sellerId);
+        }
+
+        abort_unless($seller && ($seller->role === 'seller' || $seller->approvedSellerApplication), 404);
+
+        return [$seller, $product];
+    }
+
+    private function authorizeStart(User $seller): void
+    {
+        abort_if((int) Auth::id() === (int) $seller->id, 403, 'You cannot chat with your own shop.');
+        abort_if(Auth::user()?->role === 'admin', 403);
+    }
+
+    private function conversationList()
+    {
+        return Conversation::query()
+            ->where('buyer_id', Auth::id())
+            ->with(['seller.approvedSellerApplication', 'seller.sellerApplication', 'product', 'latestMessage.sender'])
+            ->withCount([
+                'messages as unread_count' => fn ($messages) => $messages
+                    ->where('sender_id', '!=', Auth::id())
+                    ->whereNull('read_at'),
+            ])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('updated_at')
+            ->get();
     }
 }
