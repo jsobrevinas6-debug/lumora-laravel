@@ -23,8 +23,8 @@
         .search svg { width:17px; height:17px; color:var(--muted); }
         .search input { width:100%; border:0; outline:0; background:transparent; color:var(--text); font-size:14px; }
         .nav-actions { display:flex; align-items:center; gap:11px; margin-left:auto; }
-        .icon-btn { position:relative; width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--line); border-radius:50%; background:var(--paper); color:var(--plum); }
-        .icon-btn svg { width:18px; height:18px; }
+        .icon-btn { position:relative; width:40px; height:40px; display:inline-grid; place-items:center; padding:0; line-height:0; border:1px solid var(--line); border-radius:50%; background:var(--paper); color:var(--plum); }
+        .icon-btn svg { width:18px; height:18px; display:block; position:static; transform:none; margin:0; }
         .nav-badge { position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; display:grid; place-items:center; padding:0 4px; border-radius:999px; background:var(--rose); color:white; font-size:10px; font-weight:800; }
         .account-menu-wrap { position:relative; }
         .account-trigger { height:44px; display:flex; align-items:center; gap:10px; padding:0 10px 0 6px; border:1px solid var(--line); border-radius:999px; background:var(--paper); color:var(--text); cursor:pointer; }
@@ -40,21 +40,25 @@
         .breadcrumb { margin-bottom:20px; color:var(--muted); font-size:13px; }
         .breadcrumb a:hover { color:var(--rose); }
         .breadcrumb strong { color:var(--plum); }
-        .cover { position:relative; height:180px; min-height:0; overflow:hidden; border-radius:22px; background-color:#F8EEE9; background-image:radial-gradient(circle at 18% 18%,rgba(255,253,252,.88),rgba(255,253,252,0) 30%),radial-gradient(circle at 84% 20%,rgba(201,143,114,.22),rgba(201,143,114,0) 34%),linear-gradient(135deg,#FFFDFC 0%,#F8EEE9 48%,#EFE1DC 100%); }
+        .cover { position:relative; height:180px; min-height:0; overflow:hidden; border-radius:22px; background-color:#F8EEE9; background-image:var(--shop-cover-image, radial-gradient(circle at 18% 18%,rgba(255,253,252,.88),rgba(255,253,252,0) 30%),radial-gradient(circle at 84% 20%,rgba(201,143,114,.22),rgba(201,143,114,0) 34%),linear-gradient(135deg,#FFFDFC 0%,#F8EEE9 48%,#EFE1DC 100%)); background-position:center; background-size:cover; background-repeat:no-repeat; }
         .cover::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(255,253,252,.76),rgba(255,253,252,.42) 56%,rgba(255,253,252,.12)); }
+        .cover.has-image::before { background:linear-gradient(90deg,rgba(59,30,52,.58),rgba(59,30,52,.16) 58%,rgba(59,30,52,.04)); }
         .cover::after { content:""; position:absolute; right:34px; bottom:-20px; width:220px; height:170px; border:1px solid rgba(185,137,115,.2); border-radius:62% 38% 72% 28%; transform:rotate(-12deg); }
         .cover-content { position:relative; z-index:1; max-width:560px; padding:28px 34px; color:var(--plum); }
+        .cover.has-image .cover-content { color:white; }
         .cover-eyebrow { margin:0 0 8px; color:var(--rose); font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+        .cover.has-image .cover-eyebrow { color:rgba(255,255,255,.82); }
         .cover h1 { margin:0; font-family:'Playfair Display',Georgia,serif; font-size:clamp(34px,3.4vw,46px); font-weight:600; line-height:1; }
         .cover p { max-width:450px; margin:11px 0 0; color:#6F6260; font-size:13.5px; line-height:1.6; }
+        .cover.has-image p { color:rgba(255,255,255,.86); }
         .profile-card { position:relative; z-index:2; margin:-32px 20px 0; padding:26px 28px; border:1px solid var(--line); border-radius:22px; background:var(--paper); box-shadow:0 10px 30px rgba(59,30,52,.05); }
         .profile-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(380px,.75fr); gap:32px; align-items:center; }
         .identity-row { display:flex; align-items:center; gap:18px; min-width:0; }
         .store-avatar { width:84px; height:84px; display:grid; place-items:center; flex:0 0 84px; overflow:hidden; border:1px solid var(--line); border-radius:50%; background:var(--blush); color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:29px; font-weight:600; }
         .store-avatar img { width:100%; height:100%; object-fit:cover; }
-        .name-line { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .shop-name { color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:31px; font-weight:600; line-height:1.1; overflow-wrap:anywhere; }
-        .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:5px 9px; border-radius:999px; background:rgba(111,143,120,.14); color:var(--green); font-size:11px; font-weight:700; line-height:1; text-transform:uppercase; }
+        .name-line { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+        .shop-name { min-width:0; margin:0; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:31px; font-weight:600; line-height:1.1; overflow-wrap:anywhere; }
+        .seller-badge { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:5px 9px; flex:0 0 auto; border-radius:999px; background:rgba(111,143,120,.14); color:var(--green); font-size:11px; font-weight:700; line-height:1; text-transform:uppercase; }
         .seller-badge svg { width:13px; height:13px; }
         .description { max-width:600px; margin:9px 0 0; color:var(--muted); font-size:13.5px; line-height:1.6; }
         .meta-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; color:var(--muted); font-size:13px; font-weight:600; }
@@ -66,13 +70,14 @@
         .store-action { height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; border:1px solid var(--rose); border-radius:11px; background:var(--paper); color:var(--plum); font-size:12px; font-weight:800; cursor:pointer; }
         .store-action.primary { border-color:var(--plum); background:var(--plum); color:white; }
         .store-action[disabled] { border-color:var(--line); background:#F8F4F1; color:var(--muted); cursor:not-allowed; opacity:1; }
-        .store-action svg { width:16px; height:16px; }
+        .store-action svg { width:16px; height:16px; display:block; flex:0 0 16px; position:static; transform:none; margin:0; }
         .stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-self:stretch; }
-        .stat { min-height:88px; display:flex; align-items:center; gap:13px; padding:16px 18px; border:1px solid var(--line); border-radius:15px; background:var(--paper); }
-        .stat-icon { width:42px; height:42px; display:flex; align-items:center; justify-content:center; flex:0 0 42px; border-radius:9999px; background:#F7EEE8; color:var(--icon); }
-        .stat-icon svg { width:18px; height:18px; display:block; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        .stat { min-width:0; min-height:88px; display:flex; align-items:center; gap:13px; padding:16px 18px; border:1px solid var(--line); border-radius:15px; background:var(--paper); }
+        .stats .stat .shop-stat-icon.stat-icon { width:42px; height:42px; display:grid; place-items:center; flex:0 0 42px; margin:0; padding:0; line-height:0; position:static; transform:none; border-radius:9999px; background:#F7EEE8; color:var(--icon); }
+        .stats .stat .shop-stat-icon.stat-icon svg { width:18px; height:18px; display:block; flex:0 0 18px; margin:0; position:static; transform:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         .stat strong { display:block; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
         .stat span { display:block; margin-top:5px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .stat > div { min-width:0; }
         .tabs { display:flex; gap:32px; margin:36px 0 0; border-bottom:1px solid var(--line); overflow-x:auto; }
         .tab { padding:0 0 14px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap; }
         .tab.active { border-bottom-color:var(--rose); color:var(--plum); }
@@ -96,19 +101,19 @@
         .product-count { color:var(--muted); font-size:13px; }
         .toolbar { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
         .shop-search { display:flex; flex:1 1 auto; min-width:0; gap:8px; }
-        .shop-search button { width:46px; height:44px; flex:0 0 46px; display:grid; place-items:center; border:1px solid var(--plum); border-radius:11px; background:var(--plum); color:white; cursor:pointer; }
-        .shop-search svg, .toggle svg { width:17px; height:17px; }
+        .shop-search button { width:46px; height:44px; flex:0 0 46px; display:grid; place-items:center; padding:0; line-height:0; border:1px solid var(--plum); border-radius:11px; background:var(--plum); color:white; cursor:pointer; }
+        .shop-search svg, .toggle svg { width:17px; height:17px; display:block; position:static; transform:none; margin:0; }
         .view-select { flex:0 0 170px; }
         .view-toggle { display:flex; gap:6px; }
-        .toggle { width:44px; height:44px; display:grid; place-items:center; border:1px solid var(--line); border-radius:11px; background:var(--paper); color:var(--muted); }
+        .toggle { width:44px; height:44px; display:grid; place-items:center; padding:0; line-height:0; border:1px solid var(--line); border-radius:11px; background:var(--paper); color:var(--muted); }
         .toggle.active { border-color:var(--rose); color:var(--plum); }
         .product-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
         .product-grid.list { grid-template-columns:1fr; }
         .product-card { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:16px; background:var(--paper); }
         .product-image { width:100%; aspect-ratio:4/3; display:block; overflow:hidden; background:var(--blush); }
         .product-image img { width:100%; height:100%; display:block; object-fit:cover; object-position:center; }
-        .wish { position:absolute; top:12px; right:12px; width:36px; height:36px; display:grid; place-items:center; border:1px solid rgba(234,227,221,.9); border-radius:50%; background:rgba(255,253,252,.92); color:var(--plum); }
-        .wish svg { width:16px; height:16px; }
+        .wish { position:absolute; top:12px; right:12px; width:36px; height:36px; display:grid; place-items:center; padding:0; line-height:0; border:1px solid rgba(234,227,221,.9); border-radius:50%; background:rgba(255,253,252,.92); color:var(--plum); }
+        .wish svg { width:16px; height:16px; display:block; position:static; transform:none; margin:0; }
         .sale { position:absolute; top:12px; left:12px; padding:5px 8px; border-radius:999px; background:var(--plum); color:white; font-size:10px; font-weight:900; }
         .product-body { padding:14px 15px; }
         .product-category { margin-bottom:5px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -123,7 +128,8 @@
         .product-actions a, .cart-form button { min-height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:11px; font-size:12px; font-weight:800; }
         .product-actions a { flex:1; border:1px solid var(--line); color:var(--plum); }
         .cart-form { margin:0; }
-        .cart-form button { width:36px; border:1px solid var(--plum); border-radius:50%; background:var(--plum); color:white; cursor:pointer; }
+        .cart-form button { width:36px; height:36px; padding:0; line-height:0; border:1px solid var(--plum); border-radius:50%; background:var(--plum); color:white; cursor:pointer; }
+        .cart-form button svg { display:block; position:static; transform:none; margin:0; }
         .cart-form button:disabled { border-color:var(--line); background:#F8F4F1; color:var(--muted); cursor:not-allowed; }
         .product-grid.list .product-card { display:grid; grid-template-columns:220px minmax(0,1fr); }
         .product-grid.list .product-image { aspect-ratio:4/3; min-height:0; }
@@ -162,7 +168,7 @@
         .policy p { margin:0; color:var(--muted); font-size:13px; line-height:1.65; }
         .share-note { min-height:18px; margin-top:8px; color:var(--green); font-size:12px; font-weight:700; }
         @media (max-width:1050px) { .profile-grid, .storefront, .reviews-layout { grid-template-columns:1fr; } .filters { position:static; } .stats { max-width:640px; } .product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; } .policies { grid-template-columns:1fr; } .botanical { display:none; } }
-        @media (max-width:720px) { .topbar-inner, .store-shell { width:min(100% - 28px,1260px); } .topbar-inner { flex-wrap:wrap; padding:14px 0; } .search { order:3; max-width:none; flex-basis:100%; } .account-name { display:none; } .cover { height:130px; } .cover::after { width:150px; height:120px; right:10px; } .cover-content { padding:22px; } .cover h1 { font-size:32px; } .cover p { display:none; } .profile-card { margin:-26px 0 0; padding:22px 18px; } .identity-row { align-items:flex-start; flex-direction:column; gap:14px; } .store-actions { display:grid; grid-template-columns:1fr; } .store-actions form, .store-action { width:100%; } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); max-width:none; } .stat { align-items:flex-start; flex-direction:column; padding:14px; } .toolbar { flex-wrap:wrap; } .shop-search { flex-basis:100%; } .view-select { flex:1 1 calc(100% - 98px); } .view-toggle { flex:0 0 auto; } .product-grid, .product-grid.list { grid-template-columns:1fr; gap:18px; } .product-grid.list .product-card { display:block; } .product-grid.list .product-image { aspect-ratio:4/3; } .tabs { gap:22px; } .trust { display:grid; gap:14px; } }
+        @media (max-width:720px) { html, body, .store-page { max-width:100%; overflow-x:hidden; } .topbar-inner, .store-shell { width:calc(100vw - 28px); max-width:1260px; } .topbar-inner { flex-wrap:wrap; gap:10px; padding:14px 0; } .topbar-inner > a[aria-label="Lumora shop"] span:first-child { font-size:22px; letter-spacing:.24em; } .topbar-inner > a[aria-label="Lumora shop"] span:last-child { font-size:5px; letter-spacing:.42em; } .nav-actions { gap:8px; } .auth-link { display:none; } .search { order:3; max-width:none; flex-basis:100%; } .account-name { display:none; } .cover { height:130px; max-width:100%; } .cover::after { width:150px; height:120px; right:10px; } .cover-content { padding:22px; } .cover h1 { font-size:32px; } .cover p { display:none; } .profile-card { max-width:100%; margin:-26px 0 0; padding:22px 18px; overflow:hidden; } .profile-grid { min-width:0; } .identity-row { align-items:flex-start; flex-direction:column; gap:14px; } .name-line { align-items:flex-start; flex-direction:column; gap:8px; } .shop-name { font-size:30px; } .store-actions { display:grid; grid-template-columns:1fr; } .store-actions form, .store-action { width:100%; } .stats { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); max-width:none; gap:14px; } .stat { align-items:flex-start; flex-direction:column; gap:9px; padding:14px 12px; } .stat strong { font-size:18px; overflow-wrap:anywhere; } .stat span { font-size:10px; letter-spacing:.045em; overflow-wrap:anywhere; } .toolbar { flex-wrap:wrap; } .shop-search { flex-basis:100%; } .view-select { flex:1 1 calc(100% - 98px); } .view-toggle { flex:0 0 auto; } .product-grid, .product-grid.list { grid-template-columns:1fr; gap:18px; } .product-grid.list .product-card { display:block; } .product-grid.list .product-image { aspect-ratio:4/3; } .tabs { gap:22px; } .trust { display:grid; gap:14px; } }
     </style>
 </head>
 <body>
@@ -173,6 +179,36 @@
     $shopLocation = $shopProfile['location'] ?? null;
     $shipsFrom = $shopLocation ? trim(\Illuminate\Support\Str::afterLast($shopLocation, ',')) : null;
     $storeUrl = route('shop.seller', ['seller' => $seller->id]);
+    $shopCoverPath = collect(['shop_cover', 'cover_image', 'banner_image', 'store_cover', 'shop_banner', 'banner'])
+        ->map(fn ($field) => $seller->getAttribute($field))
+        ->first(fn ($value) => filled($value));
+    $shopCoverUrl = null;
+
+    if (filled($shopCoverPath)) {
+        $coverPath = trim(str_replace('\\', '/', (string) $shopCoverPath));
+
+        if (\Illuminate\Support\Str::startsWith($coverPath, ['http://', 'https://'])) {
+            $shopCoverUrl = $coverPath;
+        } else {
+            $coverPath = ltrim($coverPath, '/');
+            $coverCandidates = array_filter(array_unique([
+                $coverPath,
+                \Illuminate\Support\Str::startsWith($coverPath, 'storage/') ? $coverPath : 'storage/'.$coverPath,
+            ]));
+
+            foreach ($coverCandidates as $publicPath) {
+                if (file_exists(public_path($publicPath))) {
+                    $shopCoverUrl = asset($publicPath);
+                    break;
+                }
+            }
+
+            if (! $shopCoverUrl && \Illuminate\Support\Facades\Storage::disk('public')->exists($coverPath)) {
+                $shopCoverUrl = asset(\Illuminate\Support\Facades\Storage::disk('public')->url($coverPath));
+            }
+        }
+    }
+
     $sortLabels = [
         'newest' => 'Newest First',
         'price_asc' => 'Price: Low to High',
@@ -235,7 +271,7 @@
             <a href="{{ route('shop.index') }}">Home</a> <span>&rsaquo;</span> <a href="{{ route('shop.index') }}">Shops</a> <span>&rsaquo;</span> <strong>{{ $shopProfile['name'] }}</strong>
         </nav>
 
-        <section class="cover" aria-label="{{ $shopProfile['name'] }} cover">
+        <section class="cover {{ $shopCoverUrl ? 'has-image' : 'is-fallback' }}" @if ($shopCoverUrl) style="--shop-cover-image:url('{{ $shopCoverUrl }}')" @endif aria-label="{{ $shopProfile['name'] }} cover">
             <div class="cover-content">
                 @if (! empty($businessCategory))
                     <p class="cover-eyebrow">{{ $businessCategory }}</p>

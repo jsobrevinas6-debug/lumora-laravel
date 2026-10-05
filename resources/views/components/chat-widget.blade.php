@@ -69,9 +69,9 @@
     .lumora-input-wrap input::placeholder { color:#999; }
     .lumora-send-button { flex:0 0 auto; padding:9px 16px; border:0; border-radius:20px; background:#641b3a; color:#fff; font:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:background .2s ease, transform .2s ease, box-shadow .2s ease; }
     .lumora-send-button:hover { background:#7a294b; transform:translateY(-1px); box-shadow:0 4px 10px rgba(100,27,58,.18); }
-    .lumora-chat-fab { width:54px; height:54px; display:grid; place-items:center; margin-left:auto; border:0; border-radius:50%; background:#641b3a; color:#fff; box-shadow:0 8px 22px rgba(100,27,58,.28); cursor:pointer; transition:transform .22s ease, background .22s ease, box-shadow .22s ease; }
+    .lumora-chat-fab { width:54px; height:54px; display:grid; place-items:center; margin-left:auto; padding:0; line-height:0; border:0; border-radius:50%; background:#641b3a; color:#fff; box-shadow:0 8px 22px rgba(100,27,58,.28); cursor:pointer; transition:transform .22s ease, background .22s ease, box-shadow .22s ease; }
     .lumora-chat-fab:hover { background:#7a294b; transform:scale(1.06); box-shadow:0 10px 26px rgba(100,27,58,.34); }
-    .lumora-chat-fab svg { width:22px; height:22px; }
+    .lumora-chat-fab svg { width:22px; height:22px; display:block; position:static; transform:none; margin:0; }
     .chat-enter { transition:opacity .24s ease, transform .28s cubic-bezier(.22,.61,.36,1); }
     .chat-enter-start { opacity:0; transform:translateY(15px) scale(.96); }
     .chat-enter-end { opacity:1; transform:translateY(0) scale(1); }
