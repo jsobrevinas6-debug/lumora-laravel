@@ -72,9 +72,9 @@
         .store-action[disabled] { border-color:var(--line); background:#F8F4F1; color:var(--muted); cursor:not-allowed; opacity:1; }
         .store-action svg { width:16px; height:16px; display:block; flex:0 0 16px; position:static; transform:none; margin:0; }
         .stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-self:stretch; }
-        .stat { min-width:0; min-height:88px; display:flex; align-items:center; gap:13px; padding:16px 18px; border:1px solid var(--line); border-radius:15px; background:var(--paper); }
-        .stats .stat .shop-stat-icon.stat-icon { width:42px; height:42px; display:grid; place-items:center; flex:0 0 42px; margin:0; padding:0; line-height:0; position:static; transform:none; border-radius:9999px; background:#F7EEE8; color:var(--icon); }
-        .stats .stat .shop-stat-icon.stat-icon svg { width:18px; height:18px; display:block; flex:0 0 18px; margin:0; position:static; transform:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        .stat { min-width:0; min-height:88px; display:grid; grid-template-columns:42px minmax(0,1fr); align-items:center; gap:13px; padding:16px 18px; border:1px solid var(--line); border-radius:15px; background:var(--paper); }
+        .stats .stat .shop-stat-icon.stat-icon { width:42px; height:42px; display:inline-grid !important; place-items:center !important; align-self:center; justify-self:center; flex:0 0 42px; margin:0 !important; padding:0 !important; line-height:0 !important; position:static !important; inset:auto !important; transform:none !important; border-radius:9999px; background:#F7EEE8; color:var(--icon); overflow:hidden; }
+        .stats .stat .shop-stat-icon.stat-icon > .shop-stat-icon-svg { width:18px !important; height:18px !important; display:block !important; flex:0 0 18px; margin:0 !important; position:static !important; inset:auto !important; transform:none !important; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; overflow:visible; }
         .stat strong { display:block; color:var(--plum); font-family:'Playfair Display',Georgia,serif; font-size:20px; font-weight:600; line-height:1.1; }
         .stat span { display:block; margin-top:5px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
         .stat > div { min-width:0; }
@@ -168,7 +168,7 @@
         .policy p { margin:0; color:var(--muted); font-size:13px; line-height:1.65; }
         .share-note { min-height:18px; margin-top:8px; color:var(--green); font-size:12px; font-weight:700; }
         @media (max-width:1050px) { .profile-grid, .storefront, .reviews-layout { grid-template-columns:1fr; } .filters { position:static; } .stats { max-width:640px; } .product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; } .policies { grid-template-columns:1fr; } .botanical { display:none; } }
-        @media (max-width:720px) { html, body, .store-page { max-width:100%; overflow-x:hidden; } .topbar-inner, .store-shell { width:calc(100vw - 28px); max-width:1260px; } .topbar-inner { flex-wrap:wrap; gap:10px; padding:14px 0; } .topbar-inner > a[aria-label="Lumora shop"] span:first-child { font-size:22px; letter-spacing:.24em; } .topbar-inner > a[aria-label="Lumora shop"] span:last-child { font-size:5px; letter-spacing:.42em; } .nav-actions { gap:8px; } .auth-link { display:none; } .search { order:3; max-width:none; flex-basis:100%; } .account-name { display:none; } .cover { height:130px; max-width:100%; } .cover::after { width:150px; height:120px; right:10px; } .cover-content { padding:22px; } .cover h1 { font-size:32px; } .cover p { display:none; } .profile-card { max-width:100%; margin:-26px 0 0; padding:22px 18px; overflow:hidden; } .profile-grid { min-width:0; } .identity-row { align-items:flex-start; flex-direction:column; gap:14px; } .name-line { align-items:flex-start; flex-direction:column; gap:8px; } .shop-name { font-size:30px; } .store-actions { display:grid; grid-template-columns:1fr; } .store-actions form, .store-action { width:100%; } .stats { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); max-width:none; gap:14px; } .stat { align-items:flex-start; flex-direction:column; gap:9px; padding:14px 12px; } .stat strong { font-size:18px; overflow-wrap:anywhere; } .stat span { font-size:10px; letter-spacing:.045em; overflow-wrap:anywhere; } .toolbar { flex-wrap:wrap; } .shop-search { flex-basis:100%; } .view-select { flex:1 1 calc(100% - 98px); } .view-toggle { flex:0 0 auto; } .product-grid, .product-grid.list { grid-template-columns:1fr; gap:18px; } .product-grid.list .product-card { display:block; } .product-grid.list .product-image { aspect-ratio:4/3; } .tabs { gap:22px; } .trust { display:grid; gap:14px; } }
+        @media (max-width:720px) { html, body, .store-page { max-width:100%; overflow-x:hidden; } .topbar-inner, .store-shell { width:calc(100vw - 28px); max-width:1260px; } .topbar-inner { flex-wrap:wrap; gap:10px; padding:14px 0; } .topbar-inner > a[aria-label="Lumora shop"] span:first-child { font-size:22px; letter-spacing:.24em; } .topbar-inner > a[aria-label="Lumora shop"] span:last-child { font-size:5px; letter-spacing:.42em; } .nav-actions { gap:8px; } .auth-link { display:none; } .search { order:3; max-width:none; flex-basis:100%; } .account-name { display:none; } .cover { height:130px; max-width:100%; } .cover::after { width:150px; height:120px; right:10px; } .cover-content { padding:22px; } .cover h1 { font-size:32px; } .cover p { display:none; } .profile-card { max-width:100%; margin:-26px 0 0; padding:22px 18px; overflow:hidden; } .profile-grid { min-width:0; } .identity-row { align-items:flex-start; flex-direction:column; gap:14px; } .name-line { align-items:flex-start; flex-direction:column; gap:8px; } .shop-name { font-size:30px; } .store-actions { display:grid; grid-template-columns:1fr; } .store-actions form, .store-action { width:100%; } .stats { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); max-width:none; gap:14px; } .stat { grid-template-columns:1fr; align-items:start; gap:9px; padding:14px 12px; } .stats .stat .shop-stat-icon.stat-icon { justify-self:start; } .stat strong { font-size:18px; overflow-wrap:anywhere; } .stat span { font-size:10px; letter-spacing:.045em; overflow-wrap:anywhere; } .toolbar { flex-wrap:wrap; } .shop-search { flex-basis:100%; } .view-select { flex:1 1 calc(100% - 98px); } .view-toggle { flex:0 0 auto; } .product-grid, .product-grid.list { grid-template-columns:1fr; gap:18px; } .product-grid.list .product-card { display:block; } .product-grid.list .product-image { aspect-ratio:4/3; } .tabs { gap:22px; } .trust { display:grid; gap:14px; } }
     </style>
 </head>
 <body>
@@ -179,15 +179,22 @@
     $shopLocation = $shopProfile['location'] ?? null;
     $shipsFrom = $shopLocation ? trim(\Illuminate\Support\Str::afterLast($shopLocation, ',')) : null;
     $storeUrl = route('shop.seller', ['seller' => $seller->id]);
-    $shopCoverPath = collect(['shop_cover', 'cover_image', 'banner_image', 'store_cover', 'shop_banner', 'banner'])
+    $shopCoverPath = collect(['shop_cover', 'cover_image', 'banner_image', 'store_cover', 'shop_banner'])
         ->map(fn ($field) => $seller->getAttribute($field))
         ->first(fn ($value) => filled($value));
     $shopCoverUrl = null;
 
     if (filled($shopCoverPath)) {
         $coverPath = trim(str_replace('\\', '/', (string) $shopCoverPath));
+        $isLegacyJewelryHero = \Illuminate\Support\Str::contains($coverPath, [
+            'images/hero/hero-1.jpg',
+            'hero/hero-1.jpg',
+            'hero-1.jpg',
+        ]);
 
-        if (\Illuminate\Support\Str::startsWith($coverPath, ['http://', 'https://'])) {
+        if ($isLegacyJewelryHero) {
+            $shopCoverPath = null;
+        } elseif (\Illuminate\Support\Str::startsWith($coverPath, ['http://', 'https://'])) {
             $shopCoverUrl = $coverPath;
         } else {
             $coverPath = ltrim($coverPath, '/');
