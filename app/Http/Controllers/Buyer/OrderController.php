@@ -218,7 +218,7 @@ class OrderController extends Controller
 
         if ($validated['payment_method'] === 'cod') {
             $selectedWallet = null;
-        } elseif (! $selectedWallet) {
+        } elseif ($validated['payment_method'] === 'bank_transfer' && ! $selectedWallet) {
             return back()
                 ->withErrors(['payment_method_id' => 'Select a saved wallet for this payment method.'])
                 ->withInput();

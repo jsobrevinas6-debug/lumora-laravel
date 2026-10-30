@@ -466,13 +466,13 @@
                         ],
                         'gcash' => [
                             'label' => 'GCash',
-                            'description' => 'Use a saved GCash wallet at checkout.',
-                            'empty' => 'No saved GCash wallet yet. You can add one from Wallet.',
+                            'description' => 'Pay by QR code and upload your receipt.',
+                            'empty' => null,
                         ],
                         'maya' => [
                             'label' => 'Maya',
-                            'description' => 'Use a saved Maya wallet at checkout.',
-                            'empty' => 'No saved Maya wallet yet. You can add one from Wallet.',
+                            'description' => 'Pay by QR code and upload your receipt.',
+                            'empty' => null,
                         ],
                         'bank_transfer' => [
                             'label' => 'Bank Account',
@@ -523,7 +523,7 @@
                                     </span>
                                 </label>
 
-                                @if($value !== 'cod' && $savedCount === 0)
+                                @if($value !== 'cod' && $savedCount === 0 && $option['empty'])
                                     <p class="payment-note">
                                         {{ $option['empty'] }}
                                         <a href="{{ route('buyer.wallet.index') }}">Add Wallet</a>
@@ -646,6 +646,12 @@
                 referenceDigits[Math.min(pasted.length, 5)].focus();
             });
         });
+        @if ($errors->has('payment_proof') || $errors->has('payment_reference_last6'))
+            walletLabel.textContent = @json(old('payment_method') === 'maya' ? 'Maya' : 'GCash');
+            walletModal.hidden = false;
+            const oldReference = @json(old('payment_reference_last6', ''));
+            [...String(oldReference)].slice(-6).forEach((digit, index) => { if (referenceDigits[index]) referenceDigits[index].value = digit; });
+        @endif
         document.querySelector('[data-wallet-confirm]').addEventListener('click', () => {
             const reference = referenceDigits.map((input) => input.value).join('');
             referenceValue.value = reference;
