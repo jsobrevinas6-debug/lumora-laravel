@@ -97,7 +97,7 @@
         .progress-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
         .progress-step { min-width: 0; }
         .step-bar { height: 6px; margin-bottom: 10px; border-radius: 999px; background: var(--border); }
-        .progress-step.complete .step-bar { background: var(--accent-strong); }
+        .progress-step.complete .step-bar { background: var(--ink); }
         .progress-step.current .step-bar { background: var(--pink-deep); }
         .step-label { display: block; color: var(--ink); font-size: 13px; font-weight: 700; }
         .step-caption { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
@@ -165,10 +165,10 @@
             .progress-steps { display: grid; grid-template-columns: 1fr; gap: 0; }
             .progress-step { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 12px; min-height: 56px; }
             .progress-step:not(:last-child)::before { position: absolute; top: 15px; bottom: -1px; left: 7px; width: 3px; border-radius: 3px; background: var(--border); content: ''; }
-            .progress-step.complete:not(:last-child)::before { background: var(--accent); }
+            .progress-step.complete:not(:last-child)::before { background: var(--ink); }
             .step-bar { display: none; }
             .step-marker { position: relative; z-index: 1; width: 16px; height: 16px; display: block; margin-top: 2px; border: 2px solid var(--border); border-radius: 50%; background: var(--card); }
-            .progress-step.complete .step-marker { border-color: var(--accent); background: var(--accent); }
+            .progress-step.complete .step-marker { border-color: var(--ink); background: var(--ink); }
             .progress-step.current .step-marker { border-color: var(--pink-deep); background: var(--pink); box-shadow: 0 0 0 3px rgba(230,180,186,.2); }
             .step-label { grid-column: 2; grid-row: 1; font-size: 13px; }
             .step-caption { grid-column: 2; grid-row: 2; margin: 1px 0 13px; }
@@ -215,7 +215,9 @@
                     @php
                         $stepState = $isCancelled
                             ? ($index === 0 ? 'complete' : '')
-                            : (($order->status === 'delivered' || $index < $progressIndex) ? 'complete' : ($index === $progressIndex ? 'current' : ''));
+                            : (($index === 0 || $order->status === 'delivered' || $index < $progressIndex)
+                                ? 'complete'
+                                : ($progressIndex > 0 && $index === $progressIndex ? 'current' : ''));
                         $caption = $isCancelled
                             ? ($index === 0 ? 'Completed' : 'Not applicable')
                             : ($stepState === 'complete' ? 'Completed' : ($stepState === 'current' ? 'In progress' : 'Up next'));
