@@ -62,6 +62,7 @@
     <a href="{{ route('admin.complaints') }}" class="nav-link {{ request()->routeIs('admin.complaints') ? 'active' : '' }}">Complaints</a>
     <a href="{{ route('admin.chat.index') }}" class="nav-link {{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">Messages</a>
     <a href="{{ route('admin.commission') }}" class="nav-link {{ request()->routeIs('admin.commission') ? 'active' : '' }}">Commission</a>
+    <a href="{{ route('admin.e-wallet-payments') }}" class="nav-link {{ request()->routeIs('admin.e-wallet-payments') ? 'active' : '' }}">E-Wallet Payments</a>
     <a href="{{ route('admin.vouchers.index') }}" class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">Vouchers</a>
     <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Settings</a>
     <form method="POST" action="{{ route('logout') }}" class="logout-form">

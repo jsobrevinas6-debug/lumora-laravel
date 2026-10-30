@@ -56,6 +56,7 @@ Route::get('/dashboard', function () {
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/e-wallet-payments', [DashboardController::class, 'eWalletPayments'])->name('e-wallet-payments');
     Route::get('/application/{id}/{action}', [DashboardController::class, 'handleApplication'])->name('application');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');

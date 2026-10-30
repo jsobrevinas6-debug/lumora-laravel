@@ -20,6 +20,7 @@ class Order extends Model
         'payment_status',
         'payment_method',
         'payment_method_id',
+        'payment_proof_path',
         'subtotal',
         'shipping_fee',
         'discount',

@@ -190,6 +190,7 @@ class OrderController extends Controller
             'checkout_mode' => ['nullable', 'string', 'in:cart,buy_now'],
             'payment_method' => ['required', 'string', 'in:cod,gcash,maya,bank_transfer'],
             'payment_method_id' => ['nullable', 'integer'],
+            'payment_proof' => ['required_if:payment_method,gcash,maya', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -224,7 +225,11 @@ class OrderController extends Controller
 
         $checkoutMode = $validated['checkout_mode'] ?? 'cart';
 
-        $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode) {
+        $paymentProofPath = in_array($validated['payment_method'], ['gcash', 'maya'], true)
+            ? $request->file('payment_proof')?->store('payment-proofs', 'public')
+            : null;
+
+        $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode, $paymentProofPath) {
             $lines = $checkoutMode === 'buy_now'
                 ? $this->buyNowOrderLines($request)
                 : $this->cartOrderLines($request);
@@ -296,6 +301,7 @@ class OrderController extends Controller
                 'payment_status' => 'pending',
                 'payment_method' => $validated['payment_method'],
                 'payment_method_id' => $selectedWallet?->id,
+                'payment_proof_path' => $paymentProofPath,
                 'subtotal' => $subtotal,
                 'shipping_fee' => $shipping,
                 'discount' => $discount,

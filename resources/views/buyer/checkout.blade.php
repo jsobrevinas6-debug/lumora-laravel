@@ -428,7 +428,7 @@
             </div>
             <div class="summary-total"><span>Total</span><strong id="summaryTotalAmount" data-base-total="{{ (float) $summary['total'] }}" data-net-items="{{ round((float) $summary['subtotal'] - (float) $summary['discount'], 2) }}" data-shipping="{{ (float) $summary['shipping'] }}">₱{{ number_format($summary['total'], 2) }}</strong></div>
 
-            <form method="POST" action="{{ route('buyer.checkout.store') }}">
+            <form method="POST" action="{{ route('buyer.checkout.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="checkout_mode" value="{{ $checkoutMode ?? 'cart' }}">
                 <input type="hidden" name="voucher_code" id="appliedVoucherHidden" value="{{ old('voucher_code', '') }}">
@@ -549,6 +549,12 @@
 
                     @error('payment_method')<span class="payment-error">{{ $message }}</span>@enderror
                     @error('payment_method_id')<span class="payment-error">{{ $message }}</span>@enderror
+                    <div data-payment-proof-field hidden style="margin-top:14px">
+                        <label for="paymentProof" class="wallet-section-title">Payment Screenshot <span aria-hidden="true">*</span></label>
+                        <p class="payment-note">Upload a screenshot of your GCash or Maya payment (JPG, PNG, or WEBP, up to 5 MB).</p>
+                        <input id="paymentProof" name="payment_proof" type="file" accept="image/jpeg,image/png,image/webp" data-payment-proof>
+                        @error('payment_proof')<span class="payment-error">{{ $message }}</span>@enderror
+                    </div>
                 </section>
 
                 <button class="place-order" type="submit">Place order</button>
@@ -560,6 +566,16 @@
     document.addEventListener('DOMContentLoaded', () => {
         const methodRadios = [...document.querySelectorAll('[data-payment-method]')];
         const walletRadios = [...document.querySelectorAll('[data-wallet-radio]')];
+        const proofField = document.querySelector('[data-payment-proof-field]');
+        const proofInput = document.querySelector('[data-payment-proof]');
+
+        const updateProofField = () => {
+            const needsProof = ['gcash', 'maya'].includes(methodRadios.find((radio) => radio.checked)?.value);
+            proofField.hidden = !needsProof;
+            proofInput.required = needsProof;
+        };
+        methodRadios.forEach((radio) => radio.addEventListener('change', updateProofField));
+        updateProofField();
 
         const walletForType = (type) => walletRadios.find((radio) => radio.dataset.walletType === type);
 

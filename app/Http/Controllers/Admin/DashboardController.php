@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\SellerApprovedMail;
+use App\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -12,6 +13,16 @@ use Illuminate\Support\Facades\Mail;
 
 class DashboardController extends Controller
 {
+    public function eWalletPayments()
+    {
+        $orders = Order::with(['user', 'seller', 'items.product'])
+            ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
+            ->latest()
+            ->paginate(15);
+
+        return view('admin.e-wallet-payments', compact('orders'));
+    }
+
     public function users()
     {
         $users = DB::table('users')->orderByDesc('created_at')->get();
