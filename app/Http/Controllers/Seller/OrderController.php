@@ -221,7 +221,7 @@ class OrderController extends Controller
 
         $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total'));
 
-        return $pdf->download('waybill-order-' . $orderId . '.pdf');
+        return $pdf->stream('waybill-order-' . $orderId . '.pdf');
     }
 
     public function notifications()

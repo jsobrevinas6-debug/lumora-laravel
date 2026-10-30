@@ -191,6 +191,8 @@
             @endif
 
             <a href="{{ route('seller.orders.waybill', $order->id) }}"
+               target="_blank"
+               rel="noopener"
                class="btn-outline"
                style="text-decoration:none;display:inline-block;">
                 Print waybill
