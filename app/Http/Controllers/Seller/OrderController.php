@@ -272,9 +272,16 @@ class OrderController extends Controller
             $order->products = $productsByOrder->get($order->order_id, collect())
                 ->map(fn ($item) => ['name' => $item->name, 'quantity' => (int) $item->quantity])
                 ->values();
-            $order->notification_message = $walletPaymentConfirmed
-                ? 'E-Wallet payment confirmed. Pack your order now.'
-                : 'New order received.';
+            if ($walletPaymentConfirmed) {
+                $commission = round((float) $order->subtotal * PayoutController::COMMISSION_RATE, 2);
+                $sellerEarnings = round((float) $order->subtotal - $commission, 2);
+                $order->notification_message = 'E-Wallet payment received and confirmed. PHP '
+                    .number_format($sellerEarnings, 2)
+                    .' is added to your earnings after the 10% platform commission. Check Payouts / Earnings and pack your order now.';
+                $order->seller_earnings = $sellerEarnings;
+            } else {
+                $order->notification_message = 'New order received.';
+            }
 
             return $order;
         });
