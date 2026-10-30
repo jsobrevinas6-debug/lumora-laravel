@@ -181,6 +181,8 @@
         .details-button{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--accent);border-radius:999px;background:var(--card);color:var(--primary);font-size:13px;font-weight:700;transition:background-color .2s ease,transform .2s ease,border-color .2s ease}
         .details-button svg{width:15px;height:15px}
         .details-button:hover{background:var(--hover);border-color:var(--accent);transform:scale(1.02)}
+        .order-success-message{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 22px;padding:15px 18px;border:1px solid rgba(111,143,120,.28);border-radius:12px;background:#edf4ed;color:#45694d;font-size:14px;font-weight:700;box-shadow:var(--shadow)}
+        .order-success-message button{border:0;background:transparent;color:inherit;font-size:20px;line-height:1;cursor:pointer}
         .empty-orders{border:1px solid var(--border);border-radius:24px;background:var(--card);box-shadow:var(--shadow);padding:56px 32px;text-align:center}
         .empty-icon{width:86px;height:86px;display:grid;place-items:center;margin:0 auto 22px;border:1px solid var(--border);border-radius:999px;background:var(--background);color:var(--primary)}
         .empty-icon svg{width:40px;height:40px}
@@ -237,6 +239,12 @@
         @include('profile.partials.account-sidebar', ['active' => 'orders'])
 
         <section class="orders-content">
+            @if (session('success'))
+                <div class="order-success-message" role="status" aria-live="polite">
+                    <span>{{ session('success') }}</span>
+                    <button type="button" aria-label="Dismiss message" onclick="this.parentElement.remove()">&times;</button>
+                </div>
+            @endif
             <nav class="breadcrumb" aria-label="Breadcrumb">
                 <a href="{{ route('shop.index') }}">Home</a>
                 <span>/</span>

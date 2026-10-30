@@ -362,9 +362,11 @@ class OrderController extends Controller
             return $order;
         });
 
-        return redirect()
-            ->route('buyer.orders.show', $order)
-            ->with('success', 'Your order has been placed successfully.');
+        $redirect = in_array($validated['payment_method'], ['gcash', 'maya'], true)
+            ? redirect()->route('buyer.orders.index', ['status' => 'pending'])
+            : redirect()->route('buyer.orders.show', $order);
+
+        return $redirect->with('success', 'Order Successful');
     }
 
     public function show(Request $request, Order $order): View
