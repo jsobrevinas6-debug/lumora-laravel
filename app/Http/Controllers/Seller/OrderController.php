@@ -245,13 +245,39 @@ class OrderController extends Controller
                 'o.id as order_id',
                 'o.order_number',
                 'o.created_at',
+                'o.payment_method',
+                'o.payment_status',
                 'u.name as buyer_name',
                 DB::raw('SUM(oi.price * oi.quantity) as subtotal')
             )
-            ->groupBy('o.id', 'o.order_number', 'o.created_at', 'u.name')
+            ->groupBy('o.id', 'o.order_number', 'o.created_at', 'o.payment_method', 'o.payment_status', 'u.name')
             ->orderByDesc('o.created_at')
             ->limit(5)
             ->get();
+
+        $productsByOrder = $recent->isEmpty()
+            ? collect()
+            : DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->where('p.seller_id', $sellerId)
+                ->whereIn('oi.order_id', $recent->pluck('order_id'))
+                ->select('oi.order_id', 'p.name', 'oi.quantity')
+                ->orderBy('p.name')
+                ->get()
+                ->groupBy('order_id');
+
+        $recent = $recent->map(function ($order) use ($productsByOrder) {
+            $walletPaymentConfirmed = in_array(strtolower((string) $order->payment_method), ['gcash', 'maya', 'paymaya'], true)
+                && $order->payment_status === 'paid';
+            $order->products = $productsByOrder->get($order->order_id, collect())
+                ->map(fn ($item) => ['name' => $item->name, 'quantity' => (int) $item->quantity])
+                ->values();
+            $order->notification_message = $walletPaymentConfirmed
+                ? 'E-Wallet payment confirmed. Pack your order now.'
+                : 'New order received.';
+
+            return $order;
+        });
 
         return response()->json([
             'count' => $count,

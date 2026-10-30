@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -31,9 +32,25 @@ class DashboardController extends Controller
 
         DB::transaction(function () use ($order) {
             $order->update(['payment_status' => 'paid']);
+            DB::table('order_items')
+                ->where('order_id', $order->id)
+                ->update(['seen_at' => null, 'updated_at' => now()]);
         });
 
         return redirect()->route('admin.e-wallet-payments')->with('flash_success', 'Payment approved for order '.$order->order_number.'.');
+    }
+
+    public function eWalletPaymentProof(Order $order)
+    {
+        abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
+        abort_unless($order->payment_proof_path && Storage::disk('public')->exists($order->payment_proof_path), 404);
+
+        return Storage::disk('public')->response(
+            $order->payment_proof_path,
+            null,
+            ['Cache-Control' => 'private, no-store'],
+            'inline'
+        );
     }
 
     public function rejectEWalletPayment(Order $order)

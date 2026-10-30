@@ -57,6 +57,7 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/e-wallet-payments', [DashboardController::class, 'eWalletPayments'])->name('e-wallet-payments');
+    Route::get('/e-wallet-payments/{order}/proof', [DashboardController::class, 'eWalletPaymentProof'])->name('e-wallet-payments.proof');
     Route::post('/e-wallet-payments/{order}/approve', [DashboardController::class, 'approveEWalletPayment'])->name('e-wallet-payments.approve');
     Route::post('/e-wallet-payments/{order}/reject', [DashboardController::class, 'rejectEWalletPayment'])->name('e-wallet-payments.reject');
     Route::get('/application/{id}/{action}', [DashboardController::class, 'handleApplication'])->name('application');

@@ -193,7 +193,7 @@
                     <span class="bell-badge" id="bellBadge"></span>
                 </button>
                 <div class="bell-dropdown" id="bellDropdown">
-                    <div class="bell-dropdown-header">New orders</div>
+                    <div class="bell-dropdown-header">Order notifications</div>
                     <div id="bellDropdownList"></div>
                 </div>
             </div>
@@ -240,9 +240,17 @@ function loadOrderNotifications() {
                 return;
             }
 
+            const escapeHtml = value => {
+                const element = document.createElement('span');
+                element.textContent = value ?? '';
+                return element.innerHTML;
+            };
+
             list.innerHTML = data.orders.map(o => `
                 <a href="/seller/orders/${o.order_id}" class="bell-dropdown-item">
                     <div class="order-id">Order #${o.order_id} — ${o.buyer_name}</div>
+                    <div class="order-meta">${escapeHtml(o.notification_message)}</div>
+                    ${(o.products || []).map(item => `<div class="order-meta">${escapeHtml(item.name)} x ${Number(item.quantity)}</div>`).join('')}
                     <div class="order-meta">PHP ${parseFloat(o.subtotal).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
                 </a>
             `).join('');
@@ -251,6 +259,7 @@ function loadOrderNotifications() {
 }
 
 loadOrderNotifications();
+window.setInterval(loadOrderNotifications, 15000);
 </script>
     @stack('scripts')
 </body>

@@ -23,7 +23,7 @@
                 </ul></div>
                 <div><strong style="font-size:.88rem">Buyer payment screenshot</strong><br>
                     @if ($order->payment_proof_path)
-                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($order->payment_proof_path) }}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px"><img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($order->payment_proof_path) }}" alt="Payment proof for order {{ $order->order_number }}" style="max-width:280px;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px"></a>
+                        <a href="{{ route('admin.e-wallet-payments.proof', $order) }}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px"><img src="{{ route('admin.e-wallet-payments.proof', $order) }}" alt="Payment proof for order {{ $order->order_number }}" style="max-width:280px;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px"></a>
                     @else
                         <p style="color:var(--text-muted);font-size:.85rem;margin-top:6px">No screenshot was attached to this order.</p>
                     @endif
