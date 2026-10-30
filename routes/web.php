@@ -75,6 +75,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/complaints/{id}/dismiss', [DashboardController::class, 'dismissComplaint'])->name('complaints.dismiss');
 
     Route::get('/commission', [DashboardController::class, 'commission'])->name('commission');
+    Route::get('/payout-requests', [DashboardController::class, 'payoutRequests'])->name('payout-requests.index');
+    Route::post('/payout-requests/{id}/approve', [DashboardController::class, 'approvePayoutRequest'])->name('payout-requests.approve');
+    Route::post('/payout-requests/{id}/reject', [DashboardController::class, 'rejectPayoutRequest'])->name('payout-requests.reject');
+    Route::post('/payout-requests/{id}/paid', [DashboardController::class, 'markPayoutRequestPaid'])->name('payout-requests.paid');
     Route::get('/reports/sales-summary', [DashboardController::class, 'salesSummaryPdf'])->name('reports.salesSummary');
     Route::get('/reports/commission', [DashboardController::class, 'commissionReportPdf'])->name('reports.commission');
     Route::get('/settings', [DashboardController::class, 'settings'])->name('settings.index');
@@ -111,6 +115,7 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/notifications', [OrderController::class, 'notifications'])->name('orders.notifications');
+    Route::post('/notifications/payouts/read', [OrderController::class, 'markPayoutNotificationsRead'])->name('notifications.payouts.read');
     Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{id}/pack', [OrderController::class, 'markPacked'])->name('orders.pack');
     Route::get('/orders/{id}/waybill', [OrderController::class, 'waybill'])->name('orders.waybill');

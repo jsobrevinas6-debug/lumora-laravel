@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Notifications\PayoutRequestStatusNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -286,9 +287,50 @@ class OrderController extends Controller
             return $order;
         });
 
+        $unreadPayoutNotifications = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', PayoutRequestStatusNotification::class)
+            ->whereNull('read_at')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        $payoutNotificationCount = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', PayoutRequestStatusNotification::class)
+            ->whereNull('read_at')
+            ->count();
+
         return response()->json([
-            'count' => $count,
+            'count' => $count + $payoutNotificationCount,
             'orders' => $recent,
+            'payouts' => $unreadPayoutNotifications->map(function ($notification) {
+                $data = json_decode($notification->data, true) ?: [];
+
+                return [
+                    'id' => $notification->id,
+                    'payout_request_id' => $data['payout_request_id'] ?? null,
+                    'message' => $data['message'] ?? 'Your payout request status changed.',
+                    'created_at' => $notification->created_at,
+                ];
+            })->values(),
         ]);
+    }
+
+    public function markPayoutNotificationsRead(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['required', 'uuid']]);
+
+        DB::table('notifications')
+            ->whereIn('id', $validated['ids'])
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', Auth::id())
+            ->where('type', PayoutRequestStatusNotification::class)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['success' => true]);
     }
 }

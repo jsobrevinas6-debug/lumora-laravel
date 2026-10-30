@@ -127,6 +127,7 @@
                     <th>Amount</th>
                     <th>Method</th>
                     <th>Status</th>
+                    <th>Transfer / update</th>
                 </tr>
             </thead>
             <tbody>
@@ -140,9 +141,20 @@
                             @else Bank Transfer @endif
                         </td>
                         <td><span class="status-pill status-{{ $payout->status }}">{{ ucfirst($payout->status) }}</span></td>
+                        <td>
+                            @if ($payout->transfer_reference)
+                                Reference: {{ $payout->transfer_reference }}
+                            @elseif ($payout->rejection_reason)
+                                Reason: {{ $payout->rejection_reason }}
+                            @elseif ($payout->paid_at)
+                                Paid {{ \Carbon\Carbon::parse($payout->paid_at)->format('M d, Y') }}
+                            @else
+                                &mdash;
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">No payout requests yet.</td></tr>
+                    <tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">No payout requests yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

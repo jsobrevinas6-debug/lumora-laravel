@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\SellerApprovedMail;
 use App\Models\Order;
+use App\Models\User;
+use App\Notifications\PayoutRequestStatusNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -353,6 +355,111 @@ class DashboardController extends Controller
         $totalCommission = $sellerSales->sum('commission');
 
         return view('admin.commission', compact('sellerSales', 'totalGrossSales', 'totalCommission', 'commissionRate'));
+    }
+
+    public function payoutRequests(Request $request)
+    {
+        $status = $request->input('status', 'pending');
+        abort_unless(in_array($status, ['pending', 'approved', 'paid', 'rejected', 'all'], true), 404);
+
+        $query = DB::table('payout_requests as pr')
+            ->join('users as u', 'u.id', '=', 'pr.seller_id')
+            ->select('pr.*', 'u.name as seller_name', 'u.email as seller_email');
+
+        if ($status !== 'all') {
+            $query->where('pr.status', $status);
+        }
+
+        $payouts = $query->orderByRaw("CASE pr.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END")
+            ->orderByDesc('pr.created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        $pendingCount = DB::table('payout_requests')->where('status', 'pending')->count();
+        $pendingAmount = DB::table('payout_requests')->where('status', 'pending')->sum('amount');
+        $approvedAmount = DB::table('payout_requests')->where('status', 'approved')->sum('amount');
+        $paidAmount = DB::table('payout_requests')->where('status', 'paid')->sum('amount');
+        $confirmedWalletReceipts = DB::table('orders')
+            ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        $estimatedUnallocatedFunds = (float) $confirmedWalletReceipts
+            - (float) $pendingAmount
+            - (float) $approvedAmount
+            - (float) $paidAmount;
+
+        return view('admin.payout-requests', compact(
+            'payouts', 'status', 'pendingCount', 'pendingAmount', 'approvedAmount', 'paidAmount',
+            'confirmedWalletReceipts', 'estimatedUnallocatedFunds'
+        ));
+    }
+
+    public function approvePayoutRequest(int $id)
+    {
+        $payout = DB::transaction(function () use ($id) {
+            $payout = DB::table('payout_requests')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($payout && $payout->status === 'pending', 422, 'This payout request is no longer pending.');
+
+            DB::table('payout_requests')->where('id', $id)->update([
+                'status' => 'approved',
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return $payout;
+        });
+
+        User::find($payout->seller_id)?->notify(new PayoutRequestStatusNotification((int) $id, 'approved', (float) $payout->amount));
+
+        return redirect()->route('admin.payout-requests.index')->with('flash_success', 'Payout request approved. Send the transfer, then record it as paid.');
+    }
+
+    public function rejectPayoutRequest(Request $request, int $id)
+    {
+        $validated = $request->validate(['rejection_reason' => ['required', 'string', 'max:1000']]);
+
+        $payout = DB::transaction(function () use ($id, $validated) {
+            $payout = DB::table('payout_requests')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($payout && $payout->status === 'pending', 422, 'Only pending payout requests can be rejected.');
+
+            DB::table('payout_requests')->where('id', $id)->update([
+                'status' => 'rejected',
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'rejection_reason' => $validated['rejection_reason'],
+                'updated_at' => now(),
+            ]);
+
+            return $payout;
+        });
+
+        User::find($payout->seller_id)?->notify(new PayoutRequestStatusNotification((int) $id, 'rejected', (float) $payout->amount, reason: $validated['rejection_reason']));
+
+        return redirect()->route('admin.payout-requests.index')->with('flash_success', 'Payout request rejected. The reserved seller balance is released.');
+    }
+
+    public function markPayoutRequestPaid(Request $request, int $id)
+    {
+        $validated = $request->validate(['transfer_reference' => ['required', 'string', 'max:120']]);
+
+        $payout = DB::transaction(function () use ($id, $validated) {
+            $payout = DB::table('payout_requests')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($payout && $payout->status === 'approved', 422, 'Approve this request before marking it paid.');
+
+            DB::table('payout_requests')->where('id', $id)->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'transfer_reference' => $validated['transfer_reference'],
+                'updated_at' => now(),
+            ]);
+
+            return $payout;
+        });
+
+        User::find($payout->seller_id)?->notify(new PayoutRequestStatusNotification((int) $id, 'paid', (float) $payout->amount, transferReference: $validated['transfer_reference']));
+
+        return redirect()->route('admin.payout-requests.index')->with('flash_success', 'Payout marked as paid and seller notified.');
     }
 
     /**

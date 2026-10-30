@@ -193,7 +193,7 @@
                     <span class="bell-badge" id="bellBadge"></span>
                 </button>
                 <div class="bell-dropdown" id="bellDropdown">
-                    <div class="bell-dropdown-header">Order notifications</div>
+                    <div class="bell-dropdown-header">Seller notifications</div>
                     <div id="bellDropdownList"></div>
                 </div>
             </div>
@@ -235,8 +235,9 @@ function loadOrderNotifications() {
                 sidebarBadge.style.display = 'none';
             }
 
-            if (data.orders.length === 0) {
-                list.innerHTML = '<div class="bell-dropdown-empty">No new orders.</div>';
+            const payoutNotifications = data.payouts || [];
+            if (data.orders.length === 0 && payoutNotifications.length === 0) {
+                list.innerHTML = '<div class="bell-dropdown-empty">No new notifications.</div>';
                 return;
             }
 
@@ -246,7 +247,14 @@ function loadOrderNotifications() {
                 return element.innerHTML;
             };
 
-            list.innerHTML = data.orders.map(o => `
+            const payoutItems = payoutNotifications.map(notification => `
+                <a href="{{ route('seller.payouts.index') }}" class="bell-dropdown-item" data-payout-notification="${escapeHtml(notification.id)}">
+                    <div class="order-id">Payout request #${escapeHtml(notification.payout_request_id)}</div>
+                    <div class="order-meta">${escapeHtml(notification.message)}</div>
+                </a>
+            `).join('');
+
+            const orderItems = data.orders.map(o => `
                 <a href="/seller/orders/${o.order_id}" class="bell-dropdown-item">
                     <div class="order-id">Order #${o.order_id} — ${o.buyer_name}</div>
                     <div class="order-meta">${escapeHtml(o.notification_message)}</div>
@@ -254,9 +262,31 @@ function loadOrderNotifications() {
                     <div class="order-meta">PHP ${parseFloat(o.subtotal).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
                 </a>
             `).join('');
+
+            list.innerHTML = payoutItems + orderItems;
         })
         .catch(() => {});
 }
+
+document.addEventListener('click', async function (event) {
+    const payoutLink = event.target.closest('[data-payout-notification]');
+    if (!payoutLink) return;
+
+    event.preventDefault();
+    try {
+        await fetch('{{ route('seller.notifications.payouts.read') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ ids: [payoutLink.dataset.payoutNotification] }),
+        });
+    } finally {
+        window.location.href = payoutLink.href;
+    }
+});
 
 loadOrderNotifications();
 window.setInterval(loadOrderNotifications, 15000);
