@@ -22,8 +22,10 @@
                     @endforeach
                 </ul></div>
                 <div><strong style="font-size:.88rem">Buyer payment screenshot</strong><br>
-                    @if ($order->payment_proof_path)
+                    @if ($order->payment_proof_available)
                         <a href="{{ route('admin.e-wallet-payments.proof', $order) }}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px"><img src="{{ route('admin.e-wallet-payments.proof', $order) }}" alt="Payment proof for order {{ $order->order_number }}" style="max-width:280px;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px"></a>
+                    @elseif ($order->payment_proof_path)
+                        <p style="color:var(--text-muted);font-size:.85rem;margin-top:6px">The receipt file is missing from the configured storage. Ask the buyer to submit the receipt again.</p>
                     @else
                         <p style="color:var(--text-muted);font-size:.85rem;margin-top:6px">No screenshot was attached to this order.</p>
                     @endif

@@ -227,7 +227,7 @@ class OrderController extends Controller
         $checkoutMode = $validated['checkout_mode'] ?? 'cart';
 
         $paymentProofPath = in_array($validated['payment_method'], ['gcash', 'maya'], true)
-            ? $request->file('payment_proof')?->store('payment-proofs', 'public')
+            ? $request->file('payment_proof')?->store('payment-proofs', config('filesystems.payment_proof_disk'))
             : null;
 
         $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode, $paymentProofPath) {

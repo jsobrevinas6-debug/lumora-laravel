@@ -16,10 +16,15 @@ class DashboardController extends Controller
 {
     public function eWalletPayments()
     {
+        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
         $orders = Order::with(['user', 'seller', 'items.product'])
             ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
             ->latest()
             ->paginate(15);
+
+        $orders->getCollection()->each(function (Order $order) use ($proofDisk) {
+            $order->setAttribute('payment_proof_available', (bool) $order->payment_proof_path && $proofDisk->exists($order->payment_proof_path));
+        });
 
         return view('admin.e-wallet-payments', compact('orders'));
     }
@@ -43,9 +48,10 @@ class DashboardController extends Controller
     public function eWalletPaymentProof(Order $order)
     {
         abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
-        abort_unless($order->payment_proof_path && Storage::disk('public')->exists($order->payment_proof_path), 404);
+        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
+        abort_unless($order->payment_proof_path && $proofDisk->exists($order->payment_proof_path), 404);
 
-        return Storage::disk('public')->response(
+        return $proofDisk->response(
             $order->payment_proof_path,
             null,
             ['Cache-Control' => 'private, no-store'],

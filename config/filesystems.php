@@ -15,6 +15,9 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    // Payment receipts must use the same persistent disk for uploads and admin previews.
+    'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'public'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks
