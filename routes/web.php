@@ -240,6 +240,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])
     ->name('buyer.orders.show');
 
+    Route::post('/orders/{order}/payment-proof', [BuyerOrderController::class, 'replacePaymentProof'])
+    ->name('buyer.orders.payment-proof');
+
 
 });
 

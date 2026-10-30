@@ -34,7 +34,7 @@
                     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
                         <form method="POST" action="{{ route('admin.e-wallet-payments.approve', $order) }}">
                             @csrf
-                            <button class="btn btn-dark" type="submit" @disabled(!$order->payment_proof_path || !preg_match('/^\d{6}$/', (string) $order->payment_reference_last6))>Approve payment</button>
+                            <button class="btn btn-dark" type="submit" @disabled(!$order->payment_proof_available || !preg_match('/^\d{6}$/', (string) $order->payment_reference_last6))>Approve payment</button>
                         </form>
                         <form method="POST" action="{{ route('admin.e-wallet-payments.reject', $order) }}" onsubmit="return confirm('Reject this payment and cancel the order?')">
                             @csrf

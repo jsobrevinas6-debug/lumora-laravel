@@ -138,6 +138,15 @@
         .help-card p { margin: 0 0 12px; color: var(--body); font-size: 12px; }
         .help-link { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; color: var(--accent-strong); font-size: 13px; font-weight: 700; }
         .help-link:hover { color: var(--accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+        .receipt-resubmit { margin-top: 20px; padding: 20px 22px; }
+        .receipt-resubmit h2 { margin: 0 0 6px; font-size: 19px; }
+        .receipt-resubmit p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+        .receipt-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .6fr); gap: 14px; }
+        .receipt-fields label { display: grid; gap: 6px; color: var(--body); font-size: 12px; font-weight: 600; }
+        .receipt-fields input { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
+        .receipt-fields input:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+        .field-error { color: #9D332E; font-size: 12px; }
+        .flash-success { margin: 0 0 20px; padding: 12px 15px; border: 1px solid #B8DDC7; border-radius: 10px; background: #E3F3EA; color: #285C45; font-size: 13px; }
         .site-footer { padding: 22px 16px 30px; color: var(--muted); font-size: 12px; text-align: center; }
         @media (max-width: 760px) {
             .site-header { min-height: 68px; padding: 10px 18px; gap: 10px; }
@@ -180,6 +189,8 @@
             .detail-grid { grid-template-columns: 1fr; gap: 17px; }
             .detail-block + .detail-block { border-top: 1px solid var(--border); border-left: 0; padding: 15px 0 0; }
             .action-button { width: 100%; }
+            .receipt-resubmit { padding: 18px 16px; }
+            .receipt-fields { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; } }
     </style>
@@ -207,6 +218,10 @@
                 <span class="pill">Placed {{ $order->created_at?->format('M j, Y') ?? 'Date unavailable' }}</span>
             </div>
         </section>
+
+        @if (session('success'))
+            <p class="flash-success" role="status">{{ session('success') }}</p>
+        @endif
 
         <section class="card progress-card" id="order-progress" aria-labelledby="progress-heading">
             <h2 id="progress-heading">Order progress</h2>
@@ -305,6 +320,27 @@
                         </div>
                     </section>
                 @endif
+
+            @if (in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true) && $order->payment_status === 'pending' && $order->status === 'pending' && ! $order->payment_proof_available)
+                <section class="card receipt-resubmit" aria-labelledby="receipt-resubmit-heading">
+                    <h2 id="receipt-resubmit-heading">Submit your payment receipt</h2>
+                    <p>The receipt for this order is unavailable. Upload it again and enter the last six digits of your reference number so the seller can review your payment.</p>
+                    <form method="POST" action="{{ route('buyer.orders.payment-proof', $order) }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="receipt-fields">
+                            <label for="payment-proof-upload">Receipt screenshot
+                                <input id="payment-proof-upload" type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required>
+                                @error('payment_proof')<span class="field-error">{{ $message }}</span>@enderror
+                            </label>
+                            <label for="payment-reference-last6">Last 6 digits of reference number
+                                <input id="payment-reference-last6" type="text" name="payment_reference_last6" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" value="{{ old('payment_reference_last6', $order->payment_reference_last6) }}" required>
+                                @error('payment_reference_last6')<span class="field-error">{{ $message }}</span>@enderror
+                            </label>
+                        </div>
+                        <button class="action-button primary" type="submit" style="margin-top:14px">Resubmit receipt</button>
+                    </form>
+                </section>
+            @endif
             </div>
 
             <aside class="side-column" aria-label="Order actions and summary">

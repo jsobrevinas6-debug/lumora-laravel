@@ -33,7 +33,13 @@ class DashboardController extends Controller
     {
         abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
         abort_unless($order->payment_status === 'pending' && $order->status === 'pending', 422, 'This order is no longer awaiting payment review.');
-        abort_unless($order->payment_proof_path && preg_match('/^\d{6}$/', (string) $order->payment_reference_last6), 422, 'The receipt and six digit reference number are required for approval.');
+        abort_unless(
+            $order->payment_proof_path
+            && Storage::disk(config('filesystems.payment_proof_disk'))->exists($order->payment_proof_path)
+            && preg_match('/^\d{6}$/', (string) $order->payment_reference_last6),
+            422,
+            'A stored receipt and six digit reference number are required for approval.'
+        );
 
         DB::transaction(function () use ($order) {
             $order->update(['payment_status' => 'paid']);

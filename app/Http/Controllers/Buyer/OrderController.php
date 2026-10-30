@@ -378,7 +378,47 @@ class OrderController extends Controller
             'statusHistory.changedBy',
         ]);
 
+        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
+        $order->setAttribute('payment_proof_available', (bool) $order->payment_proof_path && $proofDisk->exists($order->payment_proof_path));
+
         return view('buyer.order-success', compact('order'));
+    }
+
+    public function replacePaymentProof(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 403);
+        abort_unless(
+            in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true)
+            && $order->payment_status === 'pending'
+            && $order->status === 'pending',
+            422,
+            'Only pending e-wallet orders can update their payment proof.'
+        );
+
+        $validated = $request->validate([
+            'payment_proof' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'payment_reference_last6' => ['required', 'regex:/^\\d{6}$/'],
+        ]);
+
+        $diskName = config('filesystems.payment_proof_disk');
+        $disk = Storage::disk($diskName);
+        $previousPath = $order->payment_proof_path;
+        $newPath = $request->file('payment_proof')->store('payment-proofs', $diskName);
+
+        if (! $newPath) {
+            return back()->withErrors(['payment_proof' => 'The receipt could not be saved. Please try again.'])->withInput();
+        }
+
+        $order->update([
+            'payment_proof_path' => $newPath,
+            'payment_reference_last6' => $validated['payment_reference_last6'],
+        ]);
+
+        if ($previousPath && $previousPath !== $newPath && $disk->exists($previousPath)) {
+            $disk->delete($previousPath);
+        }
+
+        return redirect()->route('buyer.orders.show', $order)->with('success', 'Your payment receipt was submitted for review.');
     }
 
     private function selectedItems(Request $request)
