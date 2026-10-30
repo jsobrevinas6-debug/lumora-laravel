@@ -311,6 +311,22 @@
             font-size: 12px;
             line-height: 1.45;
         }
+        .wallet-modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:rgba(35,20,28,.62); }
+        .wallet-modal-backdrop[hidden] { display:none; }
+        .wallet-modal { width:min(100%,560px); max-height:min(92vh,900px); overflow:auto; padding:24px; border-radius:18px; background:#fff; box-shadow:0 22px 70px rgba(0,0,0,.24); }
+        .wallet-modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; }
+        .wallet-modal-head h2 { color:var(--plum); font:600 25px 'Playfair Display',Georgia,serif; }
+        .wallet-modal-close { border:0; background:none; color:var(--muted); font-size:26px; cursor:pointer; }
+        .wallet-qr { display:block; width:min(100%,300px); margin:0 auto 12px; border:1px solid #eee; border-radius:8px; }
+        .wallet-modal-note { margin:10px 0; color:var(--muted); font-size:13px; line-height:1.5; }
+        .wallet-modal label { display:block; margin-top:14px; color:var(--plum); font-size:13px; font-weight:700; }
+        .wallet-modal input[type=file] { display:block; width:100%; margin-top:7px; padding:10px; border:1px solid #e8d8d7; border-radius:8px; }
+        .reference-slots { display:flex; gap:8px; margin-top:8px; }
+        .reference-slots input { width:42px; height:48px; border:1px solid #dfcecc; border-radius:8px; text-align:center; font-size:20px; color:var(--plum); }
+        .wallet-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+        .wallet-modal-actions button { padding:11px 17px; border:1px solid #e8d8d7; border-radius:8px; background:#fff; color:var(--plum); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+        .wallet-modal-actions .confirm { background:var(--plum); border-color:var(--plum); color:#fff; }
+        @media(max-width:420px) { .wallet-modal { padding:18px; } .reference-slots { gap:5px; } .reference-slots input { width:calc((100vw - 100px)/6); max-width:42px; } }
         .place-order {
             width: 100%;
             height: 69px;
@@ -549,15 +565,36 @@
 
                     @error('payment_method')<span class="payment-error">{{ $message }}</span>@enderror
                     @error('payment_method_id')<span class="payment-error">{{ $message }}</span>@enderror
-                    <div data-payment-proof-field hidden style="margin-top:14px">
-                        <label for="paymentProof" class="wallet-section-title">Payment Screenshot <span aria-hidden="true">*</span></label>
-                        <p class="payment-note">Upload a screenshot of your GCash or Maya payment (JPG, PNG, or WEBP, up to 5 MB).</p>
-                        <input id="paymentProof" name="payment_proof" type="file" accept="image/jpeg,image/png,image/webp" data-payment-proof>
-                        @error('payment_proof')<span class="payment-error">{{ $message }}</span>@enderror
-                    </div>
                 </section>
 
                 <button class="place-order" type="submit">Place order</button>
+                <div class="wallet-modal-backdrop" data-wallet-modal hidden>
+                    <section class="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="walletModalTitle">
+                        <div class="wallet-modal-head">
+                            <div><h2 id="walletModalTitle">Pay with <span data-wallet-label>GCash</span></h2><p class="wallet-modal-note">Scan this InstaPay QR code to complete your payment.</p></div>
+                            <button class="wallet-modal-close" type="button" aria-label="Close payment popup" data-wallet-close>&times;</button>
+                        </div>
+                        <img class="wallet-qr" src="{{ asset('payments/instapay-gcash.png') }}" alt="InstaPay QR code" data-wallet-qr>
+                        <p class="wallet-modal-note" style="text-align:center">Transfer fees may apply.</p>
+                        <label for="paymentProof">Payment receipt screenshot</label>
+                        <input id="paymentProof" name="payment_proof" type="file" accept="image/jpeg,image/png,image/webp" data-payment-proof>
+                        <p class="wallet-modal-note">JPG, PNG, or WEBP, up to 5 MB. This screenshot will be attached to your order.</p>
+                        @error('payment_proof')<span class="payment-error">{{ $message }}</span>@enderror
+                        <label for="referenceDigit1">Input the last 6 digits of Reference Number</label>
+                        <div class="reference-slots" data-reference-slots aria-label="Last six digits of reference number">
+                            @for ($slot = 1; $slot <= 6; $slot++)
+                                <input id="referenceDigit{{ $slot }}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="Reference digit {{ $slot }}" data-reference-digit>
+                            @endfor
+                        </div>
+                        <input type="hidden" name="payment_reference_last6" data-reference-value>
+                        @error('payment_reference_last6')<span class="payment-error">{{ $message }}</span>@enderror
+                        <span class="payment-error" data-wallet-modal-error hidden></span>
+                        <div class="wallet-modal-actions">
+                            <button type="button" data-wallet-cancel>Cancel</button>
+                            <button type="button" class="confirm" data-wallet-confirm>Confirm Payment</button>
+                        </div>
+                    </section>
+                </div>
             </form>
         </aside>
     </div>
@@ -566,16 +603,68 @@
     document.addEventListener('DOMContentLoaded', () => {
         const methodRadios = [...document.querySelectorAll('[data-payment-method]')];
         const walletRadios = [...document.querySelectorAll('[data-wallet-radio]')];
-        const proofField = document.querySelector('[data-payment-proof-field]');
         const proofInput = document.querySelector('[data-payment-proof]');
+        const checkoutForm = document.querySelector('form[action="{{ route('buyer.checkout.store') }}"]');
+        const walletModal = document.querySelector('[data-wallet-modal]');
+        const walletLabel = document.querySelector('[data-wallet-label]');
+        const referenceDigits = [...document.querySelectorAll('[data-reference-digit]')];
+        const referenceValue = document.querySelector('[data-reference-value]');
+        const modalError = document.querySelector('[data-wallet-modal-error]');
+        let confirmedWalletPayment = false;
 
         const updateProofField = () => {
             const needsProof = ['gcash', 'maya'].includes(methodRadios.find((radio) => radio.checked)?.value);
-            proofField.hidden = !needsProof;
-            proofInput.required = needsProof;
+            proofInput.required = false;
         };
         methodRadios.forEach((radio) => radio.addEventListener('change', updateProofField));
         updateProofField();
+
+        const closeWalletModal = () => { walletModal.hidden = true; };
+        checkoutForm.addEventListener('submit', (event) => {
+            const method = methodRadios.find((radio) => radio.checked)?.value;
+            if (!['gcash', 'maya'].includes(method) || confirmedWalletPayment) return;
+            event.preventDefault();
+            walletLabel.textContent = method === 'maya' ? 'Maya' : 'GCash';
+            walletModal.hidden = false;
+            modalError.hidden = true;
+        });
+        document.querySelectorAll('[data-wallet-close], [data-wallet-cancel]').forEach((button) => button.addEventListener('click', closeWalletModal));
+        walletModal.addEventListener('click', (event) => { if (event.target === walletModal) closeWalletModal(); });
+        referenceDigits.forEach((input, index) => {
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/\D/g, '').slice(-1);
+                if (input.value && referenceDigits[index + 1]) referenceDigits[index + 1].focus();
+            });
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Backspace' && !input.value && referenceDigits[index - 1]) referenceDigits[index - 1].focus();
+            });
+            input.addEventListener('paste', (event) => {
+                const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('');
+                if (!pasted.length) return;
+                event.preventDefault();
+                pasted.forEach((digit, digitIndex) => { if (referenceDigits[digitIndex]) referenceDigits[digitIndex].value = digit; });
+                referenceDigits[Math.min(pasted.length, 5)].focus();
+            });
+        });
+        document.querySelector('[data-wallet-confirm]').addEventListener('click', () => {
+            const reference = referenceDigits.map((input) => input.value).join('');
+            referenceValue.value = reference;
+            if (!proofInput.files.length) {
+                modalError.textContent = 'Please upload your payment receipt screenshot.';
+                modalError.hidden = false;
+                proofInput.focus();
+                return;
+            }
+            if (!/^\d{6}$/.test(reference)) {
+                modalError.textContent = 'Enter all 6 digits of your reference number.';
+                modalError.hidden = false;
+                referenceDigits.find((input) => !input.value)?.focus();
+                return;
+            }
+            confirmedWalletPayment = true;
+            closeWalletModal();
+            checkoutForm.requestSubmit();
+        });
 
         const walletForType = (type) => walletRadios.find((radio) => radio.dataset.walletType === type);
 

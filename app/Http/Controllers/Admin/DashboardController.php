@@ -23,6 +23,40 @@ class DashboardController extends Controller
         return view('admin.e-wallet-payments', compact('orders'));
     }
 
+    public function approveEWalletPayment(Order $order)
+    {
+        abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
+        abort_unless($order->payment_status === 'pending' && $order->status === 'pending', 422, 'This order is no longer awaiting payment review.');
+        abort_unless($order->payment_proof_path && preg_match('/^\d{6}$/', (string) $order->payment_reference_last6), 422, 'The receipt and six digit reference number are required for approval.');
+
+        DB::transaction(function () use ($order) {
+            $order->update(['payment_status' => 'paid']);
+        });
+
+        return redirect()->route('admin.e-wallet-payments')->with('flash_success', 'Payment approved for order '.$order->order_number.'.');
+    }
+
+    public function rejectEWalletPayment(Order $order)
+    {
+        abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
+        abort_unless($order->payment_status === 'pending' && $order->status === 'pending', 422, 'This order is no longer awaiting payment review.');
+
+        DB::transaction(function () use ($order) {
+            $order->update([
+                'payment_status' => 'failed',
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+            ]);
+            $order->statusHistory()->create([
+                'status' => 'cancelled',
+                'remarks' => 'E-wallet payment receipt rejected by admin.',
+                'changed_by' => auth()->id(),
+            ]);
+        });
+
+        return redirect()->route('admin.e-wallet-payments')->with('flash_success', 'Payment rejected and order '.$order->order_number.' cancelled.');
+    }
+
     public function users()
     {
         $users = DB::table('users')->orderByDesc('created_at')->get();

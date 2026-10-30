@@ -191,6 +191,7 @@ class OrderController extends Controller
             'payment_method' => ['required', 'string', 'in:cod,gcash,maya,bank_transfer'],
             'payment_method_id' => ['nullable', 'integer'],
             'payment_proof' => ['required_if:payment_method,gcash,maya', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'payment_reference_last6' => ['required_if:payment_method,gcash,maya', 'nullable', 'regex:/^\d{6}$/'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -302,6 +303,9 @@ class OrderController extends Controller
                 'payment_method' => $validated['payment_method'],
                 'payment_method_id' => $selectedWallet?->id,
                 'payment_proof_path' => $paymentProofPath,
+                'payment_reference_last6' => in_array($validated['payment_method'], ['gcash', 'maya'], true)
+                    ? $validated['payment_reference_last6']
+                    : null,
                 'subtotal' => $subtotal,
                 'shipping_fee' => $shipping,
                 'discount' => $discount,

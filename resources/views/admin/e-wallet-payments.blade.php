@@ -14,6 +14,7 @@
                     <div><strong>Order status</strong><br>{{ $order->status_label }}</div>
                     <div><strong>Seller</strong><br>{{ $order->seller?->name ?? 'Multiple / unavailable' }}</div>
                     <div><strong>Subtotal / shipping</strong><br>PHP {{ number_format((float) $order->subtotal, 2) }} / PHP {{ number_format((float) $order->shipping_fee, 2) }}</div>
+                    <div><strong>Reference number ending</strong><br>{{ $order->payment_reference_last6 ? '••'.$order->payment_reference_last6 : 'Not provided' }}</div>
                 </div>
                 <div style="font-size:.88rem;margin-bottom:14px"><strong>Items</strong><ul style="padding-left:20px;margin-top:4px">
                     @foreach ($order->items as $item)
@@ -27,6 +28,18 @@
                         <p style="color:var(--text-muted);font-size:.85rem;margin-top:6px">No screenshot was attached to this order.</p>
                     @endif
                 </div>
+                @if ($order->payment_status === 'pending' && $order->status === 'pending')
+                    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+                        <form method="POST" action="{{ route('admin.e-wallet-payments.approve', $order) }}">
+                            @csrf
+                            <button class="btn btn-dark" type="submit" @disabled(!$order->payment_proof_path || !preg_match('/^\d{6}$/', (string) $order->payment_reference_last6))>Approve payment</button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.e-wallet-payments.reject', $order) }}" onsubmit="return confirm('Reject this payment and cancel the order?')">
+                            @csrf
+                            <button class="btn btn-danger" type="submit">Reject and cancel order</button>
+                        </form>
+                    </div>
+                @endif
             </section>
         @empty
             <p style="color:var(--text-muted)">No GCash or Maya payments have been submitted yet.</p>

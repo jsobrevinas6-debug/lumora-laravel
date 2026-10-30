@@ -21,6 +21,7 @@ class Order extends Model
         'payment_method',
         'payment_method_id',
         'payment_proof_path',
+        'payment_reference_last6',
         'subtotal',
         'shipping_fee',
         'discount',
