@@ -47,6 +47,7 @@
                     <th>Buyer</th>
                     <th>Date</th>
                     <th>Subtotal</th>
+                    <th>Payment Method</th>
                     <th>Voucher</th>
                     <th>Status</th>
                     <th>Packing</th>
@@ -60,6 +61,23 @@
                         $status = $o->status ?? 'pending';
                         $statusLabel = $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status));
                         $statusColor = $statusColors[$status] ?? 'var(--terra-1)';
+
+                        $rawPayment = strtolower($o->payment_method ?? 'cod');
+                        $paymentLabel = match ($rawPayment) {
+                            'cod' => 'COD',
+                            'gcash' => 'GCash',
+                            'maya', 'paymaya' => 'PayMaya',
+                            'bank_transfer' => 'Bank Transfer',
+                            'card' => 'Card',
+                            default => strtoupper($o->payment_method ?? 'COD'),
+                        };
+
+                        $paymentBadgeStyle = match ($rawPayment) {
+                            'cod' => 'background:#7B6E74;color:#fff;',
+                            'gcash' => 'background:#005ce6;color:#fff;',
+                            'maya', 'paymaya' => 'background:#00a651;color:#fff;',
+                            default => 'background:var(--maroon);color:#fff;',
+                        };
                     @endphp
 
                     <tr>
@@ -85,6 +103,12 @@
 
                         <td>
                             PHP {{ number_format($o->seller_subtotal, 2) }}
+                        </td>
+
+                        <td>
+                            <span class="stock-badge" style="{{ $paymentBadgeStyle }};font-weight:600;">
+                                {{ $paymentLabel }}
+                            </span>
                         </td>
 
                         <td>
@@ -144,7 +168,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" style="text-align:center;color:#999;padding:20px;">
+                        <td colspan="9" style="text-align:center;color:#999;padding:20px;">
                             No orders yet.
                         </td>
                     </tr>

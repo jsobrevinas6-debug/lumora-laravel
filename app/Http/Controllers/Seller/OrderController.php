@@ -16,6 +16,7 @@ class OrderController extends Controller
     {
         $sellerId = Auth::id();
         $hasVoucherCols = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_code');
+        $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
 
         $orders = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
@@ -31,6 +32,7 @@ class OrderController extends Controller
                 'o.status',
                 'o.created_at as order_date',
                 'u.name as buyer_name',
+                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
                 DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
                 DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
                 DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
@@ -41,6 +43,7 @@ class OrderController extends Controller
             )
             ->groupBy(...array_merge(
                 ['o.id', 'o.order_number', 'o.status', 'o.created_at', 'u.name'],
+                $hasPaymentMethod ? ['o.payment_method'] : [],
                 $hasVoucherCols ? ['o.voucher_code', 'o.voucher_type', 'o.voucher_discount', 'o.shipping_discount'] : []
             ))
             ->orderByDesc('o.created_at')
@@ -53,6 +56,7 @@ class OrderController extends Controller
     {
         $sellerId = Auth::id();
         $hasVoucherCols = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_code');
+        $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
 
         $order = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
@@ -69,6 +73,7 @@ class OrderController extends Controller
                 'u.barangay',
                 'u.street',
                 'u.house_number',
+                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
                 DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
                 DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
                 DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
@@ -176,6 +181,8 @@ class OrderController extends Controller
     {
         $sellerId = Auth::id();
 
+        $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
+
         $order = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
             ->where('o.id', $orderId)
@@ -189,7 +196,8 @@ class OrderController extends Controller
                 'u.municipality',
                 'u.barangay',
                 'u.street',
-                'u.house_number'
+                'u.house_number',
+                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method")
             )
             ->firstOrFail();
 

@@ -24,7 +24,12 @@
     <div class="brand">LUM<span class="accent">O</span>RA</div>
     <div class="brand-tagline">BEAUTY LIVES HERE</div>
     <div class="document-label">Shipping Label</div>
-    <div style="font-size:11px;color:#8B7A80;">Order #{{ $order->id }} &middot; {{ \Carbon\Carbon::parse($order->created_at)->format('M d, Y') }}</div>
+    <div style="font-size:11px;color:#8B7A80;">
+        Order #{{ $order->id }} &middot; {{ \Carbon\Carbon::parse($order->created_at)->format('M d, Y') }}
+        @if (!empty($order->payment_method))
+            &middot; Payment: {{ match(strtolower($order->payment_method)) { 'cod' => 'COD', 'gcash' => 'GCash', 'maya', 'paymaya' => 'PayMaya', default => strtoupper($order->payment_method) } }}
+        @endif
+    </div>
 
     <div class="label-box">
         <div class="row">

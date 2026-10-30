@@ -40,6 +40,23 @@
         $statusLabel = $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status));
         $statusColor = $statusColors[$status] ?? 'var(--terra-1)';
 
+        $rawPayment = strtolower($order->payment_method ?? 'cod');
+        $paymentLabel = match ($rawPayment) {
+            'cod' => 'COD',
+            'gcash' => 'GCash',
+            'maya', 'paymaya' => 'PayMaya',
+            'bank_transfer' => 'Bank Transfer',
+            'card' => 'Card',
+            default => strtoupper($order->payment_method ?? 'COD'),
+        };
+
+        $paymentBadgeStyle = match ($rawPayment) {
+            'cod' => 'background:#7B6E74;color:#fff;',
+            'gcash' => 'background:#005ce6;color:#fff;',
+            'maya', 'paymaya' => 'background:#00a651;color:#fff;',
+            default => 'background:var(--maroon);color:#fff;',
+        };
+
         $allPacked = $items->every(fn ($item) => $item->packed_at !== null);
 
         $canMarkPacked = ! in_array($status, [
@@ -65,6 +82,10 @@
             </div>
 
             <div style="display:flex;gap:8px;align-items:center;">
+                <span class="stock-badge" style="{{ $paymentBadgeStyle }};font-weight:600;">
+                    {{ $paymentLabel }}
+                </span>
+
                 <span class="stock-badge" style="background:{{ $statusColor }};">
                     {{ $statusLabel }}
                 </span>
@@ -107,6 +128,13 @@
                     <td colspan="2" style="font-weight:700;border-bottom:none;">Total</td>
                     <td colspan="2" style="font-weight:700;border-bottom:none;">
                         PHP {{ number_format($items->sum(fn ($item) => $item->price * $item->quantity), 2) }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" style="border-bottom:none;color:var(--text-muted);">Payment Method</td>
+                    <td colspan="2" style="border-bottom:none;">
+                        <span class="stock-badge" style="{{ $paymentBadgeStyle }};font-weight:600;">{{ $paymentLabel }}</span>
                     </td>
                 </tr>
 
