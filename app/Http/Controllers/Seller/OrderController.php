@@ -220,7 +220,32 @@ class OrderController extends Controller
 
         $total = $items->sum(fn ($item) => $item->price * $item->quantity);
 
-        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total'));
+        // Code 39 uses the numeric order ID printed on the label, so scanners
+        // can identify the same reference shown to the seller and buyer.
+        $code39 = [
+            '0' => 'nnnwwnwnn', '1' => 'wnnwnnnnw', '2' => 'nnwwnnnnw',
+            '3' => 'wnwwnnnnn', '4' => 'nnnwwnnnw', '5' => 'wnnwwnnnn',
+            '6' => 'nnwwwnnnn', '7' => 'nnnwnnwnw', '8' => 'wnnwnnwnn',
+            '9' => 'nnwwnnwnn', '*' => 'nwnnwnwnn',
+        ];
+        $barcodeValue = (string) $order->id;
+        $barcodeSequence = '*'.$barcodeValue.'*';
+        $module = 2;
+        $cursor = 0;
+        $barcodeRects = '';
+        foreach (str_split($barcodeSequence) as $character) {
+            foreach (str_split($code39[$character]) as $index => $width) {
+                $barWidth = ($width === 'w' ? 3 : 1) * $module;
+                if ($index % 2 === 0) {
+                    $barcodeRects .= '<rect x="'.$cursor.'" y="0" width="'.$barWidth.'" height="44" fill="#000"/>';
+                }
+                $cursor += $barWidth;
+            }
+            $cursor += $module; // Inter-character gap
+        }
+        $barcodeSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$cursor.'" height="44" viewBox="0 0 '.$cursor.' 44">'.$barcodeRects.'</svg>';
+
+        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total', 'barcodeSvg', 'barcodeValue'));
 
         return $pdf->stream('waybill-order-' . $orderId . '.pdf');
     }
