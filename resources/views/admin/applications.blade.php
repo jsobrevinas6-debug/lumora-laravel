@@ -15,6 +15,8 @@
         .sa-tab.active { color:var(--sa-maroon); border-color:var(--sa-maroon); }
         .sa-tab-count { min-width:27px; padding:3px 8px; border-radius:999px; background:#F5E8ED; color:var(--sa-maroon); text-align:center; font-size:.72rem; }
         .sa-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(325px,390px); gap:18px; align-items:start; }
+        /* The hidden review panel should not reserve an empty grid column. */
+        .sa-layout:has(> .sa-panel[hidden]) { grid-template-columns:minmax(0,1fr); }
         .sa-card { min-width:0; overflow:hidden; }
         .sa-toolbar { display:grid; grid-template-columns:minmax(230px,1.5fr) minmax(140px,.8fr) minmax(145px,.9fr) auto; gap:10px; padding:18px 20px; border-bottom:1px solid var(--border); }
         .sa-input { min-height:46px; width:100%; padding:9px 12px; border:1px solid #DDCCC6; border-radius:12px; background:#fff; color:var(--sa-ink); font:500 .84rem Poppins,sans-serif; }
@@ -24,14 +26,14 @@
         .sa-search-icon { position:absolute; left:13px; top:14px; color:var(--sa-muted); pointer-events:none; }
         .sa-table-wrap { overflow-x:auto; width:100%; }
         .sa-table { width:100%; min-width:890px; border-collapse:collapse; }
-        .sa-table th { padding:13px 14px; background:#FBF7F5; color:#59474D; font-size:.72rem; letter-spacing:.04em; text-align:left; text-transform:uppercase; white-space:nowrap; }
-        .sa-table td { padding:13px 14px; border-bottom:1px solid var(--border); vertical-align:middle; font-size:.82rem; }
+        .sa-table th { padding:15px 16px; background:#FBF7F5; color:#59474D; font-size:.78rem; letter-spacing:.04em; text-align:left; text-transform:uppercase; white-space:nowrap; }
+        .sa-table td { padding:16px; border-bottom:1px solid var(--border); vertical-align:middle; font-size:.9rem; }
         .sa-table tbody tr:last-child td { border-bottom:0; }
         .sa-table tr[data-application-row] { cursor:pointer; }
         .sa-table tr[data-application-row]:hover td,.sa-table tr.selected td { background:#FCF0F3; }
         .sa-applicant { display:flex; align-items:center; gap:10px; min-width:210px; }
         .sa-avatar { width:46px; height:46px; flex:0 0 46px; display:grid; place-items:center; border-radius:50%; background:#E8DDC0; color:#392930; font-weight:800; font-size:1rem; }
-        .sa-applicant-name { display:block; color:var(--sa-ink); font-weight:750; }
+        .sa-applicant-name { display:block; color:var(--sa-ink); font-size:.94rem; font-weight:750; overflow-wrap:anywhere; }
         .sa-sub { display:block; margin-top:3px; color:var(--sa-muted); font-size:.75rem; }
         .sa-status,.sa-history-chip { display:inline-flex; align-items:center; min-height:26px; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700; white-space:nowrap; }
         .sa-status.pending { background:#FFF1D2; color:#804900; }
