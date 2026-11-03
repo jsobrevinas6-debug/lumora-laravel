@@ -16,14 +16,18 @@
             </thead>
             <tbody>
                 @forelse ($complaints as $c)
-                    @php $evidence = $evidenceByComplaint->get($c->id, collect()); @endphp
+                    @php
+                        $evidence = $evidenceByComplaint->get($c->id, collect());
+                        $isProductReport = ($c->complaint_type ?? null) === 'product_report' || str_starts_with((string) $c->category, '[Product report] ');
+                        $displayCategory = $isProductReport ? str_replace('[Product report] ', '', $c->category) : $c->category;
+                    @endphp
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($c->created_at)->format('M d, Y') }}</td>
                         <td>{{ $c->product_name }}</td>
                         <td>{{ $c->buyer_name }}</td>
                         <td>{{ $c->seller_name }}</td>
                         <td>
-                            @if (($c->complaint_type ?? 'customer_complaint') === 'product_report')
+                            @if ($isProductReport)
                                 <span class="badge" style="background:#C0583A">Product report</span>
                             @else
                                 <span class="badge" style="background:#8B7A80">Customer complaint</span>
@@ -42,8 +46,8 @@
                                 <p><strong>Product:</strong> {{ $c->product_name }}</p>
                                 <p><strong>Buyer:</strong> {{ $c->buyer_name }} ({{ $c->buyer_email }})</p>
                                 <p><strong>Seller:</strong> {{ $c->seller_name }} ({{ $c->seller_email }})</p>
-                                <p><strong>{{ ($c->complaint_type ?? 'customer_complaint') === 'product_report' ? 'Report reason' : 'Category' }}:</strong> {{ ucwords(str_replace('_', ' ', $c->category)) }}</p>
-                                <p><strong>{{ ($c->complaint_type ?? 'customer_complaint') === 'product_report' ? 'Additional details' : 'Description' }}:</strong><br>{{ $c->description }}</p>
+                                <p><strong>{{ $isProductReport ? 'Report reason' : 'Category' }}:</strong> {{ ucwords(str_replace('_', ' ', $displayCategory)) }}</p>
+                                <p><strong>{{ $isProductReport ? 'Additional details' : 'Description' }}:</strong><br>{{ $c->description }}</p>
                                 <p><strong>Evidence:</strong></p>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                                     @forelse ($evidence as $img)
