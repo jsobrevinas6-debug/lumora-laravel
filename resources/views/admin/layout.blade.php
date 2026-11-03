@@ -58,6 +58,13 @@
     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
     <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">Users</a>
     <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications') ? 'active' : '' }}">Applications</a>
+    @php $pendingProductApprovalCount = \Illuminate\Support\Facades\DB::table('products')->where('approval_status', 'pending')->count(); @endphp
+    <a href="{{ route('admin.product-approval') }}" class="nav-link {{ request()->routeIs('admin.product-approval*') ? 'active' : '' }}">
+        <span>Product Approval</span>
+        @if ($pendingProductApprovalCount > 0)
+            <span style="min-width:21px;margin-left:auto;padding:1px 6px;border-radius:999px;background:#E8674A;color:#fff;text-align:center;font-size:11px;font-weight:700;line-height:18px;" aria-label="{{ $pendingProductApprovalCount }} products awaiting approval">{{ $pendingProductApprovalCount }}</span>
+        @endif
+    </a>
     <a href="{{ route('admin.compliance') }}" class="nav-link {{ request()->routeIs('admin.compliance') ? 'active' : '' }}">Compliance</a>
     <a href="{{ route('admin.complaints') }}" class="nav-link {{ request()->routeIs('admin.complaints') ? 'active' : '' }}">Complaints</a>
     <a href="{{ route('admin.chat.index') }}" class="nav-link {{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">Messages</a>

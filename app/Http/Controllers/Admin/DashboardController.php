@@ -106,6 +106,42 @@ class DashboardController extends Controller
         return view('admin.applications', compact('applications'));
     }
 
+    public function productApproval()
+    {
+        $products = DB::table('products as p')
+            ->join('users as u', 'u.id', '=', 'p.seller_id')
+            ->where('p.approval_status', 'pending')
+            ->select('p.id', 'p.name', 'p.category', 'p.description', 'p.price', 'p.stock', 'p.image', 'p.created_at', 'u.name as seller_name')
+            ->orderBy('p.created_at')
+            ->get();
+
+        return view('admin.product-approval', compact('products'));
+    }
+
+    public function approveProduct($id)
+    {
+        $updated = DB::table('products')
+            ->where('id', $id)
+            ->where('approval_status', 'pending')
+            ->update(['approval_status' => 'approved', 'status' => 'active', 'updated_at' => now()]);
+
+        abort_unless($updated, 404, 'This product is no longer awaiting approval.');
+
+        return redirect()->route('admin.product-approval')->with('flash_success', 'Product approved and published.');
+    }
+
+    public function rejectProduct($id)
+    {
+        $updated = DB::table('products')
+            ->where('id', $id)
+            ->where('approval_status', 'pending')
+            ->update(['approval_status' => 'rejected', 'status' => 'inactive', 'updated_at' => now()]);
+
+        abort_unless($updated, 404, 'This product is no longer awaiting approval.');
+
+        return redirect()->route('admin.product-approval')->with('flash_success', 'Product rejected and kept off the storefront.');
+    }
+
     public function index()
     {
         $totalSales = DB::table('order_items as oi')
@@ -234,7 +270,7 @@ class DashboardController extends Controller
     public function clearProduct($id)
     {
         DB::table('products')->where('id', $id)->update([
-            'status' => 'active',
+            'status' => DB::raw("CASE WHEN approval_status = 'approved' THEN 'active' ELSE 'inactive' END"),
             'updated_at' => now(),
         ]);
 

@@ -3,6 +3,11 @@
 @section('title', 'My Products')
 
 @section('content')
+    @if (session('approval_submitted'))
+        <script>
+            window.addEventListener('DOMContentLoaded', () => alert(@json(session('approval_submitted'))));
+        </script>
+    @endif
     @if (session('success'))
         <div class="alert-success">{{ session('success') }}</div>
     @endif
@@ -62,6 +67,11 @@
                 </div>
                 <div class="product-body">
                     <div class="product-name">{{ $product->name }}</div>
+                    @if (($product->approval_status ?? null) === 'pending')
+                        <div style="font-size:.72rem;color:#8B5D12;font-weight:600;margin-bottom:4px;">Awaiting admin approval</div>
+                    @elseif (($product->approval_status ?? null) === 'rejected')
+                        <div style="font-size:.72rem;color:#B85C3B;font-weight:600;margin-bottom:4px;">Rejected · edit to resubmit</div>
+                    @endif
                     @if ($product->category)
                         <div style="font-size:.75rem;color:#8B7A80;margin-bottom:4px;">{{ $product->category }}</div>
                     @endif
@@ -120,7 +130,7 @@
     <div id="addProductModal" style="display:none; position:fixed; inset:0; background:rgba(43,28,34,.5); align-items:center; justify-content:center; z-index:50; padding:16px;">
         <div style="background:#fff; border-radius:18px; padding:28px; width:460px; max-width:95%; max-height:90vh; overflow-y:auto;">
             <h2 style="font-size:18px; font-weight:800; margin-bottom:18px;">Add Product</h2>
-            <form action="{{ route('seller.products.store') }}" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
+            <form id="addProductForm" action="{{ route('seller.products.store') }}" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
                 @csrf
                 <input type="text" name="name" placeholder="Product name" required class="stock-input" style="width:100%;">
                 <select name="category" required class="stock-input" style="width:100%;">
@@ -712,6 +722,10 @@
 
                     if (response.ok || response.redirected) {
                         console.log('[CSRF Debug] Success! Status:', response.status);
+                        if (form.id === 'addProductForm' && response.ok) {
+                            const result = await response.json().catch(() => null);
+                            alert(result?.message || 'Wait for admin approval, Thank You!');
+                        }
                         window.location.reload();
                         return;
                     }

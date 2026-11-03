@@ -63,6 +63,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/application/{id}/{action}', [DashboardController::class, 'handleApplication'])->name('application');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');
+    Route::get('/product-approval', [DashboardController::class, 'productApproval'])->name('product-approval');
+    Route::post('/product-approval/{id}/approve', [DashboardController::class, 'approveProduct'])->name('product-approval.approve');
+    Route::post('/product-approval/{id}/reject', [DashboardController::class, 'rejectProduct'])->name('product-approval.reject');
     Route::get('/users/{id}/{action}', [DashboardController::class, 'handleUserStatus'])->name('users.action');
 
     Route::get('/compliance', [DashboardController::class, 'compliance'])->name('compliance');

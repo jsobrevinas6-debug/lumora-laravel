@@ -98,7 +98,8 @@ class ProductController extends Controller
             'stock' => $totalStock,
             'variant_type' => $hasVariants ? ($validated['variant_type'] ?? null) : null,
             'image' => $imagePath,
-            'status' => 'active',
+            'status' => 'inactive',
+            'approval_status' => 'pending',
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -111,11 +112,12 @@ class ProductController extends Controller
 
         $this->insertVariants($productId, $variantRows);
 
+        $approvalMessage = 'Wait for admin approval, Thank You!';
         if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Product added successfully!']);
+            return response()->json(['success' => true, 'message' => $approvalMessage]);
         }
 
-        return back()->with('success', 'Product added successfully!');
+        return back()->with('approval_submitted', $approvalMessage);
     }
 
     public function update(Request $request, $id)
@@ -144,6 +146,11 @@ class ProductController extends Controller
             'variant_type' => $hasVariants ? ($validated['variant_type'] ?? null) : null,
             'updated_at' => now(),
         ];
+        $wasRejected = ($product->approval_status ?? null) === 'rejected';
+        if ($wasRejected) {
+            $data['approval_status'] = 'pending';
+            $data['status'] = 'inactive';
+        }
 
         $existingImages = [];
         if (property_exists($product, 'images') && !empty($product->images)) {
@@ -208,11 +215,12 @@ class ProductController extends Controller
         DB::table('product_variants')->where('product_id', $id)->delete();
         $this->insertVariants($id, $variantRows);
 
+        $message = $wasRejected ? 'Product updated and resubmitted for approval.' : 'Product updated.';
         if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Product updated.']);
+            return response()->json(['success' => true, 'message' => $message]);
         }
 
-        return back()->with('success', 'Product updated.');
+        return back()->with('success', $message);
     }
 
     private function validateProduct(Request $request): array
@@ -408,7 +416,13 @@ class ProductController extends Controller
 
     public function restore($id)
     {
-        DB::table('products')->where('id', $id)->where('seller_id', Auth::id())->update(['status' => 'active', 'updated_at' => now()]);
+        DB::table('products')
+            ->where('id', $id)
+            ->where('seller_id', Auth::id())
+            ->update([
+                'status' => DB::raw("CASE WHEN approval_status = 'approved' THEN 'active' ELSE 'inactive' END"),
+                'updated_at' => now(),
+            ]);
         return back()->with('success', 'Product restored.');
     }
 
