@@ -94,7 +94,7 @@
                     @if ($view === 'active')
                         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
                             <button type="button" class="edit-stock-btn" style="width:100%;"
-                                onclick="openEditModal({{ $product->id }}, {{ json_encode($product->name) }}, {{ json_encode($product->category) }}, {{ json_encode($product->description) }}, {{ $product->price }}, {{ $product->discount_percent ?? 'null' }}, {{ $product->stock }}, {{ json_encode($product->variant_type) }}, {{ json_encode($productVariants->map(fn($v) => ['name' => $v->name, 'stock' => $v->stock])->values()) }}, {{ json_encode($existingPhotoUrls) }})">
+                                onclick="openEditModal({{ $product->id }}, {{ json_encode($product->name) }}, {{ json_encode($product->category) }}, {{ json_encode($product->description) }}, {{ $product->price }}, {{ $product->discount_percent ?? 'null' }}, {{ $product->stock }}, {{ json_encode($product->variant_type) }}, {{ json_encode($productVariants->map(fn($v) => ['name' => $v->name, 'stock' => $v->stock])->values()) }}, {{ json_encode($existingPhotoUrls) }}, {{ json_encode($product->sku ?? '') }})">
                                 Edit Product
                             </button>
                             <form action="{{ route('seller.products.destroy', $product->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this product permanently?');" style="margin:0;">
@@ -133,6 +133,7 @@
             <form id="addProductForm" action="{{ route('seller.products.store') }}" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
                 @csrf
                 <input type="text" name="name" placeholder="Product name" required class="stock-input" style="width:100%;">
+                <input type="text" name="sku" placeholder="SKU (optional)" maxlength="64" class="stock-input" style="width:100%;">
                 <select name="category" required class="stock-input" style="width:100%;">
                     <option value="">Select category</option>
                     @foreach (($categoryTree ?? []) as $group)
@@ -213,6 +214,7 @@
                 @csrf
                 @method('PATCH')
                 <input type="text" name="name" id="edit_name" placeholder="Product name" required class="stock-input" style="width:100%;">
+                <input type="text" name="sku" id="edit_sku" placeholder="SKU (optional)" maxlength="64" class="stock-input" style="width:100%;">
                 <select name="category" id="edit_category" required class="stock-input" style="width:100%;">
                     <option value="">Select category</option>
                     @foreach (($categoryTree ?? []) as $group)
@@ -576,9 +578,10 @@
             document.getElementById('addProductModal').style.display = 'flex';
         }
 
-        function openEditModal(id, name, category, description, price, discount, stock, variantType, variantsJson, photoUrls = []) {
+        function openEditModal(id, name, category, description, price, discount, stock, variantType, variantsJson, photoUrls = [], sku = '') {
             document.getElementById('editProductForm').action = `/seller/products/${id}`;
             document.getElementById('edit_name').value = name;
+            document.getElementById('edit_sku').value = sku || '';
             document.getElementById('edit_category').value = category || '';
             document.getElementById('edit_description').value = description || '';
             document.getElementById('edit_price').value = price;

@@ -91,6 +91,7 @@ class ProductController extends Controller
         $insertData = [
             'seller_id' => Auth::id(),
             'name' => $validated['name'],
+            'sku' => $validated['sku'] ?? null,
             'category' => $validated['category'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
@@ -100,6 +101,7 @@ class ProductController extends Controller
             'image' => $imagePath,
             'status' => 'inactive',
             'approval_status' => 'pending',
+            'approval_submitted_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -129,13 +131,14 @@ class ProductController extends Controller
             ->first();
         abort_unless($product, 403);
 
-        $validated = $this->validateProduct($request);
+        $validated = $this->validateProduct($request, (int) $id);
         $variantRows = collect($request->input('variants', []))
             ->filter(fn ($v) => !empty($v['name']));
         $hasVariants = $variantRows->isNotEmpty();
 
         $data = [
             'name' => $validated['name'],
+            'sku' => $validated['sku'] ?? null,
             'category' => $validated['category'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
@@ -150,6 +153,10 @@ class ProductController extends Controller
         if ($wasRejected) {
             $data['approval_status'] = 'pending';
             $data['status'] = 'inactive';
+            $data['approval_submitted_at'] = now();
+            $data['rejected_at'] = null;
+            $data['rejection_reason'] = null;
+            $data['rejection_note'] = null;
         }
 
         $existingImages = [];
@@ -223,10 +230,11 @@ class ProductController extends Controller
         return back()->with('success', $message);
     }
 
-    private function validateProduct(Request $request): array
+    private function validateProduct(Request $request, ?int $productId = null): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:64', Rule::unique('products', 'sku')->where('seller_id', Auth::id())->ignore($productId)],
             'category' => ['required', 'string', Rule::in(CategoryCatalog::slugs())],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],

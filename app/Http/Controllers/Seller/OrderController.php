@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Notifications\PayoutRequestStatusNotification;
+use App\Notifications\ProductApprovalRejectedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -335,8 +336,24 @@ class OrderController extends Controller
             ->whereNull('read_at')
             ->count();
 
+        $productApprovalNotifications = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', ProductApprovalRejectedNotification::class)
+            ->whereNull('read_at')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        $productApprovalNotificationCount = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', ProductApprovalRejectedNotification::class)
+            ->whereNull('read_at')
+            ->count();
+
         return response()->json([
-            'count' => $count + $payoutNotificationCount,
+            'count' => $count + $payoutNotificationCount + $productApprovalNotificationCount,
             'orders' => $recent,
             'payouts' => $unreadPayoutNotifications->map(function ($notification) {
                 $data = json_decode($notification->data, true) ?: [];
@@ -348,7 +365,35 @@ class OrderController extends Controller
                     'created_at' => $notification->created_at,
                 ];
             })->values(),
+            'product_approvals' => $productApprovalNotifications->map(function ($notification) {
+                $data = json_decode($notification->data, true) ?: [];
+
+                return [
+                    'id' => $notification->id,
+                    'product_id' => $data['product_id'] ?? null,
+                    'product_name' => $data['product_name'] ?? 'Product listing',
+                    'message' => $data['message'] ?? 'Your product needs changes before it can be published.',
+                    'reason' => $data['reason'] ?? null,
+                    'note' => $data['note'] ?? null,
+                    'created_at' => $notification->created_at,
+                ];
+            })->values(),
         ]);
+    }
+
+    public function markProductApprovalNotificationsRead(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['required', 'uuid']]);
+
+        DB::table('notifications')
+            ->whereIn('id', $validated['ids'])
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', Auth::id())
+            ->where('type', ProductApprovalRejectedNotification::class)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['success' => true]);
     }
 
     public function markPayoutNotificationsRead(\Illuminate\Http\Request $request)

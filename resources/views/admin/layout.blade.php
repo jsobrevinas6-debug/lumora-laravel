@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lumora Admin | {{ $title ?? 'Dashboard' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,6 +52,17 @@
         .muted-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:500; background:#f2ecee; color:var(--text-muted); }
         @media (max-width:900px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
         .admin-ewallet-count { min-width:21px; margin-left:auto; padding:1px 6px; border-radius:999px; background:#E8674A; color:#fff; text-align:center; font-size:11px; font-weight:700; line-height:18px; }
+        @media (max-width:680px) {
+            body { display:block; }
+            .sidebar { position:static; width:100%; height:auto; min-height:0; flex-direction:row; flex-wrap:wrap; align-items:center; padding:12px; }
+            .sidebar .mb-9 { margin:0 12px 0 0; }
+            .sidebar .nav-link { padding:9px 11px; font-size:13px; }
+            .logout-form { width:auto; margin:0 0 0 auto; }
+            .logout-btn { min-height:44px; }
+            .main { margin-left:0; padding:20px 12px; }
+            .topbar { gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+            .topbar h1 { font-size:23px; }
+        }
     </style>
 </head>
 <body>

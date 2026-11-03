@@ -7,6 +7,8 @@ use App\Mail\SellerApprovedMail;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
+use App\Notifications\ProductApprovalRejectedNotification;
+use App\Support\CategoryCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -16,9 +18,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class DashboardController extends Controller
 {
+    private const PRODUCT_LOW_STOCK_THRESHOLD = 5;
+    private const PRODUCT_OVERDUE_HOURS = 48;
+
     public function eWalletPayments(Request $request)
     {
         $filters = $this->normalizeEWalletFilters($request);
@@ -240,40 +246,189 @@ class DashboardController extends Controller
         return view('admin.applications', compact('applications'));
     }
 
-    public function productApproval()
+    public function productApproval(Request $request)
     {
-        $products = DB::table('products as p')
+        $now = now();
+        $sevenDaysAgo = $now->copy()->subDays(7);
+        $pendingCount = DB::table('products')->where('approval_status', 'pending')->count();
+        $overdueCutoff = $now->copy()->subHours(self::PRODUCT_OVERDUE_HOURS);
+        $overdueCount = DB::table('products')->where('approval_status', 'pending')->where(function ($query) use ($overdueCutoff) {
+            $query->where('approval_submitted_at', '<=', $overdueCutoff)
+                ->orWhere(function ($fallback) use ($overdueCutoff) {
+                    $fallback->whereNull('approval_submitted_at')->where('created_at', '<=', $overdueCutoff);
+                });
+        })->count();
+        $approvedTodayCount = DB::table('products')->where('approval_status', 'approved')->whereBetween('approved_at', [$now->copy()->startOfDay(), $now])->count();
+        $recentlyReviewed = DB::table('products')
+            ->where(function ($query) use ($sevenDaysAgo, $now) {
+                $query->whereBetween('approved_at', [$sevenDaysAgo, $now])
+                    ->orWhereBetween('rejected_at', [$sevenDaysAgo, $now]);
+            })
+            ->select(['created_at', 'approval_submitted_at', 'approved_at', 'rejected_at'])
+            ->cursor();
+        $reviewDurationTotal = 0;
+        $reviewDurationCount = 0;
+        foreach ($recentlyReviewed as $product) {
+            $finishedAt = $product->approved_at ?: $product->rejected_at;
+            if ($finishedAt) {
+                $submittedAt = $product->approval_submitted_at ?: $product->created_at;
+                $reviewDurationTotal += Carbon::parse($submittedAt)->diffInSeconds(Carbon::parse($finishedAt));
+                $reviewDurationCount++;
+            }
+        }
+        $averageReviewHours = $reviewDurationCount === 0 ? null : round(($reviewDurationTotal / $reviewDurationCount) / 3600, 1);
+
+        $status = in_array($request->query('status'), ['pending', 'approved', 'rejected'], true)
+            ? $request->query('status')
+            : 'pending';
+        $searchInput = $request->query('q', '');
+        $categoryInput = $request->query('category', '');
+        $filters = [
+            'q' => mb_substr(trim(is_scalar($searchInput) ? (string) $searchInput : ''), 0, 120),
+            'category' => is_scalar($categoryInput) ? (string) $categoryInput : '',
+            'seller_type' => in_array($request->query('seller_type'), ['new', 'verified'], true) ? $request->query('seller_type') : 'all',
+            'sort' => in_array($request->query('sort'), ['newest', 'price'], true) ? $request->query('sort') : 'oldest',
+        ];
+        $pageSize = 5;
+        $skuExists = Schema::hasColumn('products', 'sku');
+        $imagesExist = Schema::hasColumn('products', 'images');
+        $history = DB::table('products')
+            ->select('seller_id')
+            ->selectRaw('COUNT(*) as seller_product_count')
+            ->selectRaw("SUM(CASE WHEN approval_status = 'approved' THEN 1 ELSE 0 END) as seller_approved_count")
+            ->selectRaw("SUM(CASE WHEN approval_status = 'rejected' THEN 1 ELSE 0 END) as seller_rejected_count")
+            ->groupBy('seller_id');
+        $verifiedApplications = DB::table('seller_applications')
+            ->select('user_id')
+            ->selectRaw('MAX(id) as approved_application_id')
+            ->where('status', 'approved')
+            ->groupBy('user_id');
+        $query = DB::table('products as p')
             ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('p.approval_status', 'pending')
-            ->select('p.id', 'p.name', 'p.category', 'p.description', 'p.price', 'p.stock', 'p.image', 'p.created_at', 'u.name as seller_name')
-            ->orderBy('p.created_at')
-            ->get();
+            ->leftJoinSub($verifiedApplications, 'verified_applications', fn ($join) => $join->on('verified_applications.user_id', '=', 'u.id'))
+            ->leftJoinSub($history, 'seller_history', fn ($join) => $join->on('seller_history.seller_id', '=', 'u.id'))
+            ->leftJoinSub(DB::table('products')->select('category')->selectRaw('AVG(price) as category_average_price')->groupBy('category'), 'category_prices', fn ($join) => $join->on('category_prices.category', '=', 'p.category'))
+            ->where('p.approval_status', $status);
 
-        return view('admin.product-approval', compact('products'));
+        if ($filters['category'] !== '') {
+            $query->where('p.category', $filters['category']);
+        }
+        if ($filters['seller_type'] === 'verified') {
+            $query->whereNotNull('verified_applications.approved_application_id');
+        } elseif ($filters['seller_type'] === 'new') {
+            $query->where('u.created_at', '>=', $now->copy()->subDays(30));
+        }
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $query->where(function ($search) use ($term, $skuExists) {
+                $search->where('p.name', 'like', $term)->orWhere('u.name', 'like', $term);
+                if ($skuExists) {
+                    $search->orWhere('p.sku', 'like', $term);
+                }
+            });
+        }
+
+        $columns = [
+            'p.id', 'p.name', 'p.category', 'p.description', 'p.price', 'p.stock', 'p.image', 'p.created_at',
+            'p.approval_status', 'p.approval_submitted_at', 'p.approved_at', 'p.rejected_at', 'p.rejection_reason', 'p.rejection_note',
+            'u.id as seller_id', 'u.name as seller_name', 'u.created_at as seller_created_at',
+            'verified_applications.approved_application_id', 'seller_history.seller_product_count',
+            'seller_history.seller_approved_count', 'seller_history.seller_rejected_count', 'category_prices.category_average_price',
+        ];
+        if ($skuExists) $columns[] = 'p.sku';
+        if ($imagesExist) $columns[] = 'p.images';
+
+        $query->select($columns);
+        match ($filters['sort']) {
+            'newest' => $query->orderByDesc('p.created_at'),
+            'price' => $query->orderByDesc('p.price')->orderBy('p.created_at'),
+            default => $query->orderBy('p.created_at'),
+        };
+
+        $products = $query->paginate($pageSize)->withQueryString();
+        $categories = DB::table('products')->whereNotNull('category')->where('category', '!=', '')->distinct()->orderBy('category')->pluck('category');
+        $tabCounts = DB::table('products')->select('approval_status')->selectRaw('COUNT(*) as aggregate')->whereIn('approval_status', ['pending', 'approved', 'rejected'])->groupBy('approval_status')->pluck('aggregate', 'approval_status');
+
+        $lowStockThreshold = self::PRODUCT_LOW_STOCK_THRESHOLD;
+        $overdueThresholdHours = self::PRODUCT_OVERDUE_HOURS;
+
+        return view('admin.product-approval', compact('products', 'status', 'filters', 'categories', 'tabCounts', 'pendingCount', 'overdueCount', 'approvedTodayCount', 'averageReviewHours', 'skuExists', 'lowStockThreshold', 'overdueThresholdHours'));
     }
 
-    public function approveProduct($id)
+    public function approveProduct(Request $request, $id)
     {
-        $updated = DB::table('products')
-            ->where('id', $id)
-            ->where('approval_status', 'pending')
-            ->update(['approval_status' => 'approved', 'status' => 'active', 'updated_at' => now()]);
+        $product = $this->applyProductApproval((int) $id, 'approved');
+        $message = 'Product approved and published.';
 
-        abort_unless($updated, 404, 'This product is no longer awaiting approval.');
-
-        return redirect()->route('admin.product-approval')->with('flash_success', 'Product approved and published.');
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message, 'id' => (int) $id])
+            : redirect()->route('admin.product-approval')->with('flash_success', $message);
     }
 
-    public function rejectProduct($id)
+    public function rejectProduct(Request $request, $id)
     {
-        $updated = DB::table('products')
-            ->where('id', $id)
-            ->where('approval_status', 'pending')
-            ->update(['approval_status' => 'rejected', 'status' => 'inactive', 'updated_at' => now()]);
+        $validated = $request->validate([
+            'reason' => ['required', Rule::in($this->productRejectionReasons())],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $this->applyProductApproval((int) $id, 'rejected', $validated['reason'], $validated['note'] ?? null);
+        $message = 'Product rejected and the seller was notified.';
 
-        abort_unless($updated, 404, 'This product is no longer awaiting approval.');
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message, 'id' => (int) $id])
+            : redirect()->route('admin.product-approval')->with('flash_success', $message);
+    }
 
-        return redirect()->route('admin.product-approval')->with('flash_success', 'Product rejected and kept off the storefront.');
+    public function bulkProductApproval(Request $request)
+    {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['approved', 'rejected'])],
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+            'reason' => ['required_if:action,rejected', Rule::in($this->productRejectionReasons())],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $changed = [];
+        foreach ($validated['ids'] as $id) {
+            $product = $this->applyProductApproval((int) $id, $validated['action'], $validated['reason'] ?? null, $validated['note'] ?? null, false);
+            if ($product) $changed[] = (int) $id;
+        }
+        $message = count($changed).' product'.(count($changed) === 1 ? '' : 's').' '.($validated['action'] === 'approved' ? 'approved and published.' : 'rejected; sellers were notified.');
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message, 'ids' => $changed])
+            : redirect()->route('admin.product-approval')->with('flash_success', $message);
+    }
+
+    private function productRejectionReasons(): array
+    {
+        return ['Photos unclear or missing', 'Price looks incorrect', 'Description incomplete', 'Prohibited item', 'Other'];
+    }
+
+    private function applyProductApproval(int $id, string $decision, ?string $reason = null, ?string $note = null, bool $failIfMissing = true): ?object
+    {
+        return DB::transaction(function () use ($id, $decision, $reason, $note, $failIfMissing) {
+            $product = DB::table('products')->where('id', $id)->where('approval_status', 'pending')->lockForUpdate()->first();
+            if (! $product) {
+                if ($failIfMissing) abort(404, 'This product is no longer awaiting approval.');
+                return null;
+            }
+            $now = now();
+            $changes = [
+                'approval_status' => $decision,
+                'status' => $decision === 'approved' ? 'active' : 'inactive',
+                'approved_at' => $decision === 'approved' ? $now : null,
+                'rejected_at' => $decision === 'rejected' ? $now : null,
+                'rejection_reason' => $decision === 'rejected' ? $reason : null,
+                'rejection_note' => $decision === 'rejected' ? $note : null,
+                'updated_at' => $now,
+            ];
+            DB::table('products')->where('id', $id)->update($changes);
+            if ($decision === 'rejected') {
+                User::find($product->seller_id)?->notify(new ProductApprovalRejectedNotification((int) $id, $product->name, (string) $reason, $note));
+            }
+            return $product;
+        });
     }
 
     public function index()
