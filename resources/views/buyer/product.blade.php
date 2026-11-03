@@ -79,6 +79,34 @@
         .zoom-lightbox img { max-width:min(92vw,920px); max-height:86vh; border-radius:16px; object-fit:contain; box-shadow:0 24px 60px rgba(0,0,0,.45); background:#fff; }
         .zoom-lightbox-close { position:absolute; top:22px; right:26px; width:42px; height:42px; display:grid; place-items:center; border:0; border-radius:50%; background:rgba(255,255,255,.9); color:var(--plum); font-size:22px; cursor:pointer; }
         .eyebrow { color:var(--rose); font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
+        .product-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .product-title-row h1 { min-width:0; overflow-wrap:anywhere; }
+        .product-options { position:relative; flex:0 0 auto; margin-top:5px; }
+        .product-options-trigger { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--line); border-radius:50%; background:var(--paper); color:var(--plum); cursor:pointer; transition:background .2s ease,border-color .2s ease; }
+        .product-options-trigger:hover,.product-options-trigger[aria-expanded="true"] { border-color:#d7b6a9; background:#fff3ed; }
+        .product-options-trigger svg { width:20px; height:20px; }
+        .product-options-menu { position:absolute; top:46px; right:0; z-index:20; width:210px; padding:6px; border:1px solid var(--line); border-radius:12px; background:var(--paper); box-shadow:0 14px 36px rgba(59,30,52,.16); }
+        .product-options-menu[hidden] { display:none; }
+        .product-options-menu button { width:100%; min-height:44px; display:flex; align-items:center; gap:10px; padding:9px 11px; border:0; border-radius:8px; background:transparent; color:var(--plum); text-align:left; font:500 13px Inter,sans-serif; cursor:pointer; }
+        .product-options-menu button:hover,.product-options-menu button:focus-visible { outline:none; background:#f7f1ec; }
+        .product-options-menu svg { width:17px; height:17px; color:var(--rose); }
+        .product-report-modal { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:18px; background:rgba(30,16,26,.58); backdrop-filter:blur(4px); }
+        .product-report-modal[hidden] { display:none; }
+        .product-report-card { width:min(100%,500px); max-height:min(90vh,760px); overflow:auto; padding:26px; border:1px solid var(--line); border-radius:18px; background:var(--paper); box-shadow:0 24px 70px rgba(30,16,26,.25); }
+        .product-report-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:19px; }
+        .product-report-heading h2 { margin:0 0 5px; color:var(--plum); font:600 25px Georgia,serif; }
+        .product-report-heading p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+        .product-report-close { width:40px; height:40px; flex:0 0 40px; border:1px solid var(--line); border-radius:50%; background:#fff; color:var(--plum); font-size:23px; cursor:pointer; }
+        .product-report-card label { display:block; margin:15px 0 7px; color:var(--plum); font-size:13px; font-weight:700; }
+        .product-report-card select,.product-report-card textarea { width:100%; min-height:48px; padding:12px; border:1px solid #ded2cc; border-radius:10px; background:white; color:var(--text); font:14px Inter,sans-serif; }
+        .product-report-card textarea { min-height:116px; resize:vertical; line-height:1.5; }
+        .product-report-card select:focus,.product-report-card textarea:focus,.product-report-trigger:focus-visible,.product-options-trigger:focus-visible,.product-report-close:focus-visible { outline:3px solid rgba(201,143,114,.48); outline-offset:2px; }
+        .product-report-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+        .product-report-actions .button { min-width:120px; }
+        .report-toast { position:fixed; right:22px; bottom:22px; z-index:10001; max-width:min(360px,calc(100vw - 32px)); padding:13px 17px; border:1px solid #d4e4d6; border-radius:12px; background:#f4faf4; color:#385d3d; box-shadow:0 10px 30px rgba(59,30,52,.15); font-size:13px; }
+        .report-toast[hidden] { display:none; }
+        .product-report-login { padding:16px; border-radius:12px; background:#f7f1ec; color:var(--muted); font-size:14px; line-height:1.6; }
+        .product-report-login a { color:var(--plum); font-weight:700; text-decoration:underline; }
         h1 { margin:9px 0 12px; font-family:Georgia,serif; font-size:43px; font-weight:500; line-height:1.05; }
         .rating { margin:0 0 22px; color:var(--plum); font-size:13px; }
         .rating-link { display:inline-flex; align-items:center; gap:8px; color:inherit; }
@@ -303,7 +331,19 @@
                     $stock = (int) ($product->stock ?? 0);
                 @endphp
                 <div class="eyebrow">{{ $sellerName }}</div>
-                <h1>{{ $product->name }}</h1>
+                <div class="product-title-row">
+                    <h1>{{ $product->name }}</h1>
+                    <div class="product-options">
+                        <button type="button" class="product-options-trigger" id="productOptionsTrigger" aria-label="Product options" aria-haspopup="menu" aria-expanded="false" aria-controls="productOptionsMenu">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+                        </button>
+                        <div class="product-options-menu" id="productOptionsMenu" role="menu" hidden>
+                            <button type="button" role="menuitem" id="shareProductAction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.6 6.6-4.2m-6.6 7 6.6 4.1"/></svg>Share Product</button>
+                            <button type="button" role="menuitem" id="copyProductAction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Copy Product Link</button>
+                            <button type="button" role="menuitem" id="reportProductAction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V5m0 0c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></svg>Report Product</button>
+                        </div>
+                    </div>
+                </div>
                 @if (! empty($shopProfile['seller']))
                     <div class="sold-by">
                         <span>Sold by</span>
@@ -895,6 +935,99 @@
         var sync = function () { badge.classList.toggle('is-empty', (parseInt(badge.textContent, 10) || 0) <= 0); };
         sync();
         new MutationObserver(sync).observe(badge, { childList: true, characterData: true, subtree: true });
+    });
+})();
+</script>
+<div class="product-report-modal" id="productReportModal" role="dialog" aria-modal="true" aria-labelledby="productReportTitle" @if (! $errors->has('reason') && ! $errors->has('details')) hidden @endif>
+    <div class="product-report-card">
+        <div class="product-report-heading">
+            <div><h2 id="productReportTitle">Report Product</h2><p>Tell us what seems wrong with {{ $product->name }}.</p></div>
+            <button type="button" class="product-report-close" id="closeProductReport" aria-label="Close report form">&times;</button>
+        </div>
+        @auth
+            <form method="POST" action="{{ route('shop.product.report', ['product' => $product->id]) }}">
+                @csrf
+                <label for="productReportReason">Report reason <span aria-hidden="true">*</span></label>
+                <select name="reason" id="productReportReason" required>
+                    <option value="">Choose a reason</option>
+                    @foreach (\App\Http\Controllers\Buyer\ProductReportController::REASONS as $reason)
+                        <option value="{{ $reason }}" @selected(old('reason') === $reason)>{{ $reason }}</option>
+                    @endforeach
+                </select>
+                @error('reason')<p class="flash" role="alert">{{ $message }}</p>@enderror
+                <label for="productReportDetails">Additional details <span class="muted">(optional)</span></label>
+                <textarea name="details" id="productReportDetails" maxlength="2000" placeholder="Share any details that could help us review this report.">{{ old('details') }}</textarea>
+                @error('details')<p class="flash" role="alert">{{ $message }}</p>@enderror
+                <div class="product-report-actions">
+                    <button type="button" class="button" id="cancelProductReport">Cancel</button>
+                    <button type="submit" class="button primary">Submit Report</button>
+                </div>
+            </form>
+        @else
+            <p class="product-report-login">Please <a href="{{ route('login') }}">sign in</a> to report this product.</p>
+            <div class="product-report-actions"><button type="button" class="button" id="cancelProductReport">Close</button></div>
+        @endauth
+    </div>
+</div>
+<div class="report-toast" id="productLinkToast" role="status" aria-live="polite" hidden></div>
+<script>
+(() => {
+    const trigger = document.getElementById('productOptionsTrigger');
+    const menu = document.getElementById('productOptionsMenu');
+    const modal = document.getElementById('productReportModal');
+    const toast = document.getElementById('productLinkToast');
+    let toastTimer;
+    const closeMenu = () => { menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
+    const showToast = (message) => {
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
+    };
+    const copyLink = async () => {
+        const url = window.location.href;
+        try {
+            if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(url);
+            else {
+                const field = document.createElement('textarea');
+                field.value = url;
+                field.style.position = 'fixed'; field.style.opacity = '0';
+                document.body.appendChild(field); field.select();
+                const copied = document.execCommand('copy'); field.remove();
+                if (!copied) throw new Error('Copy unavailable');
+            }
+            showToast('Product link copied.');
+        } catch (_) { showToast('Unable to copy the link. Please copy it from your browser address bar.'); }
+    };
+    const openReport = () => {
+        closeMenu();
+        modal.hidden = false;
+        document.getElementById('productReportReason')?.focus();
+    };
+    const closeReport = () => { modal.hidden = true; trigger.focus(); };
+    trigger?.addEventListener('click', () => {
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        trigger.setAttribute('aria-expanded', String(!isOpen));
+        menu.hidden = isOpen;
+    });
+    document.getElementById('copyProductAction')?.addEventListener('click', async () => { closeMenu(); await copyLink(); });
+    document.getElementById('shareProductAction')?.addEventListener('click', async () => {
+        closeMenu();
+        if (navigator.share) {
+            try { await navigator.share({ title: document.title, url: window.location.href }); }
+            catch (error) { if (error.name !== 'AbortError') await copyLink(); }
+        } else await copyLink();
+    });
+    document.getElementById('reportProductAction')?.addEventListener('click', openReport);
+    document.getElementById('closeProductReport')?.addEventListener('click', closeReport);
+    document.getElementById('cancelProductReport')?.addEventListener('click', closeReport);
+    modal?.addEventListener('click', (event) => { if (event.target === modal) closeReport(); });
+    document.addEventListener('click', (event) => { if (!event.target.closest('.product-options')) closeMenu(); });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            if (!modal.hidden) closeReport();
+            else closeMenu();
+        }
     });
 })();
 </script>

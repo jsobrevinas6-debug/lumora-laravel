@@ -15,6 +15,7 @@ use App\Http\Controllers\Seller\ChatController as SellerChatController;
 use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
 use App\Http\Controllers\Buyer\ChatController as BuyerChatController;
 use App\Http\Controllers\Buyer\PaymentMethodController;
+use App\Http\Controllers\Buyer\ProductReportController;
 use App\Http\Controllers\Buyer\ProductReviewController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
@@ -205,6 +206,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/shop/product/{id}', [ShopController::class, 'show'])
     ->whereNumber('id')
     ->name('shop.product');
+
+    Route::post('/shop/product/{product}/report', [ProductReportController::class, 'store'])
+        ->whereNumber('product')
+        ->name('shop.product.report');
 
     Route::post('/buy-now/{product}', [BuyerOrderController::class, 'buyNow'])
     ->name('buyer.buy-now');

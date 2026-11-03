@@ -8,6 +8,7 @@
                     <th>Product</th>
                     <th>Buyer</th>
                     <th>Seller</th>
+                    <th>Type</th>
                     <th>Category</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -21,6 +22,13 @@
                         <td>{{ $c->product_name }}</td>
                         <td>{{ $c->buyer_name }}</td>
                         <td>{{ $c->seller_name }}</td>
+                        <td>
+                            @if (($c->complaint_type ?? 'customer_complaint') === 'product_report')
+                                <span class="badge" style="background:#C0583A">Product report</span>
+                            @else
+                                <span class="badge" style="background:#8B7A80">Customer complaint</span>
+                            @endif
+                        </td>
                         <td>{{ ucwords(str_replace('_', ' ', $c->category)) }}</td>
                         <td>
                             <span class="badge" style="background:{{ match($c->status) { 'pending' => '#D9A94E', 'under_review' => '#D98A5E', 'resolved' => '#5C7355', 'dismissed' => '#8B7A80', default => '#8B7A80' } }}">
@@ -34,8 +42,8 @@
                                 <p><strong>Product:</strong> {{ $c->product_name }}</p>
                                 <p><strong>Buyer:</strong> {{ $c->buyer_name }} ({{ $c->buyer_email }})</p>
                                 <p><strong>Seller:</strong> {{ $c->seller_name }} ({{ $c->seller_email }})</p>
-                                <p><strong>Category:</strong> {{ ucwords(str_replace('_', ' ', $c->category)) }}</p>
-                                <p><strong>Description:</strong><br>{{ $c->description }}</p>
+                                <p><strong>{{ ($c->complaint_type ?? 'customer_complaint') === 'product_report' ? 'Report reason' : 'Category' }}:</strong> {{ ucwords(str_replace('_', ' ', $c->category)) }}</p>
+                                <p><strong>{{ ($c->complaint_type ?? 'customer_complaint') === 'product_report' ? 'Additional details' : 'Description' }}:</strong><br>{{ $c->description }}</p>
                                 <p><strong>Evidence:</strong></p>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                                     @forelse ($evidence as $img)
@@ -58,7 +66,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">No complaints filed yet.</td></tr>
+                    <tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">No complaints or product reports filed yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

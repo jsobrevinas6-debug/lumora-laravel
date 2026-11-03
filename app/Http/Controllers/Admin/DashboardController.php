@@ -760,9 +760,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Complaints & Disputes: lists buyer-filed complaints against a product/seller,
-     * with supporting evidence images, so admin can review and coordinate a resolution.
-     * (Buyer-facing filing page not built yet — rows are inserted manually for now.)
+     * Complaints & Disputes: lists buyer complaints and product reports with supporting evidence.
      */
     public function complaints()
     {
