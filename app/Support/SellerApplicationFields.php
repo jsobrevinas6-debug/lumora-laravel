@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class SellerApplicationFields
 {
-    public const DOCUMENT_DISK = 'public';
+    public const DOCUMENT_DISK = 'local';
     public const DOCUMENT_DIRECTORY = 'seller_documents';
 
     public static function registrationRules(): array

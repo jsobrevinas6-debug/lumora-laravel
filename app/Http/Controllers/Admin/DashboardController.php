@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\SellerApprovedMail;
+use App\Mail\SellerApplicationRejectedMail;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -235,15 +237,214 @@ class DashboardController extends Controller
         return view('admin.users', compact('users'));
     }
 
-    public function applications()
-    {
-        $applications = DB::table('seller_applications as sa')
-            ->join('users as u', 'u.id', '=', 'sa.user_id')
-            ->select('sa.*', 'u.name', 'u.email')
-            ->orderByDesc('sa.created_at')
-            ->get();
+    private const SELLER_APPLICATION_REJECTION_REASONS = [
+        'Invalid business documents',
+        'Incomplete application',
+        'Duplicate application',
+        'Invalid seller information',
+        'Does not meet seller requirements',
+        'Other',
+    ];
 
-        return view('admin.applications', compact('applications'));
+    public function applications(Request $request)
+    {
+        $now = now();
+        $weekStart = $now->copy()->startOfWeek();
+        $thirtyDaysAgo = $now->copy()->subDays(30);
+        $pendingApplications = DB::table('seller_applications')->where('status', 'pending');
+        $pendingCount = (clone $pendingApplications)->count();
+        $oldestPendingAt = (clone $pendingApplications)->min('created_at');
+        $oldestWaiting = $oldestPendingAt ? Carbon::parse($oldestPendingAt)->diffForHumans($now, true) : null;
+        $approvedSellerCount = DB::table('users')->where('role', 'seller')->count();
+        $approvedThisWeek = DB::table('seller_applications')->where('status', 'approved')->whereBetween('reviewed_at', [$weekStart, $now])->count();
+        $rejectedLast30Days = DB::table('seller_applications')->where('status', 'rejected')->whereBetween('reviewed_at', [$thirtyDaysAgo, $now])->count();
+        $reviewedLast30Days = DB::table('seller_applications')->whereIn('status', ['approved', 'rejected'])->whereBetween('reviewed_at', [$thirtyDaysAgo, $now])->count();
+        $approvedLast30Days = DB::table('seller_applications')->where('status', 'approved')->whereBetween('reviewed_at', [$thirtyDaysAgo, $now])->count();
+        $approvalRate = $reviewedLast30Days > 0 ? (int) round(($approvedLast30Days / $reviewedLast30Days) * 100) : 0;
+
+        $status = in_array($request->query('status'), ['all', 'pending', 'approved', 'rejected'], true)
+            ? (string) $request->query('status')
+            : 'pending';
+        $searchValue = $request->query('q', '');
+        $periodValue = $request->query('period', 'any');
+        $sortValue = $request->query('sort', 'oldest');
+        $filters = [
+            'q' => mb_substr(trim(is_scalar($searchValue) ? (string) $searchValue : ''), 0, 120),
+            'period' => in_array($periodValue, ['today', '7', '30'], true) ? (string) $periodValue : 'any',
+            'sort' => in_array($sortValue, ['oldest', 'newest'], true) ? (string) $sortValue : 'oldest',
+        ];
+
+        $applicationHistory = DB::table('seller_applications')
+            ->select('user_id')
+            ->selectRaw('COUNT(*) as application_count')
+            ->selectRaw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_application_count")
+            ->selectRaw("SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_application_count")
+            ->groupBy('user_id');
+        $query = DB::table('seller_applications as sa')
+            ->join('users as u', 'u.id', '=', 'sa.user_id')
+            ->leftJoinSub($applicationHistory, 'application_history', fn ($join) => $join->on('application_history.user_id', '=', 'sa.user_id'));
+
+        if ($status !== 'all') {
+            $query->where('sa.status', $status);
+        }
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $query->where(function ($search) use ($term) {
+                $search->where('sa.business_name', 'like', $term)
+                    ->orWhere('u.name', 'like', $term)
+                    ->orWhere('u.email', 'like', $term);
+            });
+        }
+        if ($filters['period'] !== 'any') {
+            $periodStart = match ($filters['period']) {
+                'today' => $now->copy()->startOfDay(),
+                '7' => $now->copy()->subDays(7)->startOfDay(),
+                default => $now->copy()->subDays(30)->startOfDay(),
+            };
+            $query->where('sa.created_at', '>=', $periodStart);
+        }
+        $query->select(
+            'sa.id', 'sa.user_id', 'sa.business_name', 'sa.category', 'sa.id_document', 'sa.business_permit',
+            'sa.reason', 'sa.status', 'sa.created_at', 'sa.reviewed_at', 'sa.rejection_reason', 'sa.admin_note',
+            'u.name as owner_name', 'u.email', 'u.contact_number', 'u.email_verified', 'u.email_verified_at',
+            'u.shop_description', 'application_history.application_count', 'application_history.approved_application_count',
+            'application_history.rejected_application_count'
+        );
+        if ($filters['sort'] === 'newest') {
+            $query->orderByDesc('sa.created_at');
+        } else {
+            $query->orderBy('sa.created_at');
+        }
+
+        $applications = $query->paginate(7)->withQueryString();
+        $applications->getCollection()->each(function ($application) {
+            $application->email_is_verified = (bool) ($application->email_verified || $application->email_verified_at);
+            $application->has_id_document = $this->sellerApplicationDocumentExists($application->id_document);
+            $application->has_business_permit = $this->sellerApplicationDocumentExists($application->business_permit);
+        });
+        $counts = DB::table('seller_applications')
+            ->select('status')->selectRaw('COUNT(*) as aggregate')
+            ->groupBy('status')->pluck('aggregate', 'status');
+        $tabCounts = [
+            'all' => DB::table('seller_applications')->count(),
+            'pending' => (int) ($counts['pending'] ?? 0),
+            'approved' => (int) ($counts['approved'] ?? 0),
+            'rejected' => (int) ($counts['rejected'] ?? 0),
+        ];
+
+        return view('admin.applications', compact(
+            'applications', 'status', 'filters', 'tabCounts', 'pendingCount', 'oldestWaiting',
+            'approvedSellerCount', 'approvedThisWeek', 'rejectedLast30Days', 'approvalRate'
+        ));
+    }
+
+    private function sellerApplicationDocumentExists(?string $path): bool
+    {
+        if (blank($path)) return false;
+
+        return Storage::disk('local')->exists($path) || Storage::disk('public')->exists($path);
+    }
+
+    public function sellerApplicationDocument($id, string $document)
+    {
+        abort_unless(in_array($document, ['id_document', 'business_permit'], true), 404);
+        $application = DB::table('seller_applications')->where('id', $id)->first([$document]);
+        abort_unless($application && filled($application->{$document}), 404);
+        $path = ltrim(str_replace('\\', '/', (string) $application->{$document}), '/');
+        abort_unless(str_starts_with($path, 'seller_documents/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($path)) {
+            $publicDisk = Storage::disk('public');
+            abort_unless($publicDisk->exists($path), 404);
+            $disk->put($path, $publicDisk->get($path));
+            if (! $disk->exists($path)) abort(404);
+            $publicDisk->delete($path);
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => 'application/octet-stream',
+        };
+        abort_unless($mimeType !== 'application/octet-stream', 404);
+        $fileName = ($document === 'id_document' ? 'valid-id' : 'business-permit').'.'.$extension;
+
+        return response()->file($disk->path($path), [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function approveSellerApplication($id)
+    {
+        $application = DB::transaction(function () use ($id) {
+            $application = DB::table('seller_applications')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($application && $application->status === 'pending', 409, 'This application is no longer pending.');
+            $seller = User::query()->findOrFail($application->user_id);
+            $now = now();
+            DB::table('seller_applications')->where('id', $id)->update([
+                'status' => 'approved', 'reviewed_at' => $now, 'reviewed_by' => auth()->id(),
+                'rejection_reason' => null, 'admin_note' => null, 'updated_at' => $now,
+            ]);
+            $seller->forceFill(['role' => 'seller'])->save();
+
+            return ['name' => $seller->name, 'email' => $seller->email, 'business_name' => $application->business_name];
+        });
+
+        try {
+            Mail::to($application['email'])->send(new SellerApprovedMail($application['name'], $application['business_name'] ?: 'your shop'));
+        } catch (\Throwable $exception) {
+            Log::warning('Seller approval email failed to send.', ['application_id' => $id, 'error' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.applications', ['status' => 'pending'])->with('flash_success', 'Seller approved and given seller access.');
+    }
+
+    public function rejectSellerApplication(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'reason' => ['required', Rule::in(self::SELLER_APPLICATION_REJECTION_REASONS)],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $applicant = DB::transaction(function () use ($id, $validated) {
+            $application = DB::table('seller_applications')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($application && $application->status === 'pending', 409, 'This application is no longer pending.');
+            $seller = User::query()->findOrFail($application->user_id);
+            $now = now();
+            DB::table('seller_applications')->where('id', $id)->update([
+                'status' => 'rejected', 'reviewed_at' => $now, 'reviewed_by' => auth()->id(),
+                'rejection_reason' => $validated['reason'], 'admin_note' => $validated['note'] ?? null, 'updated_at' => $now,
+            ]);
+
+            return ['name' => $seller->name, 'email' => $seller->email, 'business_name' => $application->business_name];
+        });
+
+        $emailSent = true;
+        try {
+            Mail::to($applicant['email'])->send(new SellerApplicationRejectedMail($applicant['name'], $applicant['business_name'] ?: 'your shop', $validated['reason'], $validated['note'] ?? null));
+        } catch (\Throwable $exception) {
+            $emailSent = false;
+            Log::warning('Seller application rejection email failed to send.', ['application_id' => $id, 'error' => $exception->getMessage()]);
+        }
+
+        $message = $emailSent ? 'Application rejected and the applicant was notified.' : 'Application rejected. The email notification could not be sent.';
+
+        return redirect()->route('admin.applications', ['status' => 'pending'])->with('flash_success', $message);
+    }
+
+    public function archiveSellerApplication($id)
+    {
+        $updated = DB::table('seller_applications')->where('id', $id)->where('status', 'pending')->update([
+            'status' => 'archived', 'reviewed_by' => auth()->id(), 'updated_at' => now(),
+        ]);
+        abort_unless($updated, 409, 'This application is no longer pending.');
+
+        return redirect()->route('admin.applications', ['status' => 'pending'])->with('flash_success', 'Application archived.');
     }
 
     public function productApproval(Request $request)
@@ -451,37 +652,6 @@ class DashboardController extends Controller
             ->get();
 
         return view('admin.dashboard', compact('totalSales', 'totalOrders', 'totalProducts', 'totalBuyers', 'applications'));
-    }
-
-    public function handleApplication($id, $action)
-    {
-        $newStatus = match ($action) {
-            'approve' => 'approved',
-            'reject' => 'rejected',
-            'archive' => 'archived',
-            default => null,
-        };
-
-        if (! $newStatus) {
-            abort(404);
-        }
-
-        DB::table('seller_applications')->where('id', $id)->update(['status' => $newStatus]);
-
-        if ($newStatus === 'approved') {
-            $app = DB::table('seller_applications')->find($id);
-            $seller = DB::table('users')->find($app->user_id);
-
-            DB::table('users')->where('id', $app->user_id)->update(['role' => 'seller']);
-
-            if ($seller) {
-                Mail::to($seller->email)->send(new SellerApprovedMail($seller->name, $app->business_name));
-            }
-        }
-
-        session()->flash('flash_success', 'Application '.$newStatus.'.');
-
-        return redirect()->route('admin.dashboard');
     }
 
     public function handleUserStatus($id, $action)

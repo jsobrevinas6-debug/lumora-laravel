@@ -36,9 +36,8 @@
                     <td>{{ $a->business_name }}</td>
                     <td>{{ \Carbon\Carbon::parse($a->created_at)->format('M d, Y') }}</td>
                     <td style="text-align:right; white-space:nowrap;">
-                        <a href="{{ route('admin.application', [$a->id, 'approve']) }}" class="btn btn-dark" onclick="return confirm('Approve this application?')">Approve</a>
-                        <a href="{{ route('admin.application', [$a->id, 'reject']) }}" class="btn btn-danger" onclick="return confirm('Reject?')">Reject</a>
-                        <a href="{{ route('admin.application', [$a->id, 'archive']) }}" class="btn btn-outline">Archive</a>
+                        <form method="POST" action="{{ route('admin.applications.approve', $a->id) }}" style="display:inline-block" onsubmit="return confirm('Approve this application and activate seller access?')">@csrf<button class="btn btn-dark" type="submit">Approve</button></form>
+                        <form method="POST" action="{{ route('admin.applications.archive', $a->id) }}" style="display:inline-block">@csrf<button class="btn btn-outline" type="submit">Archive</button></form>
                     </td>
                 </tr>
                 @empty

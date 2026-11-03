@@ -61,7 +61,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/e-wallet-payments/{order}/proof', [DashboardController::class, 'eWalletPaymentProof'])->name('e-wallet-payments.proof');
     Route::post('/e-wallet-payments/{order}/approve', [DashboardController::class, 'approveEWalletPayment'])->name('e-wallet-payments.approve');
     Route::post('/e-wallet-payments/{order}/reject', [DashboardController::class, 'rejectEWalletPayment'])->name('e-wallet-payments.reject');
-    Route::get('/application/{id}/{action}', [DashboardController::class, 'handleApplication'])->name('application');
+    Route::get('/applications/{id}/documents/{document}', [DashboardController::class, 'sellerApplicationDocument'])->name('applications.documents');
+    Route::post('/applications/{id}/approve', [DashboardController::class, 'approveSellerApplication'])->name('applications.approve');
+    Route::post('/applications/{id}/reject', [DashboardController::class, 'rejectSellerApplication'])->name('applications.reject');
+    Route::post('/applications/{id}/archive', [DashboardController::class, 'archiveSellerApplication'])->name('applications.archive');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');
     Route::get('/product-approval', [DashboardController::class, 'productApproval'])->name('product-approval');
