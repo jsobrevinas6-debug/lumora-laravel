@@ -38,7 +38,8 @@ class ProductReportTest extends TestCase
             'product_id' => $productId,
             'product_reporter_id' => $reporter->id,
             'complaint_type' => 'product_report',
-            'category' => 'Suspicious seller',
+            'category' => 'other',
+            'report_reason' => 'Suspicious seller',
             'description' => 'The seller profile uses suspicious contact details.',
             'status' => 'pending',
         ]);
@@ -70,7 +71,7 @@ class ProductReportTest extends TestCase
         $productId = $this->product($seller);
         $reportId = (int) DB::table('complaints')->insertGetId([
             'buyer_id' => $reporter->id, 'seller_id' => $seller->id, 'product_id' => $productId,
-            'category' => 'Counterfeit or fake product', 'description' => 'Logo does not look authentic.',
+            'category' => 'other', 'report_reason' => 'Counterfeit or fake product', 'description' => 'Logo does not look authentic.',
             'status' => 'pending', 'complaint_type' => 'product_report', 'product_reporter_id' => $reporter->id,
             'created_at' => now(), 'updated_at' => now(),
         ]);

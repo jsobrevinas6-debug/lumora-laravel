@@ -18,8 +18,12 @@
                 @forelse ($complaints as $c)
                     @php
                         $evidence = $evidenceByComplaint->get($c->id, collect());
-                        $isProductReport = ($c->complaint_type ?? null) === 'product_report' || str_starts_with((string) $c->category, '[Product report] ');
-                        $displayCategory = $isProductReport ? str_replace('[Product report] ', '', $c->category) : $c->category;
+                        $descriptionText = (string) $c->description;
+                        $reportMatches = [];
+                        $hasReportMarker = preg_match('/^\[Product report: ([^\]]+)\]\s*/', $descriptionText, $reportMatches) === 1;
+                        $isProductReport = ($c->complaint_type ?? null) === 'product_report' || filled($c->report_reason ?? null) || $hasReportMarker;
+                        $displayCategory = $isProductReport ? ($c->report_reason ?? ($hasReportMarker ? $reportMatches[1] : $c->category)) : $c->category;
+                        $displayDescription = $hasReportMarker ? preg_replace('/^\[Product report: [^\]]+\]\s*/', '', $descriptionText, 1) : $descriptionText;
                     @endphp
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($c->created_at)->format('M d, Y') }}</td>
@@ -47,7 +51,7 @@
                                 <p><strong>Buyer:</strong> {{ $c->buyer_name }} ({{ $c->buyer_email }})</p>
                                 <p><strong>Seller:</strong> {{ $c->seller_name }} ({{ $c->seller_email }})</p>
                                 <p><strong>{{ $isProductReport ? 'Report reason' : 'Category' }}:</strong> {{ ucwords(str_replace('_', ' ', $displayCategory)) }}</p>
-                                <p><strong>{{ $isProductReport ? 'Additional details' : 'Description' }}:</strong><br>{{ $c->description }}</p>
+                                <p><strong>{{ $isProductReport ? 'Additional details' : 'Description' }}:</strong><br>{{ $displayDescription }}</p>
                                 <p><strong>Evidence:</strong></p>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                                     @forelse ($evidence as $img)
