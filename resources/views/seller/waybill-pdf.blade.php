@@ -19,7 +19,8 @@
     table.items td { border: 1px solid #F0E2DA; padding: 6px 8px; font-size: 11px; }
     .footer { margin-top: 20px; font-size: 10px; color: #8B7A80; text-align: center; }
     .barcode { margin: 0 auto; text-align: center; }
-    .barcode svg { display: block; margin: 0 auto 5px; height: 44px; max-width: 100%; }
+    .barcode table { height: 44px; margin: 0 auto 5px; }
+    .barcode td { height: 44px; }
     .barcode-number { color: #2B1C22; font-family: Helvetica, Arial, sans-serif; font-size: 12px; font-weight: bold; letter-spacing: 2px; }
 </style>
 </head>
@@ -35,7 +36,7 @@
     </div>
 
     <div class="barcode">
-        {!! $barcodeSvg !!}
+        {!! $barcodeHtml !!}
         <div class="barcode-number">{{ $barcodeValue }}</div>
     </div>
 

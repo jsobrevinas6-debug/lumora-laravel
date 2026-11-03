@@ -232,20 +232,27 @@ class OrderController extends Controller
         $barcodeSequence = '*'.$barcodeValue.'*';
         $module = 2;
         $cursor = 0;
-        $barcodeRects = '';
+        // Build a plain HTML table rather than inline SVG. Dompdf can omit
+        // inline SVG from streamed PDFs, leaving only the human-readable ID.
+        $barcodeRuns = [10]; // quiet zone before the start character
         foreach (str_split($barcodeSequence) as $character) {
             foreach (str_split($code39[$character]) as $index => $width) {
                 $barWidth = ($width === 'w' ? 3 : 1) * $module;
-                if ($index % 2 === 0) {
-                    $barcodeRects .= '<rect x="'.$cursor.'" y="0" width="'.$barWidth.'" height="44" fill="#000"/>';
-                }
-                $cursor += $barWidth;
+                $barcodeRuns[] = [$barWidth, $index % 2 === 0];
             }
-            $cursor += $module; // Inter-character gap
+            $barcodeRuns[] = [$module, false]; // Inter-character gap
         }
-        $barcodeSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$cursor.'" height="44" viewBox="0 0 '.$cursor.' 44">'.$barcodeRects.'</svg>';
+        $barcodeRuns[] = [10, false]; // quiet zone after the stop character
+        $barcodeRuns[0] = [10 * $module, false];
+        $barcodeRuns[count($barcodeRuns) - 1] = [10 * $module, false];
+        $barcodeCells = '';
+        foreach ($barcodeRuns as [$width, $isBar]) {
+            $background = $isBar ? '#000000' : '#FFFFFF';
+            $barcodeCells .= '<td style="width:'.$width.'px;height:44px;padding:0;border:0;background:'.$background.';"></td>';
+        }
+        $barcodeHtml = '<table cellpadding="0" cellspacing="0" style="margin:0 auto;border-collapse:collapse;border:0;"><tr>'.$barcodeCells.'</tr></table>';
 
-        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total', 'barcodeSvg', 'barcodeValue'));
+        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total', 'barcodeHtml', 'barcodeValue'));
 
         return $pdf->stream('waybill-order-' . $orderId . '.pdf');
     }
