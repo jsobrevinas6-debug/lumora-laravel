@@ -98,7 +98,7 @@
         .product-report-heading p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
         .product-report-close { width:40px; height:40px; flex:0 0 40px; border:1px solid var(--line); border-radius:50%; background:#fff; color:var(--plum); font-size:23px; cursor:pointer; }
         .product-report-card label { display:block; margin:15px 0 7px; color:var(--plum); font-size:13px; font-weight:700; }
-        .product-report-card select,.product-report-card textarea { width:100%; min-height:48px; padding:12px; border:1px solid #ded2cc; border-radius:10px; background:white; color:var(--text); font:14px Inter,sans-serif; }
+        .product-report-card select,.product-report-card textarea,.product-report-card input[type="file"] { width:100%; min-height:48px; padding:12px; border:1px solid #ded2cc; border-radius:10px; background:white; color:var(--text); font:14px Inter,sans-serif; }
         .product-report-card textarea { min-height:116px; resize:vertical; line-height:1.5; }
         .product-report-card select:focus,.product-report-card textarea:focus,.product-report-trigger:focus-visible,.product-options-trigger:focus-visible,.product-report-close:focus-visible { outline:3px solid rgba(201,143,114,.48); outline-offset:2px; }
         .product-report-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
@@ -938,14 +938,14 @@
     });
 })();
 </script>
-<div class="product-report-modal" id="productReportModal" role="dialog" aria-modal="true" aria-labelledby="productReportTitle" @if (! $errors->has('reason') && ! $errors->has('details')) hidden @endif>
+<div class="product-report-modal" id="productReportModal" role="dialog" aria-modal="true" aria-labelledby="productReportTitle" @if (! $errors->has('reason') && ! $errors->has('details') && ! $errors->has('attachment')) hidden @endif>
     <div class="product-report-card">
         <div class="product-report-heading">
             <div><h2 id="productReportTitle">Report Product</h2><p>Tell us what seems wrong with {{ $product->name }}.</p></div>
             <button type="button" class="product-report-close" id="closeProductReport" aria-label="Close report form">&times;</button>
         </div>
         @auth
-            <form method="POST" action="{{ route('shop.product.report', ['product' => $product->id]) }}">
+            <form method="POST" enctype="multipart/form-data" action="{{ route('shop.product.report', ['product' => $product->id]) }}">
                 @csrf
                 <label for="productReportReason">Report reason <span aria-hidden="true">*</span></label>
                 <select name="reason" id="productReportReason" required>
@@ -958,6 +958,9 @@
                 <label for="productReportDetails">Additional details <span class="muted">(optional)</span></label>
                 <textarea name="details" id="productReportDetails" maxlength="2000" placeholder="Share any details that could help us review this report.">{{ old('details') }}</textarea>
                 @error('details')<p class="flash" role="alert">{{ $message }}</p>@enderror
+                <label for="productReportAttachment">Attachment <span class="muted">(optional, image or PDF up to 10 MB)</span></label>
+                <input type="file" name="attachment" id="productReportAttachment" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                @error('attachment')<p class="flash" role="alert">{{ $message }}</p>@enderror
                 <div class="product-report-actions">
                     <button type="button" class="button" id="cancelProductReport">Cancel</button>
                     <button type="submit" class="button primary">Submit Report</button>

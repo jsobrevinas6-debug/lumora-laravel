@@ -80,6 +80,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/compliance/seller/{id}/warn', [DashboardController::class, 'warnSeller'])->name('compliance.warn');
 
     Route::get('/complaints', [DashboardController::class, 'complaints'])->name('complaints');
+    Route::get('/complaints/{complaint}/evidence/{evidence}', [DashboardController::class, 'complaintEvidence'])->name('complaints.evidence');
     Route::post('/complaints/{id}/resolve', [DashboardController::class, 'resolveComplaint'])->name('complaints.resolve');
     Route::post('/complaints/{id}/dismiss', [DashboardController::class, 'dismissComplaint'])->name('complaints.dismiss');
 

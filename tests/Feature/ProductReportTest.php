@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -20,6 +22,7 @@ class ProductReportTest extends TestCase
 
     public function test_product_report_requires_authentication_and_saves_report_against_product_and_user(): void
     {
+        Storage::fake('local');
         $seller = User::factory()->create(['role' => 'seller']);
         $reporter = User::factory()->create(['role' => 'buyer']);
         $productId = $this->product($seller);
@@ -30,6 +33,7 @@ class ProductReportTest extends TestCase
         $this->actingAs($reporter)->post(route('shop.product.report', $productId), [
             'reason' => 'Suspicious seller',
             'details' => 'The seller profile uses suspicious contact details.',
+            'attachment' => UploadedFile::fake()->create('seller-evidence.pdf', 40, 'application/pdf'),
         ])->assertRedirect();
 
         $this->assertDatabaseHas('complaints', [
@@ -43,6 +47,15 @@ class ProductReportTest extends TestCase
             'description' => 'The seller profile uses suspicious contact details.',
             'status' => 'pending',
         ]);
+        $evidence = DB::table('complaint_evidence')->first();
+        $this->assertNotNull($evidence);
+        $this->assertTrue(Storage::disk('local')->exists($evidence->image_path));
+
+        $complaintId = (int) DB::table('complaints')->where('product_id', $productId)->value('id');
+        $this->get(route('admin.complaints.evidence', [$complaintId, $evidence->id]))->assertRedirect(route('login'));
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->get(route('admin.complaints.evidence', [$complaintId, $evidence->id]))
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('Cache-Control', 'private, no-store');
     }
 
     public function test_report_reason_is_validated_and_duplicate_product_reports_are_rejected(): void

@@ -37,7 +37,7 @@
                                 <span class="badge" style="background:#8B7A80">Customer complaint</span>
                             @endif
                         </td>
-                        <td>{{ ucwords(str_replace('_', ' ', $c->category)) }}</td>
+                        <td>{{ ucwords(str_replace('_', ' ', $displayCategory)) }}</td>
                         <td>
                             <span class="badge" style="background:{{ match($c->status) { 'pending' => '#D9A94E', 'under_review' => '#D98A5E', 'resolved' => '#5C7355', 'dismissed' => '#8B7A80', default => '#8B7A80' } }}">
                                 {{ ucfirst(str_replace('_', ' ', $c->status)) }}
@@ -55,11 +55,19 @@
                                 <p><strong>Evidence:</strong></p>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                                     @forelse ($evidence as $img)
-                                        <a href="{{ asset('storage/' . $img->image_path) }}" target="_blank">
-                                            <img src="{{ asset('storage/' . $img->image_path) }}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+                                        @php
+                                            $evidenceUrl = route('admin.complaints.evidence', [$c->id, $img->id]);
+                                            $evidenceExtension = strtolower(pathinfo($img->image_path, PATHINFO_EXTENSION));
+                                        @endphp
+                                        <a href="{{ $evidenceUrl }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--border);border-radius:8px;">
+                                            @if (in_array($evidenceExtension, ['jpg', 'jpeg', 'png', 'webp'], true))
+                                                <img src="{{ $evidenceUrl }}" alt="Complaint attachment" style="width:80px;height:80px;object-fit:cover;border-radius:6px;">
+                                            @else
+                                                <span style="padding:12px 8px;color:var(--maroon);font-weight:600;">📎 Open PDF attachment</span>
+                                            @endif
                                         </a>
                                     @empty
-                                        <p style="color:var(--text-muted);">No evidence images submitted.</p>
+                                        <p style="color:var(--text-muted);">No attachments submitted.</p>
                                     @endforelse
                                 </div>
                                 @if ($c->admin_note)

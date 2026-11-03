@@ -788,6 +788,43 @@ class DashboardController extends Controller
         return view('admin.complaints', compact('complaints', 'evidenceByComplaint'));
     }
 
+    public function complaintEvidence($complaintId, $evidenceId)
+    {
+        $evidence = DB::table('complaint_evidence')
+            ->where('id', $evidenceId)
+            ->where('complaint_id', $complaintId)
+            ->first();
+        abort_unless($evidence, 404);
+
+        $path = ltrim(str_replace('\\', '/', (string) $evidence->image_path), '/');
+        abort_unless(str_starts_with($path, 'complaint_evidence/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf',
+            default => 'application/octet-stream',
+        };
+        abort_unless($mimeType !== 'application/octet-stream', 404);
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($path)) {
+            $legacyDisk = Storage::disk('public');
+            abort_unless($legacyDisk->exists($path), 404);
+            $disk->put($path, $legacyDisk->get($path));
+            abort_unless($disk->exists($path), 404);
+            $legacyDisk->delete($path);
+        }
+
+        return response()->file($disk->path($path), [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     public function resolveComplaint(Request $request, $id)
     {
         $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);

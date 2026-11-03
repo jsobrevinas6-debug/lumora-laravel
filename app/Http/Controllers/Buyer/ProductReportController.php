@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class ProductReportController extends Controller
 {
@@ -28,6 +29,7 @@ class ProductReportController extends Controller
         $validated = $request->validate([
             'reason' => ['required', 'string', Rule::in(self::REASONS)],
             'details' => ['nullable', 'string', 'max:2000'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf'],
         ]);
 
         $reporterId = (int) $request->user()->id;
@@ -47,6 +49,7 @@ class ProductReportController extends Controller
             return back()->with('error', 'You have already reported this product.');
         }
 
+        $attachmentPath = null;
         try {
             $details = trim((string) ($validated['details'] ?? '')) ?: 'No additional details provided.';
             $record = [
@@ -63,13 +66,26 @@ class ProductReportController extends Controller
             if ($hasReportType) $record['complaint_type'] = 'product_report';
             if ($hasReportUser) $record['product_reporter_id'] = $reporterId;
             if ($hasReportReason) $record['report_reason'] = $validated['reason'];
-            DB::table('complaints')->insert($record);
-        } catch (QueryException $exception) {
+            DB::transaction(function () use ($record, $request, &$attachmentPath) {
+                $complaintId = DB::table('complaints')->insertGetId($record);
+                if ($request->hasFile('attachment')) {
+                    $attachmentPath = $request->file('attachment')->store('complaint_evidence', 'local');
+                    if (! $attachmentPath) throw new \RuntimeException('The report attachment could not be stored.');
+                    DB::table('complaint_evidence')->insert([
+                        'complaint_id' => $complaintId,
+                        'image_path' => $attachmentPath,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            });
+        } catch (Throwable $exception) {
+            if (! empty($attachmentPath)) Storage::disk('local')->delete($attachmentPath);
             // The unique index handles two submissions racing for the same product.
             $racedReports = DB::table('complaints')->where('product_id', $product->id);
             if ($hasReportUser) $racedReports->where('product_reporter_id', $reporterId);
             else $racedReports->where('buyer_id', $reporterId)->where('description', 'like', '[Product report:%');
-            if ($racedReports->exists()) {
+            if ($exception instanceof QueryException && $racedReports->exists()) {
                 return back()->with('error', 'You have already reported this product.');
             }
 
