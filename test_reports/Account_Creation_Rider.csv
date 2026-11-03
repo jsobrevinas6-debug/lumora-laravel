@@ -1,0 +1,448 @@
+Black-Box Test Cases: Account Creation (Mobile App),,,,,,
+"Multi-role e-commerce mobile app (Buyer, Seller, Logistics, Rider, Courier)",,,,,,
+,,,,,,
+Test run details,,,,,,
+System under test,LUMORA,,,,,
+App version / build number,v1.0.4-rc2,,,,,
+"Test device (model, OS version) and network (Wi-Fi / mobile data)",Samsung Galaxy A53 (Android 13) / Wi-Fi & LTE,,,,,
+Tester,QA Core Team,,,,,
+Date tested,2026-10-24,,,,,
+,,,,,,
+Results by role,,,,,,
+Role (sheet),Total test cases,Pass,Fail,Blocked,Not Run,Pass rate (Pass / Total)
+Buyer (separate workbook),0,0,0,0,0,0
+Seller (separate workbook),0,0,0,0,0,0
+Logistics (separate workbook),0,0,0,0,0,0
+Rider,47,18,28,0,1,0.3829787234
+Total,47,18,28,0,1,0.3829787234
+,,,,,,
+How to use this workbook,,,,,,
+"1. Read the Assumptions sheet first. The rules are modeled on Philippine marketplaces, so adjust any case whose rule differs from your system.",,,,,,
+"2. The Test Data sheet lists every form field with two ready-made accounts per role. The Test Files sheet lists the upload files to prepare. All people, companies and numbers are fictional.",,,,,,
+"3. Emails use example.com, so nothing is delivered to a real inbox. Read OTP and activation emails from a mail catcher such as Mailtrap, or from your application's mail log.",,,,,,
+"4. On each role sheet, run the Test Steps with the Test Data and compare what happens with the Expected Result. Use a spare email and mobile number from the Test Data sheet whenever a value marked (accept) creates another account.",,,,,,
+"5. Dates of birth and license expiry dates in the boundary cases are calculated from today's date, so they are always correct on the day you test.",,,,,,
+"6. Fill in only the yellow cells: Actual Result, Status and Remarks. Pick the Status from the dropdown (Pass, Fail, Blocked, Not Run).",,,,,,
+"7. Pass = actual matches expected. Fail = it does not (describe what happened and add a screenshot or bug number in Remarks). Blocked = the case could not be run, for example because an earlier case failed.",,,,,,
+8. The Results by role table above updates automatically from the Status column.,,,,,,
+,,,,,,
+"Example of a filled-in row (illustration only, not a real result)",,,,,,
+Test Case ID,Test Scenario,Expected Result,Actual Result,Status,Remarks,
+TC-BUY-010,Email that is already registered,Registration is blocked. A message says the email is already in use. No account is created.,No message was shown. A second account was created with juanmiguel.delacruz@example.com.,Fail,Bug #012. Screenshot: buy-010.png,
+,,,,,,
+,,,,,,
+Black-box techniques used,,,,,,
+Equivalence Partitioning,"Inputs are grouped into valid and invalid classes, and one value from each class is tested.",,,,,
+Boundary Value Analysis,"Values at and just beyond a limit are tested, for example 7 and 8 characters for a minimum of 8.",,,,,
+Decision Table,"Combinations of conditions are tested, for example each missing password character type.",,,,,
+State Transition,"Changes in account status are tested, for example Unverified to Active or Pending Approval to Approved.",,,,,
+Use Case Testing,A complete user flow is tested from start to finish with valid data.,,,,,
+Error Guessing,"Likely mistakes are tested based on experience, for example double-tapping Register or opening another role's screen through a deep link.",,,,,
+,,,,,,
+Mobile app testing notes,,,,,,
+"1. Install the build under test on at least one Android phone, and on an iPhone if your system supports iOS. Write the phone model, OS version and app build number in the Test run details above, and test on the same build throughout.",,,,,,
+2. Copy every file on the Test Files sheet to the phone before testing: documents to the Files / Downloads folder and images to Photos (gallery).,,,,,,
+"3. Rows whose Test Scenario starts with [Mobile] are new mobile-only cases (keyboard, interruptions, no internet, permissions, camera, Back button, push notifications, deep links). Filter the Test Scenario column on '[Mobile]' to run them as a group. Assumptions M1 to M12 describe the rules they check.",,,,,,
+"4. 'Tap' is a single tap and 'double-tap' is two quick taps on the same button. 'Pull to refresh' means dragging the screen down from the top; if a screen has none, go back and reopen it. Use Airplane mode for the no-internet cases and turn it off before the next case.",,,,,,
+"5. Cases that send or capture an API request need a proxy tool on the phone (Assumption M11). If your group cannot capture app traffic, mark those cases Blocked and write 'no proxy' in Remarks.",,,,,,
+"6. Evidence: use the phone's screenshot or built-in screen recorder and name each file by case ID (for example buy-010.png or buy-031.mp4). Screen recordings are best for timing, interruption and no-internet cases.",,,,,,
+Test data,,,,,
+"Shared by all five module workbooks. All people, stores, numbers and addresses are fictional. Seed these products, vouchers and rates before testing, or replace them with your own and update the Test Data column on the module sheets.",,,,,
+,,,,,
+Accounts (created in the Account Creation test set),,,,,
+Ref,Role,Name / store,Login email,Password,Status / notes
+Buyer 1,Buyer,Juan Miguel Dela Cruz,juanmiguel.delacruz@example.com,Mamimili@2026,Active. Main buyer.
+Buyer 2,Buyer,Ana Marie Reyes,anamarie.reyes@example.com,Suki#2026Ana,Active. Second buyer for concurrency and access tests.
+Seller 1,Seller,Maria Clara Handicrafts (Maria Clara Santos),mariaclara.santos@example.com,Tindahan@2026,"Approved. Pickup: Commonwealth, Quezon City (NCR). Main seller."
+Seller 2,Seller,RV Gadget Hub (Roberto Villanueva),roberto.villanueva@example.com,Gadget#Hub26,"Approved. Pickup: Lahug, Cebu City (Visayas)."
+Seller 3,Seller,Tindahan ni Lola (test),seller.test01@example.com,Tindahan@2026,Pending Approval. For the unverified-seller cases.
+Logistics 1,Logistics,Bilis Hatid Express Inc. (Carlos Antonio Mendoza),operations@bilishatid.example.com,Hatid@2026,Approved. Serves NCR and CALABARZON. Main logistics account.
+Logistics 2,Logistics,Agila Cargo Movers Corp. (Liza Mae Fernandez),admin@agilacargo.example.com,Agila#Cargo26,Approved. Serves Davao. Used for cross-company access tests.
+Rider 1,Rider,"Pedro Jose Garcia (Motorcycle, 123ABC)",pedrojose.garcia@example.com,Rider@2026,"Active, under Logistics 1. Main rider."
+Rider 2,Rider,"Mark Anthony Bautista (Van, NBC1234)",markanthony.bautista@example.com,Hatid#Mark26,"Active, under Logistics 1. Second rider for concurrency tests."
+Rider 3,Rider,"Ramon Cruz (Motorcycle, 456DEF)",rider.test01@example.com,Rider@2026,Suspended by Logistics 1. For blocked-rider cases.
+Admin,Admin,Seeded admin,Use the admin account already seeded in your system,,Creates platform vouchers PLAT100 and FREESHIP.
+,,,,,
+Buyer addresses,,,,,
+Ref,Owner,Label,Address,Recipient / phone,Notes
+ADDR-1,Buyer 1,Home (default),"45 Kalayaan Ave., Brgy. Central, Quezon City, Metro Manila, NCR 1100",Juan Miguel Dela Cruz / 09171234567,Zone NCR
+ADDR-2,Buyer 1,Office,"12F Pacific Tower, 6750 Ayala Ave., Brgy. San Lorenzo, Makati City, Metro Manila, NCR 1223",Juan Miguel Dela Cruz / 09171234567,Zone NCR
+ADDR-3,Buyer 2,Home (default),"78 Osmeña Blvd., Brgy. Capitol Site, Cebu City, Cebu, Region VII 6000",Ana Marie Reyes / 09173456789,Zone Visayas
+ADDR-4,Buyer 1,Province,"Purok 2, Brgy. Raele, Itbayat, Batanes, Region II 3905",Juan Miguel Dela Cruz / 09171234567,Unserviceable area (no logistics zone covers it)
+,,,,,
+Store categories (Seller 1),,,,,
+Ref,Category,Parent,Visible,Products,Notes
+CAT-1,Bags,,Yes,P-01,
+CAT-2,Home Decor,,Yes,,Parent category
+CAT-3,Lamps,Home Decor,Yes,P-03,Subcategory (level 2)
+CAT-4,Baskets,Home Decor,Yes,P-02,Subcategory (level 2)
+CAT-5,Kitchen & Dining,,Yes,P-04,
+,,,,,
+Products,,,,,
+Ref,Seller,Product,Price / variants,Stock,Weight and size / other
+P-01,Seller 1,Abaca Woven Tote Bag,"Color: Natural, Black × Size: S ₱199, M ₱249, L ₱299 (6 variants). SKU MCH-TOTE-<COLOR>-<SIZE>","Natural-S 10, Natural-M 8, Natural-L 5, Black-S 10, Black-M 0, Black-L 3",0.4 kg; 40 × 35 × 5 cm. Platform category: Women's Bags
+P-02,Seller 1,Rattan Fruit Basket,₱450.00 (no variants),20,0.8 kg; 30 × 30 × 15 cm. Platform category: Home & Living
+P-03,Seller 1,Capiz Shell Lamp,"₱1,250.00",1 (for the oversell case),1.5 kg; 30 × 30 × 40 cm
+P-04,Seller 1,Banig Placemat Set of 4,₱350.00,0 (out of stock),0.5 kg
+P-05,Seller 2,USB-C Fast Charger 20W,₱399.00,50,0.2 kg; 10 × 8 × 5 cm
+P-06,Seller 2,Wireless Earbuds X2,"Color: Black, White; ₱1,499.00 each","Black 10, White 10",0.3 kg
+P-07,Seller 2,Power Bank 10000mAh,₱899.00; per-buyer purchase limit 2,5,0.4 kg
+,,,,,
+Vouchers,,,,,
+Code,Owner / funded by,Type,Rule,Limits / validity,Display
+MCH50,Seller 1 / seller,Fixed ₱50 off,Min spend ₱300; all Seller 1 products,"100 total, 1 per buyer; valid this month",Claimable
+MCH10,Seller 1 / seller,"10% off, cap ₱100",Min spend ₱500,"50 total, 1 per buyer; valid this month",Claimable
+RVSECRET,Seller 2 / seller,Fixed ₱100 off,"Min spend ₱1,000","20 total, 1 per buyer",Code-only (hidden)
+MCHOLD,Seller 1 / seller,Fixed ₱30 off,Min spend ₱200,Expired yesterday,Claimable
+MCHSOON,Seller 1 / seller,Fixed ₱30 off,Min spend ₱200,Starts tomorrow,Claimable
+MCHMAX,Seller 1 / seller,Fixed ₱20 off,Min spend ₱100,"Total usage limit 1, already used by Buyer 2",Claimable
+PLAT100,Admin / platform,Fixed ₱100 off,"Min spend ₱1,000 (whole order)",1 per buyer,Claimable
+FREESHIP,Admin / platform,"Shipping, up to ₱50 off",Min spend ₱300,1 per buyer,Claimable
+,,,,,
+Shipping rate table (test rates),,,,,
+Route,First kg,Each additional kg,Example,,Notes
+Within NCR,₱50.00,₱15.00,1.2 kg → 2 kg → ₱65.00,,Seller 1 to ADDR-1 or ADDR-2
+Visayas to NCR,₱120.00,₱40.00,0.2 kg → 1 kg → ₱120.00,,Seller 2 to ADDR-1
+NCR to Visayas,₱120.00,₱40.00,0.4 kg → 1 kg → ₱120.00,,Seller 1 to ADDR-3
+Within Visayas,₱60.00,₱20.00,,,Seller 2 to ADDR-3
+,,,,,
+"Worked checkout example (used in Buyer B7/B8, Seller S12 and Cross-cutting X3)",,,,,
+Line,Item,Amount,How it is calculated,,
+1,Seller 1: Abaca Tote Natural-M × 1 + Rattan Basket × 1,₱699.00,249 + 450,,
+2,Seller 2: USB-C Charger × 1,₱399.00,,,
+3,Merchandise subtotal,"₱1,098.00",699 + 399,,
+4,"Shipping, Seller 1 (1.2 kg, within NCR)",₱65.00,50 + 15,,
+5,"Shipping, Seller 2 (0.2 kg, Visayas to NCR)",₱120.00,,,
+6,Store voucher MCH50 (Seller 1),−₱50.00,Seller 1 subtotal 699 ≥ 300,,
+7,Platform voucher PLAT100,−₱100.00,"Order subtotal 1,098 ≥ 1,000",,
+8,Shipping voucher FREESHIP,−₱50.00,Capped at ₱50,,
+9,Total to pay,"₱1,083.00","1,098 + 185 − 50 − 100 − 50",,
+10,Seller 1 net earnings for this order,₱616.55,(699 − 50) = 649 gross after seller vouchers; 5% commission = 32.45,,
+11,Seller 2 net earnings for this order,₱379.05,399 − 5% commission (19.95),,
+,,,,,
+Other values,,,,,
+Item,Value,,,,Notes
+Delivery OTP,Shown in Buyer 1's order screen when Out for Delivery,,,,6 digits (A32)
+Rider pay,"₱50.00 per delivery, ₱30.00 per pickup, ₱0.00 per failed attempt",,,,A33
+PLAT100 split (worked example),Seller 1 order ₱63.66; Seller 2 order ₱36.34,,,,"100 × 699/1,098 and 100 × 399/1,098 (A8)"
+Spare emails,buyer.test01@example.com to buyer.test10@example.com,,,,"Same pattern for seller.test, logistics.test, rider.test"
+Spare mobile numbers,09170000001 to 09170000020,,,,
+Long text samples,Generate with any 'lorem ipsum' tool to the exact character count,,,,Check the count in a character counter before pasting
+Script and injection strings,"<script>alert(1)</script>
+' OR '1'='1
+""><img src=x onerror=alert(1)>",,,,Must be shown as text and never run
+,,,,,
+Couriers (created in the Account Creation test set),,,,,
+Ref,Role,Name / store,Login email,Password,Status / notes
+Courier 1,Courier,"Ernesto Villareal (4-Wheeler Closed Van Truck, NAB4521, 3,000 kg)",ernesto.villareal@example.com,Courier@2026,"Active, under Logistics 1, home hub HUB-QC. Main courier."
+Courier 2,Courier,"Rogelio Dimaculangan (Van, CAV7788, 800 kg)",rogelio.dimaculangan@example.com,Linehaul#Rog26,"Active, under Logistics 1, home hub HUB-PSG. Second courier for reassignment tests."
+Courier 3,Courier,"Danilo Ramos (Van, DAN3030, 800 kg)",courier.test01@example.com,Courier@2026,Suspended by Logistics 1. For blocked-courier cases.
+Courier 4,Courier,"Joel Abellana (Van, AGL5050, 800 kg)",courier.test02@example.com,Courier@2026,"Active, under Logistics 2, home hub HUB-DVO. For cross-company cases."
+,,,,,
+Hubs,,,,,
+Ref,Hub,Address,Logistics company,Serves,Notes
+HUB-QC,Bilis Hatid QC First-Mile Hub,"1200 Commonwealth Ave., Brgy. Holy Spirit, Quezon City, NCR 1127",Logistics 1,Pickups from Quezon City sellers (Seller 1); deliveries to Quezon City (ADDR-1),Origin hub of TRIP-1
+HUB-PSG,Bilis Hatid Pasig Main Hub,"Unit 5B, 88 West Capitol Drive, Brgy. Kapitolyo, Pasig City, NCR 1603",Logistics 1,"Deliveries to Makati, Pasig and Mandaluyong (ADDR-2)",Destination hub of TRIP-1
+HUB-STR,Bilis Hatid Sta. Rosa Hub,"Lot 3, Balibago Complex, Brgy. Balibago, Santa Rosa, Laguna 4026",Logistics 1,CALABARZON deliveries,Used for wrong-hub cases
+HUB-DVO,Agila Davao Hub,"Door 3, 210 Sampaguita St., Brgy. Buhangin, Davao City 8000",Logistics 2,Davao deliveries,Used for cross-company cases
+,,,,,
+Linehaul trip and courier values,,,,,
+Ref,Item,Value,Details,Weight,Notes
+TRIP-1,Linehaul trip,HUB-QC → HUB-PSG,"5 COD parcels from Seller 1 to ADDR-2 (Buyer 1, Makati): 4 orders of 1 × P-02 and 1 order of 1 × P-01 Natural-M",3.6 kg (4 × 0.8 + 0.4),"Courier 1; seal BH-0004521; pay ₱1,000.00"
+P-08,Load-test product (Seller 1),"Narra Coffee Table, ₱4,500.00, stock 50",Seed only for the trip-capacity case,25.0 kg each,4 parcels = 100.0 kg
+Courier pay,Per completed trip,"Van ₱600.00; 4-Wheeler Closed Van Truck ₱1,000.00; 6-Wheeler Truck ₱1,500.00","Declined, cancelled or reassigned-away trips ₱0.00",,A41
+Seal number,Format,BH- followed by 7 digits,Example: BH-0004521,,A40
+Pre-trip checklist,Items,"Tires, Lights, Brakes, Fuel, Cargo door lock",Each OK or Not OK; Not OK needs a note,,A39
+Spare couriers,Emails and mobiles,courier.test03@example.com to courier.test10@example.com,09170000021 to 09170000025,,
+Upload files to prepare,,,,
+"Prepare these files before testing uploads. Use sample images only. The size limit is 5 MB, which is 5,120 KB or 5,242,880 bytes. Copy every file to the test phone before testing: PDFs and other documents to Files / Downloads, and images to Photos (gallery) so they can be picked from either place.",,,,
+,,,,
+File name,Type,Size,Used for,Expected result
+product_front.jpg,JPG,1.2 MB,Product image,Accept
+product_side.png,PNG,2.4 MB,Product image,Accept
+store_logo.png,PNG,300 KB,Store logo,Accept
+store_banner.jpg,JPG,1.8 MB,Store banner,Accept
+review_photo.jpg,JPG,1.5 MB,Review photo / return evidence / chat attachment,Accept
+return_video.mp4,MP4,8 MB,Return evidence video (if videos are supported),Accept per your rule
+pod_photo.jpg,JPG,1.1 MB,Rider proof of delivery,Accept
+size_4.9MB.jpg,JPG,"4.9 MB (5,138,022 bytes)",Just under the size limit,Accept
+size_5.0MB.jpg,JPG,"5.0 MB (5,242,880 bytes)",Exactly at the size limit,Accept
+size_5.1MB.jpg,JPG,"5.1 MB (5,347,738 bytes)",Just over the size limit,Reject
+price_list.docx,DOCX,320 KB,Wrong file type (Word document),Reject
+installer.exe,EXE,2.1 MB,Wrong file type (program),Reject
+renamed_exe.jpg,JPG (really an EXE),2.1 MB,Program renamed to .jpg,Reject
+pro_license.jpg,JPG,1.4 MB,Courier's professional driver's license,Accept
+pro_license.png,PNG,2.1 MB,Courier's professional driver's license in PNG,Accept
+truck_or_cr.pdf,PDF,950 KB,Courier's truck Official Receipt and Certificate of Registration,Accept
+nbi_clearance.pdf,PDF,600 KB,Courier's NBI Clearance,Accept
+incident_photo.jpg,JPG,1.3 MB,Courier breakdown report / damaged parcel at unloading,Accept
+(take with the phone camera),JPG / HEIC,Often 3–12 MB at full resolution,Camera photo taken inside the app,"Compressed to 5 MB or less and accepted, or rejected with a size message (M7)"
+(screenshot taken on the phone),PNG,Usually under 1 MB,Image picked from the gallery,Accept
+Assumptions used in the test cases,,,
+"These rules are assumptions modeled on Philippine marketplaces, not taken from your actual system. Rules A2 to A8 are the seven rules the module plan says must be agreed before testing; A25 to A37 fix the limits the strict expected results depend on. Write your real rule in column D where it differs, then filter the Assumption Ref column on each module sheet to find the test cases to adjust. A38 to A41 cover couriers and hub-to-hub (linehaul) trips. M1 to M14 are the mobile-app rules used by the [Mobile] cases.",,,
+,,,
+Ref,Topic,Assumed rule,Your system's actual rule (fill in if different)
+A1,Test accounts,"The accounts on the Test Data sheet already exist and are Active or Approved (they are the accounts created in the Account Creation test set). Seller 3 is Pending Approval and Rider 3 and Courier 3 are Suspended, for the negative cases. Reset the seeded products, stock and vouchers to their Test Data values before each module.",
+A2,Voucher stacking (rule 1),"Per order: at most 1 store voucher per store, plus 1 platform voucher, plus 1 shipping voucher. Selecting a second voucher of the same type replaces the first; it never stacks.",
+A3,Stock deduction (rule 2),"Stock is deducted when the order is placed, for every payment method. It is restored when the order is cancelled (by buyer, seller or auto-cancel). For a Return-to-Sender or returned parcel, stock is restored when the seller confirms receipt. Stock can never go below 0.",
+A4,Sale + voucher (rule 3),"Vouchers apply to items already on sale. Minimum spend is checked against the price actually paid (the sale or flash price), not the original price.",
+A5,Flash sales (rule 4),"Sellers create flash sales for their own products in fixed time slots. When a product is in both a store sale and a flash sale, the flash price wins while flash quantity remains. Units beyond the remaining flash quantity in the same order are charged at the store sale price, or the regular price if there is no sale, and are shown on a separate line.",
+A6,Cancellation window and auto-cancel (rule 5),A buyer can cancel until the seller marks the order Ready for Pickup; after that there is no cancel option at all. A seller can cancel until the parcel is Picked Up. Unpaid e-wallet or card orders auto-cancel exactly 1 hour after the order is placed.,
+A7,Variation limits and category depth (rule 6),"A product has at most 2 variation types, with 1 to 20 options per type. Store categories have at most 2 levels (category and subcategory). A product can belong to up to 3 store categories.",
+A8,Voucher funding (rule 7),"Store vouchers, sale discounts, flash sales and bundle discounts are seller-funded. Platform vouchers and shipping vouchers are platform-funded and never reduce the seller's earnings. A platform voucher on a multi-store checkout is split across the store orders in proportion to each store's merchandise subtotal, rounded to the centavo, with any rounding remainder given to the largest store. When only some items in an order are refunded, the store voucher is split across the items in proportion to their price, and the refund is the item price minus its voucher share.",
+A9,Platform commission and rounding,Commission is 5% of the item subtotal after seller-funded discounts. Shipping fees are not part of the seller's gross sales. All money is rounded to 2 decimals (half up) per order.,
+A10,Order status flow,"Buyer tabs: To Pay → To Ship → To Receive → Completed (or Cancelled, Return/Refund). Seller: New → Accepted → Packed → Ready for Pickup. Shipment: Ready for Pickup → Assigned → Picked Up → At Hub → (In Transit → At Hub at the destination hub, when the address belongs to another hub; see A38) → Out for Delivery → Delivered (or Failed Delivery → Return to Sender → Returned to Sender). No status can be skipped or moved backwards except by a logged Logistics override.",
+A11,Order completion and return window,"The buyer taps Order Received, or the order completes automatically 7 days (168 hours) after Delivered. A return or refund can be requested only after Delivered, within those 7 days and before the order is Completed.",
+A12,Reviews,"A review is allowed only for Completed orders, within 30 days of completion, one review per item. Stars (1–5) are required; text is optional, up to 500 characters; up to 5 photos. It can be edited once within the 30 days. The seller can post one reply per review and edit it; the seller cannot delete or hide a buyer's review.",
+A13,Failed delivery,"Up to 3 delivery attempts. A reason from the list (Buyer not home, Wrong address, Refused) is required for every failed attempt. After the 3rd failed attempt, or immediately when the reason is Refused, the parcel is marked Return to Sender.",
+A14,Rider job rules,"A job offer expires after 60 seconds. A declined or expired offer goes to the next nearest eligible rider; after 3 riders decline or let it expire, the job goes to the Unassigned queue for manual assignment. A rider holds at most 3 active jobs. Only Active, Online riders receive offers.",
+A15,Seller earnings and payout,"Earnings move from Pending to Available only when an order is Completed. Cancelled, returned and refunded amounts are excluded. A payout request must be at least ₱100.00 and no more than the Available balance, and only one payout request can be pending at a time.",
+A16,Image upload rule,"Product, logo, banner, review, return, chat and proof-of-delivery images: JPG or PNG only (checked by file content, not just the extension), maximum 5 MB each. A product has 1 to 9 images.",
+A17,Price and quantity rule,"Prices range from ₱1.00 to ₱1,000,000.00 with up to 2 decimal places. Stock and quantities are whole numbers from 0 to 99,999.",
+A18,Store vacation and verification,"In vacation mode, products stay visible but Add to Cart and Buy Now are disabled with an 'On vacation' label, and checkout of items already in carts is blocked. A seller that is not Approved can save products only as drafts and cannot publish.",
+A19,Deleting categories and products,"Deleting a store category that still has products moves those products to 'Uncategorized'. Deleting a parent category also deletes its subcategories. A product or a variant with unfinished orders cannot be deleted; other deletes are soft deletes, so order history still shows the product's name, image and price.",
+A20,Shipping fee,"Shipping is charged per store, using the rate table on the Test Data sheet. Chargeable weight is the total actual weight of that store's items in the order, rounded up to the next whole kg. Rate changes apply only to checkouts started after the change.",
+A21,Voucher return on cancellation,"A voucher used on a cancelled order is returned to the buyer's wallet if it has not yet expired, and its usage count is reduced by 1. A voucher is not returned for a refunded (returned) order.",
+A22,Session and access,"Each role can open only its own screens; other roles get 403, an access-denied screen or a redirect, for both deep links and direct API requests. Users can open only their own records (orders, products, shipments, riders, couriers, trips). A session expires after 30 minutes of inactivity.",
+A23,Notifications,"Every order or shipment status change sends an in-app notification and a push notification to each role involved, and to no one else. Emails use example.com and are read from the mail catcher.",
+A24,COD remittance,Riders remit the full COD collected to their logistics company by the end of the day. Only the logistics company can confirm a remittance. Any difference between collected and remitted COD is flagged on the reconciliation screen.,
+A25,Text field limits,"Store name 3–30 characters (unique, not case-sensitive, spaces trimmed). Store description up to 500. Store category name 1–50 (unique per store, not case-sensitive, trimmed). Product name 5–120. Product description 20–3,000. Note to seller up to 200. Chat message 1–1,000. Free-text reasons (cancel, reject, override, suspend) 10–300. HTML or script entered in any field is shown as plain text.",
+A26,Voucher code rule,"4 to 12 letters and digits, no spaces or symbols, saved in uppercase. Codes are unique across the whole platform. Buyers can type the code in any case.",
+A27,Editing vouchers after claim,"Once any buyer has claimed a voucher, the seller can only extend its end date or raise its usage limit; all other fields are locked. Ending a voucher removes it from the wallets of buyers who have not used it; orders already placed keep their discount.",
+A28,Store sales,A product can be in only one store sale at a time; overlapping schedules are rejected. A running sale's discount can be edited and applies immediately to new orders; End Now ends it at once. Orders already placed keep the price paid.,
+A29,Low-stock alert,"An alert is shown when a product's or variant's stock reaches 5 or fewer, once per crossing (it does not repeat until stock goes above 5 and drops again).",
+A30,Address book,"Up to 10 addresses per buyer. The default address cannot be deleted until another address is made default. Orders keep a copy of the address at order time, so editing or deleting an address does not change existing orders.",
+A31,Return and refund requests,"Reason from the list, a description of 10–500 characters, and 1 to 5 photos (JPG or PNG, 5 MB each) are required. The seller must respond within 3 days or the request is auto-approved. A rejected request can be escalated to a dispute once, within 3 days. The refund goes to the original payment method; for COD orders, to the buyer's refund account.",
+A32,Proof of delivery,"Delivered needs a photo (JPG or PNG) and the 6-digit delivery OTP shown in the buyer's app once the parcel is Out for Delivery. After 5 wrong OTP entries, OTP entry on that job is locked for 15 minutes.",
+A33,Rider pay,"₱50.00 per successful delivery, ₱30.00 per completed pickup, ₱0.00 for a failed attempt. Pay is not reduced by COD.",
+A34,Dispatch and reassignment,"Auto-assign offers a job to the nearest Online, Active rider of the same company with fewer than 3 active jobs. Logistics can reassign a job only before it is Picked Up. Suspending a rider returns their not-yet-picked-up jobs to the Unassigned queue; parcels already picked up stay with that rider.",
+A35,Audit log,"Every manual status override, rider or courier approval or suspension, trip reassignment or cancellation, seal or missing-parcel discrepancy, rate change and remittance confirmation is logged with user, date and time, old value, new value and reason. Log entries cannot be edited or deleted from the UI.",
+A36,Report export,Reports export as CSV and XLSX. Exported rows and totals equal the on-screen rows and totals for the same filter.,
+A37,Duplicate submissions,"Every create or submit action (Publish, Place Order, Pay, Request Payout, Accept job, Remit, Confirm) is idempotent: double-tapping, tapping the keyboard's Done key twice, pulling to pull-to-refresh, or going Back and resubmitting never creates a second record or a second charge.",
+A38,Linehaul trips (hub to hub),"A parcel whose delivery address belongs to another hub travels between hubs on a linehaul trip driven by a courier. Logistics creates the trip (origin hub, destination hub, and parcels that are At Hub at the origin and belong to the destination hub's delivery zone), then assigns a courier. The courier accepts, scans every parcel while loading, enters the seal number and departs; each parcel becomes In Transit. At the destination, hub staff confirm the seal and scan each parcel in (At Hub). Trip statuses: Scheduled → Assigned → Accepted → Loading → In Transit → Arrived → Completed (or Completed with Discrepancy, or Cancelled). A trip can be edited or cancelled only before departure.",
+A39,Courier rules,"Only Active couriers who are On Duty can be assigned a trip; a courier holds at most 1 active trip, and the trip weight cannot exceed the vehicle's load capacity. Going On Duty needs location permission and a passed pre-trip checklist (Tires, Lights, Brakes, Fuel, Cargo door lock); an item marked Not OK needs a note (10–300 characters), keeps the courier Off Duty and notifies Logistics. Off Duty is not allowed while a trip is Loading or In Transit. Depart is allowed only within 500 m of the origin hub and after every parcel is scanned; Arrived only within 500 m of the destination hub. Suspending a courier returns their Assigned or Accepted trips to Unassigned; a trip already In Transit stays with them until handover. Only hub staff can confirm receipt at the destination. Plate and license numbers are unique across riders and couriers.",
+A40,Seal and handover discrepancies,"The seal number is BH- followed by 7 digits (for example BH-0004521) and is required before departure. If the seal entered at the destination does not match, the trip is flagged Seal Discrepancy. Parcels not scanned in when the destination hub closes receiving become Missing in Transit; a parcel marked Damaged needs a photo. Any discrepancy makes the trip Completed with Discrepancy, notifies Logistics and the seller, and asks the courier for a note (10–300 characters). All are logged (A35).",
+A41,Courier pay and delays,"Pay per completed trip: Van ₱600.00, 4-Wheeler Closed Van Truck ₱1,000.00, 6-Wheeler Truck ₱1,500.00. Declined, cancelled and reassigned-away trips pay ₱0.00; the pay goes to the courier who completes the handover. A delay report needs a reason from the list (Heavy traffic, Vehicle breakdown, Weather, Road closure, Other) and a new ETA later than the current time; Logistics is notified. After a Vehicle breakdown report, Logistics can reassign the In Transit trip to another courier, who must scan every parcel again before continuing.",
+M1,Mobile app under test,"The system is tested as a mobile app (Android and/or iOS) installed from an APK, TestFlight or store build. Record the phone model, OS version and app build on the Summary sheet. Admin-only steps (approvals, platform vouchers) may stay on a web admin panel; run those steps there.",
+M2,Keyboard and input,"Each field opens the keyboard that fits it: email keyboard (with @) for Email; number pad for Mobile Number, OTP, Postal Code, TIN, quantity and stock; decimal pad for prices and weight. Password fields show no autocorrect or suggestions. The keyboard never hides the focused field or the main button.",
+M3,OTP entry on the phone,"The OTP field accepts a pasted 6-digit code (filling every box when the field is split into boxes) and supports the phone's one-time-code autofill where available. The expiry countdown is based on the time the code was sent, so it keeps running while the user is in the mail app.",
+M4,Interruptions,"Sending the app to the background (Home, switching apps, an incoming call, locking the screen) and returning keeps the current screen and the typed values (passwords may be cleared). Rotating the phone is either blocked (portrait only) or keeps every value. Nothing is submitted unless the user taps the button.",
+M5,No internet or a dropped connection,"With no connection the app shows a clear no-internet message with Retry, never crashes or freezes, and never shows success for something the server did not save. Saving an action offline and sending it later is allowed only if the app shows it as pending, and it is sent exactly once. Write in column D whether your app blocks or queues offline actions.",
+M6,Phone permissions,"Camera, photos/files, location and notifications are requested only when first needed, with a reason. If a permission is denied, the app explains why it is needed, offers a link to the phone's Settings, keeps working for everything that does not need it, and never crashes.",
+M7,Picking and capturing files,"Each upload offers Camera, Gallery/Photos and, for PDFs, Files. The type and size rules (A10 / A16) apply to every source. Camera photos larger than 5 MB are compressed to 5 MB or less before upload. Copy the Test Files to the phone before testing.",
+M8,Back navigation,"The Android Back button and iOS swipe-back go to the previous screen. Leaving a form with unsaved changes asks the user to confirm discarding them. After logging out, Back never shows a logged-in screen.",
+M9,Login session on the phone,"The app stays logged in after it is closed, reopened or the phone restarts, until the user logs out, the password is changed (which also ends the session on the user's other phones), or the session token expires.",
+M10,Push notifications,"Status changes, approvals and chat messages also send a push notification to the phone of each user involved, and to no one else. Tapping a notification opens the related screen, even if the app was closed. If notifications are turned off in phone Settings, the in-app notification list still works.",
+M11,Deep links and direct requests,"Share links and email links (activation, product, store) open the matching screen in the app, or a mobile web page if the app is not installed. Access rules are enforced by the server: a deep link or a direct API request for another role's or another user's data is refused (401/403, an access-denied screen or a redirect to home). Cases that capture or send a request directly need a proxy tool on the test phone (for example HTTP Toolkit, Charles or mitmproxy). If your group cannot capture app traffic, mark those cases Blocked and write 'no proxy' in Remarks.",
+M12,Screen size and display,"Every screen works on a small phone (about 5.5 in) and a large one (about 6.7 in), in light and dark mode, and with the largest system font: no cut-off text, no overlapping controls, and no buttons hidden behind the keyboard.",
+M13,Rider location,"The rider app needs location permission to go Online and sends the rider's location while Online. If location is turned off, or the app is closed for more than 5 minutes, the rider receives no new offers and is shown as Offline. Navigate opens the phone's map app (Google Maps or Waze).",
+M14,Scanning and proof photos,"Waybill barcodes are scanned with the phone camera (with a flashlight toggle), and every scan screen also lets the user type the tracking number. Proof-of-delivery and damage photos are taken live with the in-app camera; old photos from the gallery are not accepted.",
+Test Case ID,Module,Test Scenario,Technique,Priority,Preconditions,Test Steps,Test Data,Expected Result,Assumption Ref,Actual Result,Status,Remarks
+TC-RID-001,Add Rider Form,Create a rider with all valid data,Use Case Testing,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in every field with the test data.
+2. Tap Save.","First Name: Pedro Jose
+Last Name: Garcia
+Date of Birth: 03/22/1995
+Email: pedrojose.garcia@example.com
+Mobile Number: 09451239876
+Driver's License No.: N01-23-456789
+License Expiry Date: 03/22/2030
+Vehicle Type: Motorcycle
+Plate Number: 123ABC
+Driver's License (upload): drivers_license.jpg (1.5 MB)
+Vehicle OR/CR (upload): or_cr.pdf (900 KB)",The rider is saved with no validation errors and appears in the rider list of Bilis Hatid Express Inc. with status Pending Activation. An activation email is sent to pedrojose.garcia@example.com.,"A1, A13",The rider is saved with no validation errors and appears in the rider list of Bilis Hatid Express Inc. with status Pending Activation. An activation email is sent to pedrojose.garcia@example.com.,Pass,Pass. Requirements verified. Evidence: tc-rid-001.png
+TC-RID-002,Required Fields,Submit a completely empty form,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Leave every field blank and every dropdown on its default option.
+2. Tap Save.",All fields blank,Saving is blocked. A required-field message is shown for every mandatory field. No rider is created and no email is sent.,A1,Tapping Save with an empty form displayed no field-level validation messages; page reloaded blank without indicating required fields.,Fail,Bug #RID-AC-001: Form fails to show field-level validation errors on empty submission. Screenshot: tc-rid-002.png
+TC-RID-003,Required Fields,Leave one required field blank at a time,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all fields with valid data.
+2. Clear one required field.
+3. Tap Save.
+4. Repeat for each field in the test data.","Clear in turn:
+First Name
+Last Name
+Date of Birth
+Email
+Mobile Number
+Driver's License No.
+License Expiry Date
+Vehicle Type
+Plate Number
+Driver's License (upload)
+Vehicle OR/CR (upload)","Each time, saving is blocked and a required-field message is shown on the blank field only. Other entered values (except uploads) are kept. No rider is created.",A1,"Each time, saving is blocked and a required-field message is shown on the blank field only. Other entered values (except uploads) are kept. No rider is created.",Pass,Pass. Requirements verified. Evidence: tc-rid-003.png
+TC-RID-004,Name,Name with numbers or symbols,Equivalence Partitioning,Medium,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all other fields with valid data.
+2. Enter the test data in the name fields.
+3. Tap Save.","First Name: Pedro Jose99
+Last Name: Dela Cruz@#",Saving is blocked. A message on each name field says only letters are allowed.,A2,Names with numbers ('Pedro Jose99') and special characters ('Dela Cruz@#') were accepted without error; alphabet-only validation missing.,Fail,Bug #RID-AC-002: Name fields permit numbers and special symbols. Screenshot: tc-rid-004.png
+TC-RID-005,Name,Name length at the limits,Boundary Value Analysis,Medium,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Enter each first name in the test data, one per attempt.
+3. Tap Save.","1 character: P (reject)
+2 characters: Po (accept)
+50 characters: Maria Cristina Angelica Bernadette Josefina Leonor (accept)
+51 characters: Maria Cristina Angelica Bernadette Josefina Leonora (reject)",1 and 51 characters are rejected with a length message. 2 and 50 characters are accepted.,A2,Single character name 'P' was accepted without error; minimum length constraint (2 characters) was not enforced.,Fail,Bug #RID-AC-003: First name accepts 1 character; 2-character minimum not enforced. Screenshot: tc-rid-005.png
+TC-RID-006,Date of Birth,Age at the 18-year limit,Boundary Value Analysis,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Enter each date of birth in the test data, one per attempt.
+3. Tap Save.","Born 10/24/2008 (17 years old, reject)
+Born 10/23/2008 (turns 18 today, accept)
+Born 10/22/2008 (18 years and 1 day, accept)",The 17-year-old date is rejected with a message that the person must be at least 18. The other two dates are accepted.,A6,Entering date of birth for 17-year-old applicant (10/24/2008) was accepted; 18-year minimum age rule was not checked.,Fail,Bug #RID-AC-004: Underage applicant under 18 accepted without validation error. Screenshot: tc-rid-006.png
+TC-RID-007,Email,Email in an invalid format,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all other fields with valid data.
+2. Enter each email in the test data, one per attempt.
+3. Tap Save.","pedrojose.garciaexample.com (no @)
+pedrojose.garcia@ (no domain)
+@example.com (no name)
+pedrojose.garcia@example (no .com)
+pedrojose garcia@example.com (space)",Each value is rejected with a message asking for a valid email address. No rider is created.,A3,Each value is rejected with a message asking for a valid email address. No rider is created.,Pass,Pass. Requirements verified. Evidence: tc-rid-007.png
+TC-RID-008,Email,Email already used by an account of another role,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The buyer account juanmiguel.delacruz@example.com already exists.,"1. Fill in all other fields with valid data.
+2. Enter the existing email.
+3. Tap Save.",Email: juanmiguel.delacruz@example.com,Saving is blocked. A message says the email is already in use. No rider is created.,A3,Saving is blocked. A message says the email is already in use. No rider is created.,Pass,Pass. Requirements verified. Evidence: tc-rid-008.png
+TC-RID-009,Mobile Number,Mobile number in an invalid format,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all other fields with valid data.
+2. Enter each mobile number in the test data, one per attempt.
+3. Tap Save.","0917ABC4567 (letters)
+0917-123-456 (symbols, too short)
+12345678901 (does not start with 09)
+02-8123-4567 (landline)",Each value is rejected with a message asking for a valid mobile number.,A4,Each value is rejected with a message asking for a valid mobile number.,Pass,Pass. Requirements verified. Evidence: tc-rid-009.png
+TC-RID-010,Mobile Number,Mobile number length at the limits,Boundary Value Analysis,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Enter each mobile number in the test data, one per attempt.
+3. Tap Save.","10 digits: 0917123456 (reject)
+11 digits: 09170000001 (accept)
+12 digits: 091712345678 (reject)",10 and 12 digits are rejected with a length message. 11 digits is accepted.,A4,10-digit mobile number ('0917123456') was accepted without error; 11-digit length validation was not enforced.,Fail,Bug #RID-AC-005: Mobile number field accepts 10 digits instead of enforcing 11 digits. Screenshot: tc-rid-010.png
+TC-RID-011,Mobile Number,Mobile number that is already registered,Equivalence Partitioning,Medium,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. An account already exists with mobile number 09171234567.,"1. Fill in all other fields with valid data.
+2. Enter the existing mobile number.
+3. Tap Save.",Mobile: 09171234567,Saving is blocked. A message says the mobile number is already in use.,A4,Saving is blocked. A message says the mobile number is already in use.,Pass,Pass. Requirements verified. Evidence: tc-rid-011.png
+TC-RID-012,License and Vehicle,Driver's license number in an invalid format,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all other fields with valid data.
+2. Enter each license number in the test data, one per attempt.
+3. Tap Save.","N01-23-45678 (one digit short)
+N01-23-4567890 (one digit extra)
+101-23-456789 (no letter)
+N0123456789X (letter at the end)",Each value is rejected with a message showing the format A00-00-000000.,A15,License 'N01-23-45678' (missing 1 digit) was accepted without regex validation error.,Fail,Bug #RID-AC-006: Driver's license format regex validation missing. Screenshot: tc-rid-012.png
+TC-RID-013,License and Vehicle,Driver's license number already registered,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The rider pedrojose.garcia@example.com already exists.,"1. Fill in all other fields with valid data.
+2. Enter the existing license number.
+3. Tap Save.",Driver's License No.: N01-23-456789,Saving is blocked. A message says the license number is already registered.,A14,System permitted creating a rider with duplicate license number N01-23-456789 without duplicate license error.,Fail,Bug #RID-AC-007: Duplicate driver's license number accepted. Screenshot: tc-rid-013.png
+TC-RID-014,License and Vehicle,License expiry date at the limit,Boundary Value Analysis,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Enter each expiry date in the test data, one per attempt.
+3. Tap Save.","Expiry 10/22/2026 (yesterday, reject)
+Expiry 10/23/2026 (today, accept)
+Expiry 10/24/2026 (tomorrow, accept)",Yesterday's date is rejected with a message that the license is expired. Today's and tomorrow's dates are accepted.,A15,License expiry date set to yesterday (10/22/2026) was accepted without error; expired license validation missing.,Fail,Bug #RID-AC-008: Expired driver's license date accepted without rejection. Screenshot: tc-rid-014.png
+TC-RID-015,License and Vehicle,Plate number already registered,Equivalence Partitioning,Medium,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The rider pedrojose.garcia@example.com already exists.,"1. Fill in all other fields with valid data.
+2. Enter the existing plate number.
+3. Tap Save.",Plate Number: 123ABC,Saving is blocked. A message says the plate number is already registered.,A14,Duplicate plate number 123ABC was saved successfully without duplicate check error.,Fail,Bug #RID-AC-009: Vehicle plate number uniqueness validation not enforced. Screenshot: tc-rid-015.png
+TC-RID-016,Document Upload,Upload documents in each accepted file type,Equivalence Partitioning,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Upload the files in the test data.
+3. Tap Save.","Driver's License: drivers_license.jpg (1.5 MB), then drivers_license.png (2.0 MB), then drivers_license.pdf (700 KB)
+Vehicle OR/CR: or_cr.pdf (900 KB)",Each file is accepted and its name or preview is shown. The rider is saved.,A10,Each file is accepted and its name or preview is shown. The rider is saved.,Pass,Pass. Requirements verified. Evidence: tc-rid-016.png
+TC-RID-017,Document Upload,Upload a file type that is not accepted,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open.,"1. Fill in all other fields with valid data.
+2. Try to upload each file in the test data to Driver's License, one per attempt.
+3. Tap Save.","price_list.docx (320 KB)
+store_banner.gif (480 KB)
+installer.exe (2.1 MB)","Each file is rejected with a message listing the accepted types (JPG, PNG, PDF). No rider is created.",A10,installer.exe was uploaded and saved; file MIME type filter failed to reject executable binaries.,Fail,Bug #RID-AC-010: Executable .exe file accepted on document upload. Screenshot: tc-rid-017.png
+TC-RID-018,Document Upload,File size at the limit,Boundary Value Analysis,High,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all other fields with valid data.
+2. Upload each file in the test data to Driver's License, one per attempt.
+3. Tap Save.","size_4.9MB.jpg (accept)
+size_5.0MB.jpg, exactly 5,120 KB (accept)
+size_5.1MB.jpg (reject)",The 4.9 MB and 5.0 MB files are accepted. The 5.1 MB file is rejected with a maximum-size message.,A10,size_5.1MB.jpg was accepted and uploaded without error; 5.0 MB maximum file size limit was not enforced.,Fail,Bug #RID-AC-011: Upload size limit of 5.0 MB not enforced; 5.1 MB accepted. Screenshot: tc-rid-018.png
+TC-RID-019,Add Rider Form,Tap Save several times quickly,Error Guessing,Medium,"The Approved logistics account operations@bilishatid.example.com is logged in and the Add Rider form is open. The email, mobile number, license number and plate number in the test data are not yet registered.","1. Fill in all fields with the Account 2 data from the Test Data sheet.
+2. Tap Save three times in quick succession.","Account 2 data (Test Data sheet, column G)",Only one rider is created and only one activation email is sent.,A3,Tapping Save 3 times quickly created 3 duplicate rider records in database and dispatched 3 activation emails.,Fail,Bug #RID-AC-012: Form submission is not idempotent; multiple rider records created. Screenshot: tc-rid-019.png
+TC-RID-020,Account Activation,Rider activates the account with a valid password,State Transition,High,The rider pedrojose.garcia@example.com has status Pending Activation and the activation email has been read from the mail catcher.,"1. On the rider's phone, open the activation link from the email within 24 hours.
+2. Enter and confirm the password.
+3. Tap Activate.","Password: Rider@2026
+Confirm Password: Rider@2026","The password is saved. The rider's status changes from Pending Activation to Active, and the login screen opens with a success message.","A5, A13","The password is saved. The rider's status changes from Pending Activation to Active, and the login screen opens with a success message.",Pass,Pass. Requirements verified. Evidence: tc-rid-020.png
+TC-RID-021,Account Activation,Set a password that breaks the password rule,Decision Table,High,The rider pedrojose.garcia@example.com has status Pending Activation and the activation email has been read from the mail catcher.,"1. Open the activation link.
+2. Enter each password in both fields, one per attempt.
+3. Tap Activate.","7 characters: Ride@26
+No uppercase: rider@2026
+No lowercase: RIDER@2026
+No number: Rider@abcd
+No special character: Rider2026",Each password is rejected with a message stating the password rule. The rider stays Pending Activation.,A5,Test case was not run; test execution blocked due to activation token generation database reset pending.,Not Run,Not Run. Test blocked pending test database reset for token generation. Scheduled for next regression cycle.
+TC-RID-022,Account Activation,Confirm Password does not match,Equivalence Partitioning,Medium,The rider pedrojose.garcia@example.com has status Pending Activation and the activation email has been read from the mail catcher.,"1. Open the activation link.
+2. Enter the test data in Password and Confirm Password.
+3. Tap Activate.","Password: Rider@2026
+Confirm Password: Rider@2027",Activation is blocked. A message says the passwords do not match.,A5,Form allowed submission and displayed generic 'Something went wrong' instead of 'Passwords do not match' error.,Fail,Bug #RID-AC-013: Generic error toast instead of password mismatch validation. Screenshot: tc-rid-022.png
+TC-RID-023,Account Activation,Open an expired activation link,Boundary Value Analysis,High,The rider pedrojose.garcia@example.com has status Pending Activation and the activation email has been read from the mail catcher.,"1. Wait until more than 24 hours have passed since the email was sent (or set the link's expiry time back in the test database).
+2. Open the activation link.",Activation link sent 24 hours and 1 minute ago,A message says the link has expired. No password can be set and the rider stays Pending Activation.,A13,Opening expired activation link (24h+ past) still displayed active password form and allowed setting password.,Fail,Bug #RID-AC-014: Activation link token expiry of 24 hours not enforced. Screenshot: tc-rid-023.png
+TC-RID-024,Account Activation,Logistics resends the activation email,State Transition,Medium,The rider pedrojose.garcia@example.com has status Pending Activation. The logistics account operations@bilishatid.example.com is logged in.,"1. Open the rider list.
+2. Tap Resend Activation for Pedro Jose Garcia.
+3. Open the first link.
+4. Open the second link.","First activation link, then the link from the second email",A new activation email is sent. The first link no longer works. The second link opens the set-password screen.,A13,"Tapping Resend Activation sent new email, but the first activation link remained valid and active.",Fail,Bug #RID-AC-015: Resending activation does not invalidate previous activation token. Screenshot: tc-rid-024.png
+TC-RID-025,Account Activation,Reuse the activation link after activating,State Transition,Medium,The rider pedrojose.garcia@example.com is already Active.,1. Open the activation link that was already used.,Activation link from the email that was used to activate,A message says the link is invalid or already used. The password cannot be changed through this link.,A13,Opening already-used activation link allowed setting a new password again instead of showing invalid link notice.,Fail,Bug #RID-AC-016: Single-use activation link can be reused multiple times. Screenshot: tc-rid-025.png
+TC-RID-026,Account Activation,Rider logs in before activating,State Transition,High,The rider pedrojose.garcia@example.com has status Pending Activation.,"1. Open the login screen.
+2. Enter the email and password.
+3. Tap Log In.","Email: pedrojose.garcia@example.com
+Password: Rider@2026",Login is denied. The rider is not given access to any screen.,A13,Login is denied. The rider is not given access to any screen.,Pass,Pass. Requirements verified. Evidence: tc-rid-026.png
+TC-RID-027,Access Control,Rider logs in after activating,Use Case Testing,High,The rider pedrojose.garcia@example.com is Active.,"1. Open the login screen.
+2. Enter the email and password.
+3. Tap Log In.","Email: pedrojose.garcia@example.com
+Password: Rider@2026",Login succeeds. The rider dashboard opens and shows Pedro Jose Garcia and Bilis Hatid Express Inc.,A13,Login succeeds. The rider dashboard opens and shows Pedro Jose Garcia and Bilis Hatid Express Inc.,Pass,Pass. Requirements verified. Evidence: tc-rid-027.png
+TC-RID-028,Access Control,Rider is visible only to the company that created it,Error Guessing,High,Bilis Hatid Express Inc. created the rider Pedro Jose Garcia. Agila Cargo Movers Corp. is also an Approved logistics account.,"1. Log in as the first company and open the rider list.
+2. Log out.
+3. Log in as the second company and open the rider list.","First: operations@bilishatid.example.com / Hatid@2026
+Second: admin@agilacargo.example.com / Agila#Cargo26",Pedro Jose Garcia appears in the rider list of Bilis Hatid Express Inc. and does not appear in the rider list of Agila Cargo Movers Corp.,A13,Pedro Jose Garcia appears in the rider list of Bilis Hatid Express Inc. and does not appear in the rider list of Agila Cargo Movers Corp.,Pass,Pass. Requirements verified. Evidence: tc-rid-028.png
+TC-RID-029,Access Control,No public rider registration,Error Guessing,High,No user is logged in.,"1. Open the app's Sign Up screen and check the role choices.
+2. While logged out, open the Add Rider deep link on the phone.","Add Rider deep link (copy it while logged in as logistics, if the app has one)",Rider is not offered as a self-registration role. The Add Rider deep link opens the login screen.,"A13, M11",Navigating to deep link /register/rider while logged out rendered a public rider registration form.,Fail,Bug #RID-AC-017: Public registration form accessible for rider role via deep link. Screenshot: tc-rid-029.png
+TC-RID-030,Access Control,Buyer or seller opens the Add Rider form,Error Guessing,High,The buyer account juanmiguel.delacruz@example.com is logged in.,"1. Check the buyer's tabs and menus for Add Rider.
+2. Open the Add Rider deep link on the buyer's phone.
+3. With a proxy tool, send the Add Rider request using the buyer's session.
+4. Repeat while logged in as the seller mariaclara.santos@example.com.",Add Rider deep link and Add Rider API request,"Add Rider is not shown. The deep link and the request are refused each time (401/403, access-denied screen or redirect). No rider can be created.","A16, M11",Sending Add Rider API request with buyer authorization cookie returned HTTP 200 OK and created rider.,Fail,Bug #SEC-007: Buyer account authorized to invoke Add Rider endpoint. Screenshot: tc-rid-030.png
+TC-RID-031,Access Control,Pending logistics account tries to add a rider,State Transition,High,"A logistics account with status Pending Approval is logged in (register admin@agilacargo.example.com and verify it, but do not approve it yet).","1. Look for the Add Rider option.
+2. Open the Add Rider deep link, or send the Add Rider request with a proxy tool.",Add Rider deep link or API request,The Add Rider option is not available. The deep link or request is denied or shows the under-review notice. No rider can be created.,"A12, A13, M11",Pending logistics account was able to access Add Rider form and create rider records prior to admin approval.,Fail,Bug #RID-AC-018: Unapproved logistics account permitted to create riders. Screenshot: tc-rid-031.png
+TC-RID-032,Access Control,Open another role's screens,Error Guessing,Medium,The Active rider account pedrojose.garcia@example.com is logged in.,"1. Check every tab and menu for logistics, seller or admin functions.
+2. Open each deep link in the test data on the rider's phone, one at a time.
+3. If a proxy tool is available, replay one logistics request using the rider's session.","Logistics dashboard deep link
+Seller dashboard deep link
+Admin dashboard deep link",No other role's menus are shown. Each deep link shows an access-denied message or returns to the rider home screen. The API request is refused (401/403). No data from the other role is shown.,"A16, M11",Rider account was able to open Logistics dashboard via deep link and view full logistics dispatch screen.,Fail,Bug #SEC-008: Broken access control: rider can navigate to Logistics dashboard. Screenshot: tc-rid-032.png
+TC-RID-033,Add Rider Form,[Mobile] Each field opens the right keyboard,Error Guessing,Medium,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Tap each field in turn, from top to bottom.
+2. Note the keyboard that opens and whether word suggestions appear.","Email: email keyboard with @
+Mobile Number: number pad
+Driver's License No., Plate Number: letters and numbers, capitals
+First / Last Name: capitalises each word",Each field opens the keyboard listed in the test data. Password fields show no autocorrect or word suggestions. No field opens a keyboard that cannot type its valid value.,M2,Each field opens the keyboard listed in the test data. Password fields show no autocorrect or word suggestions. No field opens a keyboard that cannot type its valid value.,Pass,Pass. Requirements verified. Evidence: tc-rid-033.png
+TC-RID-034,Add Rider Form,[Mobile] Keyboard never hides the active field or Save,Error Guessing,Low,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. On the smallest test phone, tap each field from top to bottom.
+2. With the keyboard open on the last field, scroll to Save.
+3. Tap Done or tap outside the fields.",Any valid values,"The focused field always scrolls into view above the keyboard, with its error message visible. Save can be reached and tapped. The keyboard closes when Done or the background is tapped.","M2, M12","The focused field always scrolls into view above the keyboard, with its error message visible. Save can be reached and tapped. The keyboard closes when Done or the background is tapped.",Pass,Pass. Requirements verified. Evidence: tc-rid-034.png
+TC-RID-035,Add Rider Form,[Mobile] App sent to the background while filling the form,Error Guessing,Medium,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Fill in about half the fields with Account 1 data.
+2. Press Home and open another app for 1 minute, then return.
+3. Lock the screen for 1 minute (or receive a phone call), then return.",Account 1 data (Test Data sheet),"Each time, the app returns to the same form with every typed value still there (passwords may be cleared). The app does not restart, crash or jump to the login screen. No rider is created until Save is tapped.",M4,"Each time, the app returns to the same form with every typed value still there (passwords may be cleared). The app does not restart, crash or jump to the login screen. No rider is created until Save is tapped.",Pass,Pass. Requirements verified. Evidence: tc-rid-035.png
+TC-RID-036,Add Rider Form,[Mobile] Rotate the phone while the form has data,Error Guessing,Low,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Fill in several fields and tap Save with one field blank, so an error message shows.
+2. Turn on auto-rotate and rotate the phone to landscape, then back.",Account 1 data with Email left blank,"Either the app stays in portrait, or the layout switches to landscape and back keeping every value and the error message. Nothing is cleared and the app does not crash.",M4,Rotating device to landscape cleared all input fields and reset the form to blank state.,Fail,Bug #RID-AC-019: Screen orientation change destroys form state and typed data. Screen recording: tc-rid-036.mp4
+TC-RID-037,Add Rider Form,[Mobile] Save with no internet connection,Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open. The values in the test data are not yet registered.,"1. Fill in every field with the test data.
+2. Turn on Airplane mode (Wi-Fi and mobile data off).
+3. Tap Save.
+4. Turn Airplane mode off and tap Save again.","Email: rider.test03@example.com
+Mobile Number: 09170000014
+Driver's License No.: M26-00-000001
+Plate Number: MOB100
+Other fields: Account 1 values","Step 3: a clear no-internet message is shown, the typed data stays on the form, the app does not crash, and no rider is created. Step 4: the rider is saved once: exactly one rider and one activation email.","M5, A13",Tapping Save in Airplane mode caused the app to freeze for 30 seconds before crashing with network socket timeout.,Fail,Bug #RID-AC-020: App freeze and fatal crash when saving with no internet connection. Screen recording: tc-rid-037.mp4
+TC-RID-038,Add Rider Form,[Mobile] Connection drops right after tapping Save,Error Guessing,High,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open. The values in the test data are not yet registered.,"1. Fill in every field with the test data.
+2. Tap Save, then turn on Airplane mode within a second.
+3. Turn Airplane mode off. If the form is still shown, tap Save again.
+4. Check the mail catcher and the rider list.","Email: rider.test04@example.com
+Mobile Number: 09170000015
+Driver's License No.: M26-00-000002
+Plate Number: MOB200
+Other fields: Account 1 values","The app shows a connection error or a waiting state, never a frozen screen. In the end exactly one rider exists with this email. If the first attempt was saved, the app continues normally (or says the rider already exists and lets the user continue); the rider is never left in a state the user cannot reach.","M5, A13",Connection drop right after tapping Save caused app to stay permanently on loading spinner with no error message.,Fail,Bug #RID-AC-021: Infinite loading spinner on network drop during submission. Screen recording: tc-rid-038.mp4
+TC-RID-039,Add Rider Form,[Mobile] System Back on the Add Rider form,State Transition,Medium,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Fill in a few fields, then press Android Back (or swipe back on iPhone).
+2. Tap Cancel in the prompt, then press Back again and confirm leaving.
+3. Open the rider list.",Any valid values,"Leaving the form with typed data asks first, and Cancel keeps every value. After confirming, no rider is created and the rider list is unchanged.",M8,"Leaving the form with typed data asks first, and Cancel keeps every value. After confirming, no rider is created and the rider list is unchanged.",Pass,Pass. Requirements verified. Evidence: tc-rid-039.png
+TC-RID-040,Document Upload,"[Mobile] Upload with the camera, the Files app and the gallery",Equivalence Partitioning,High,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open. The values in the test data are not yet registered.,"1. For Driver's License, choose Take Photo and photograph a printed sample of the document.
+2. For Vehicle OR/CR, choose Files (Browse) and pick or_cr.pdf copied to the phone.
+3. Fill in the other fields and tap Save.","Email: rider.test07@example.com
+Mobile Number: 09170000017
+Driver's License No.: M26-00-000005
+Plate Number: MOB500
+Other fields: Account 1 values
+Vehicle OR/CR: or_cr.pdf","Each source (camera, Files, gallery) is offered and works. The camera photo shows a preview and is accepted (compressed to 5 MB or less if needed). The PDF and the gallery image show their names or previews. Save continues normally.","A10, M6, M7",Choosing Take Photo failed to launch camera provider; app displayed black screen and hung.,Fail,Bug #RID-AC-022: Camera intent fails to launch from document upload picker. Screen recording: tc-rid-040.mp4
+TC-RID-041,Document Upload,[Mobile] Camera or photo access denied,Error Guessing,Medium,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Tap the Driver's License upload, choose Take Photo, and tap Don't Allow when asked for camera access.
+2. Choose Gallery and deny photo access too.
+3. Choose Files and pick drivers_license.jpg.
+4. Choose Take Photo again.",drivers_license.jpg copied to the phone,No crash. A message explains why the permission is needed and offers a link to the phone's Settings. Files still works and the file is accepted. Asking again shows the system prompt again or the Settings message.,M6,Denying camera permission threw an uncaught SecurityException and crashed the app.,Fail,Bug #RID-AC-023: Fatal crash on camera permission denial without graceful fallback. Screen recording: tc-rid-041.mp4
+TC-RID-042,Document Upload,[Mobile] Full-resolution camera photo bigger than 5 MB,Boundary Value Analysis,Medium,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Set the camera to its highest resolution and take the Driver's License photo inside the app, or pick size_5.1MB.jpg from Photos.
+2. Fill in the other fields and tap Save.","Camera photo over 5 MB, or size_5.1MB.jpg in Photos","The app either compresses the photo to 5 MB or less and accepts it (the saved image is still readable), or rejects it with the maximum-size message. It never uploads a file over 5 MB and never fails without a message. Write your rule in Assumption M7, column D.","A10, M7",Uploading 5.1 MB camera photo failed silently; document name was cleared and no error message appeared.,Fail,Bug #RID-AC-024: Silent failure on photo exceeding 5MB without validation error. Screenshot: tc-rid-042.png
+TC-RID-043,Add Rider Form,[Mobile] Large system font on a small screen,Error Guessing,Low,The Approved logistics account operations@bilishatid.example.com is logged in on the test phone and the Add Rider form is open.,"1. Set the phone's font size and display size to the largest setting.
+2. Open the Add Rider form and tap Save with every field empty.",All fields blank,"All labels, placeholders, error messages and buttons can be read in full; none are cut off or overlapping. The screen scrolls to every field and Save can be tapped.",M12,"With largest system font, Save button was pushed below the viewport boundary and could not be scrolled to.",Fail,Bug #RID-AC-025: Save button obscured and unscrollable on largest system font. Screenshot: tc-rid-043.png
+TC-RID-044,Account Activation,[Mobile] Activation link opened on the rider's phone with the app installed,Use Case Testing,High,The rider markanthony.bautista@example.com (created with the Account 2 data) is Pending Activation. The app is installed on the rider's phone and the activation email is open there.,"1. On the rider's phone, tap the activation link.
+2. Enter the password in both fields and tap Activate.
+3. Log in to the app.","Password: Hatid#Mark26
+Confirm Password: Hatid#Mark26","The link opens the app's Set Password screen (or a mobile web page that leads back to the app). Activation succeeds, the status becomes Active, and the rider logs in to the rider home screen showing Mark Anthony Bautista.","A13, M11","The link opens the app's Set Password screen (or a mobile web page that leads back to the app). Activation succeeds, the status becomes Active, and the rider logs in to the rider home screen showing Mark Anthony Bautista.",Pass,Pass. Requirements verified. Evidence: tc-rid-044.png
+TC-RID-045,Account Activation,[Mobile] Activation link opened on a phone without the app,Error Guessing,Low,A rider created with spare values is Pending Activation. The phone used does not have the app installed.,1. Open the activation link on that phone.,Activation link from the mail catcher,"The link opens a mobile web page to set the password, or the app's store page with clear instructions. No blank or error page.","A13, M11",Opening activation link on device without app showed blank white page with 'net::ERR_UNKNOWN_URL_SCHEME'.,Fail,Bug #RID-AC-026: Deep link fails on browser without app installed; fallback page missing. Screenshot: tc-rid-045.png
+TC-RID-046,Access Control,[Mobile] Stay logged in after closing the app or restarting the phone,State Transition,Medium,The rider pedrojose.garcia@example.com is Active and logged in to the app on the rider's test phone.,"1. Swipe the app away from recent apps (force close) and reopen it.
+2. Restart the phone and reopen the app.","Email: pedrojose.garcia@example.com
+Password: Rider@2026","Each time the app opens on the rider home screen still logged in, showing Pedro Jose Garcia. It does not ask to log in again and shows no other user's data.",M9,"Each time the app opens on the rider home screen still logged in, showing Pedro Jose Garcia. It does not ask to log in again and shows no other user's data.",Pass,Pass. Requirements verified. Evidence: tc-rid-046.png
+TC-RID-047,Access Control,[Mobile] Back after logging out,State Transition,High,The rider pedrojose.garcia@example.com is Active and logged in to the app on the rider's test phone.,"1. Tap Log Out.
+2. Press Android Back (or swipe back) several times.
+3. Reopen the app from recent apps.","Email: pedrojose.garcia@example.com
+Password: Rider@2026","The login screen stays. No screen with account data appears again, and the app does not log back in by itself.","M8, M9","The login screen stays. No screen with account data appears again, and the app does not log back in by itself.",Pass,Pass. Requirements verified. Evidence: tc-rid-047.png

@@ -9,26 +9,160 @@ use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
-    public function eWalletPayments()
+    public function eWalletPayments(Request $request)
     {
-        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
-        $orders = Order::with(['user', 'seller', 'items.product'])
-            ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
-            ->latest()
-            ->paginate(15);
+        $filters = $this->normalizeEWalletFilters($request);
+        $baseQuery = $this->eWalletPaymentsQuery($filters);
+        $tabCounts = [
+            'all' => (clone $baseQuery)->count(),
+            'review' => (clone $baseQuery)->where('payment_status', 'pending')->whereNotNull('payment_proof_path')->count(),
+            'verified' => (clone $baseQuery)->where('payment_status', 'paid')->count(),
+            'missing' => (clone $baseQuery)->whereNull('payment_proof_path')->count(),
+        ];
+        $filteredQuery = $this->eWalletPaymentsQuery($filters, $filters['status']);
+        $total = (clone $filteredQuery)->count();
+        $lastPage = max(1, (int) ceil($total / $filters['per_page']));
+        $page = min($filters['page'], $lastPage);
 
-        $orders->getCollection()->each(function (Order $order) use ($proofDisk) {
+        $orders = $filteredQuery
+            ->with(['user', 'seller', 'items.product'])
+            ->offset(($page - 1) * $filters['per_page'])
+            ->limit($filters['per_page'])
+            ->get();
+
+        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
+        $orders->each(function (Order $order) use ($proofDisk) {
             $order->setAttribute('payment_proof_available', (bool) $order->payment_proof_path && $proofDisk->exists($order->payment_proof_path));
         });
 
-        return view('admin.e-wallet-payments', compact('orders'));
+        $orders = new LengthAwarePaginator($orders, $total, $filters['per_page'], $page, [
+            'path' => $request->url(),
+            'query' => array_merge($filters, ['page' => $page]),
+        ]);
+
+        return view('admin.e-wallet-payments', compact('orders', 'filters', 'tabCounts'));
+    }
+
+    public function exportEWalletPayments(Request $request)
+    {
+        $filters = $this->normalizeEWalletFilters($request);
+        $query = $this->eWalletPaymentsQuery($filters, $filters['status'])
+            ->with(['user', 'seller']);
+
+        return response()->streamDownload(function () use ($query) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Order number', 'Placed at', 'Buyer', 'Buyer email', 'Seller', 'Method', 'Subtotal', 'Shipping', 'Total', 'Order status', 'Payment status', 'Reference last 6', 'Receipt path']);
+
+            foreach ($query->lazy(200) as $order) {
+                $values = [
+                    $order->order_number,
+                    $order->created_at?->format('Y-m-d H:i:s'),
+                    $order->user?->name,
+                    $order->user?->email,
+                    $order->seller?->name,
+                    in_array($order->payment_method, ['maya', 'paymaya'], true) ? 'Maya' : 'GCash',
+                    number_format((float) $order->subtotal, 2, '.', ''),
+                    number_format((float) $order->shipping_fee, 2, '.', ''),
+                    number_format((float) $order->total, 2, '.', ''),
+                    $order->status_label,
+                    ucfirst($order->payment_status),
+                    $order->payment_reference_last6,
+                    $order->payment_proof_path,
+                ];
+
+                fputcsv($file, array_map(function ($value) {
+                    $value = (string) ($value ?? '');
+
+                    return preg_match('/^[=+\-@]/', $value) ? "'".$value : $value;
+                }, $values));
+            }
+
+            fclose($file);
+        }, 'e-wallet-payments.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function normalizeEWalletFilters(Request $request): array
+    {
+        $allowedPerPage = ['8', '16', '32'];
+        $perPageValue = $request->query('per_page', '8');
+        $pageValue = $request->query('page', 1);
+        $page = is_scalar($pageValue)
+            ? (filter_var($pageValue, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1)
+            : 1;
+        $query = $request->query('q', '');
+
+        return [
+            'page' => $page,
+            'per_page' => is_scalar($perPageValue) && in_array((string) $perPageValue, $allowedPerPage, true) ? (int) $perPageValue : 8,
+            'status' => in_array($request->query('status'), ['all', 'review', 'verified', 'missing'], true) ? $request->query('status') : 'all',
+            'method' => in_array($request->query('method'), ['all', 'gcash', 'maya'], true) ? $request->query('method') : 'all',
+            'q' => is_scalar($query) ? mb_substr(trim((string) $query), 0, 120) : '',
+            'sort' => in_array($request->query('sort'), ['attention', 'newest', 'oldest', 'amount'], true) ? $request->query('sort') : 'attention',
+            'range' => in_array($request->query('range'), ['30', '7', 'today'], true) ? $request->query('range') : '30',
+        ];
+    }
+
+    private function eWalletPaymentsQuery(array $filters, ?string $status = null)
+    {
+        $query = Order::query()->whereIn('payment_method', ['gcash', 'maya', 'paymaya']);
+
+        if ($filters['method'] === 'gcash') {
+            $query->where('payment_method', 'gcash');
+        } elseif ($filters['method'] === 'maya') {
+            $query->whereIn('payment_method', ['maya', 'paymaya']);
+        }
+
+        if ($filters['q'] !== '') {
+            $term = $filters['q'];
+            $query->where(function ($search) use ($term) {
+                $search->where('order_number', 'like', '%'.$term.'%');
+
+                if (preg_match('/^\d{6}$/', $term)) {
+                    $search->orWhere('payment_reference_last6', $term);
+                } else {
+                    $search->orWhere('payment_reference_last6', 'like', '%'.$term.'%');
+                }
+
+                $search->orWhereHas('user', function ($buyer) use ($term) {
+                    $buyer->where('name', 'like', '%'.$term.'%')
+                        ->orWhere('email', 'like', '%'.$term.'%');
+                });
+            });
+        }
+
+        $rangeStart = match ($filters['range']) {
+            'today' => now()->startOfDay(),
+            '7' => now()->subDays(6)->startOfDay(),
+            default => now()->subDays(29)->startOfDay(),
+        };
+        $query->whereBetween('created_at', [$rangeStart, now()->endOfDay()]);
+
+        match ($status) {
+            'review' => $query->where('payment_status', 'pending')->whereNotNull('payment_proof_path'),
+            'verified' => $query->where('payment_status', 'paid'),
+            'missing' => $query->whereNull('payment_proof_path'),
+            default => null,
+        };
+
+        match ($filters['sort']) {
+            'newest' => $query->orderByDesc('created_at'),
+            'oldest' => $query->orderBy('created_at'),
+            'amount' => $query->orderByDesc('total')->orderByDesc('created_at'),
+            default => $query->orderByRaw("CASE WHEN payment_proof_path IS NULL THEN 0 WHEN payment_status = 'pending' THEN 1 WHEN payment_status = 'paid' THEN 2 ELSE 3 END")
+                ->orderByDesc('created_at'),
+        };
+
+        return $query;
     }
 
     public function approveEWalletPayment(Order $order)
@@ -612,8 +746,8 @@ class DashboardController extends Controller
     private function ensureVouchersTableExists(): void
     {
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('vouchers')) {
-                \Illuminate\Support\Facades\Schema::create('vouchers', function (\Illuminate\Database\Schema\Blueprint $table) {
+            if (! Schema::hasTable('vouchers')) {
+                Schema::create('vouchers', function (Blueprint $table) {
                     $table->id();
                     $table->string('code', 50)->unique();
                     $table->string('type', 20)->default('percent');

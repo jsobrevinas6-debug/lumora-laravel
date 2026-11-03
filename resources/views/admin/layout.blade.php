@@ -50,6 +50,7 @@
         .match-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; background:#eef3ec; color:var(--sage-2); }
         .muted-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:500; background:#f2ecee; color:var(--text-muted); }
         @media (max-width:900px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
+        .admin-ewallet-count { min-width:21px; margin-left:auto; padding:1px 6px; border-radius:999px; background:#E8674A; color:#fff; text-align:center; font-size:11px; font-weight:700; line-height:18px; }
     </style>
 </head>
 <body>
@@ -70,7 +71,19 @@
     <a href="{{ route('admin.chat.index') }}" class="nav-link {{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">Messages</a>
     <a href="{{ route('admin.commission') }}" class="nav-link {{ request()->routeIs('admin.commission') ? 'active' : '' }}">Commission</a>
     <a href="{{ route('admin.payout-requests.index') }}" class="nav-link {{ request()->routeIs('admin.payout-requests.*') ? 'active' : '' }}">Payout Requests</a>
-    <a href="{{ route('admin.e-wallet-payments') }}" class="nav-link {{ request()->routeIs('admin.e-wallet-payments') ? 'active' : '' }}">E-Wallet Payments</a>
+    @php
+        $pendingEWalletReviewCount = \App\Models\Order::query()
+            ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
+            ->where('payment_status', 'pending')
+            ->whereNotNull('payment_proof_path')
+            ->count();
+    @endphp
+    <a href="{{ route('admin.e-wallet-payments') }}" class="nav-link {{ request()->routeIs('admin.e-wallet-payments*') ? 'active' : '' }}">
+        <span>E-Wallet Payments</span>
+        @if ($pendingEWalletReviewCount > 0)
+            <span class="admin-ewallet-count" aria-label="{{ $pendingEWalletReviewCount }} payments to review">{{ $pendingEWalletReviewCount }}</span>
+        @endif
+    </a>
     <a href="{{ route('admin.vouchers.index') }}" class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">Vouchers</a>
     <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Settings</a>
     <form method="POST" action="{{ route('logout') }}" class="logout-form">
