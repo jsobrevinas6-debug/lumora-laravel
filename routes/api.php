@@ -21,6 +21,10 @@ Route::get('/health', function () {
     ]);
 });
 
+// Lumora Logistics Waybill Barcode Bridge (used by Lumora Scanner & Sorting Center)
+Route::get('/logistics/waybill/{barcode}', [OrderController::class, 'waybillLookup']);
+Route::post('/logistics/waybill/{barcode}/status', [OrderController::class, 'waybillStatusUpdate']);
+
 // Public product catalog
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');

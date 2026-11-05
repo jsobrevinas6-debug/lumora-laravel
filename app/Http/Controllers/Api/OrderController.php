@@ -388,4 +388,210 @@ class OrderController extends Controller
             ])->values(),
         ];
     }
+
+    /**
+     * Waybill barcode lookup for Lumora Logistics Scanner & Sorting Center.
+     * Supports Code 39 Order IDs (*12* -> 12), order_number (LMR-2026-000012), or tracking_number.
+     */
+    public function waybillLookup(Request $request, string $barcode): JsonResponse
+    {
+        $cleanCode = trim($barcode);
+        $cleanCode = trim($cleanCode, "*# \t\n\r\0\x0B");
+
+        $numericId = null;
+        if (is_numeric($cleanCode)) {
+            $numericId = (int) $cleanCode;
+        } elseif (preg_match('/^(?:ord|order|waybill|lm-trk|ph)[-_]?0*(\d+)$/i', $cleanCode, $matches)) {
+            $numericId = (int) $matches[1];
+        }
+
+        $hasPaymentMethod = Schema::hasColumn('orders', 'payment_method');
+        $hasOrderNumber = Schema::hasColumn('orders', 'order_number');
+        $hasTrackingNumber = Schema::hasColumn('orders', 'tracking_number');
+        $hasTotal = Schema::hasColumn('orders', 'total');
+
+        $query = DB::table('orders as o')
+            ->join('users as u', 'u.id', '=', 'o.user_id')
+            ->select(
+                'o.id',
+                DB::raw($hasOrderNumber ? 'o.order_number' : 'NULL as order_number'),
+                'o.status as order_status',
+                'o.created_at',
+                DB::raw($hasTotal ? 'o.total as order_total' : '0 as order_total'),
+                'u.name as buyer_name',
+                'u.contact_number',
+                'u.province',
+                'u.municipality',
+                'u.barangay',
+                'u.street',
+                'u.house_number',
+                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method")
+            );
+
+        $query->where(function ($q) use ($numericId, $cleanCode, $hasOrderNumber, $hasTrackingNumber) {
+            if ($numericId !== null) {
+                $q->where('o.id', $numericId);
+            }
+            if ($hasOrderNumber) {
+                $q->orWhere('o.order_number', $cleanCode);
+            }
+            if ($hasTrackingNumber) {
+                $q->orWhere('o.tracking_number', $cleanCode);
+            }
+        });
+
+        $order = $query->first();
+        if (! $order) {
+            return response()->json([
+                'status' => 'not_found',
+                'found' => false,
+                'message' => "No waybill found for barcode {$cleanCode}.",
+            ], 404);
+        }
+
+        $rawItems = DB::table('order_items as oi')
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->where('oi.order_id', $order->id)
+            ->select('oi.*', 'p.name as product_name', 'p.seller_id')
+            ->get();
+
+        $shopName = 'Lumora Marketplace';
+        if ($rawItems->isNotEmpty()) {
+            $sellerId = $rawItems->first()->seller_id ?? null;
+            if ($sellerId && Schema::hasTable('seller_applications')) {
+                $sellerApp = DB::table('seller_applications')
+                    ->where('user_id', $sellerId)
+                    ->where('status', 'approved')
+                    ->first();
+                if ($sellerApp && ! empty($sellerApp->business_name)) {
+                    $shopName = $sellerApp->business_name;
+                }
+            }
+        }
+
+        $items = $rawItems->map(fn ($item) => [
+            'product_id' => $item->product_id,
+            'name' => $item->product_name,
+            'qty' => (int) $item->quantity,
+            'unit_price' => (float) $item->price,
+            'price' => '₱' . number_format((float) $item->price, 2),
+            'subtotal' => (float) ($item->price * $item->quantity),
+        ]);
+
+        $itemsSum = (float) $items->sum('subtotal');
+        $total = (float) ($order->order_total > 0 ? $order->order_total : $itemsSum);
+        $paymentMethod = strtolower((string) ($order->payment_method ?? 'cod'));
+        $isCod = ($paymentMethod === 'cod');
+        $codAmount = $isCod ? $total : 0.0;
+
+        $addressLine = collect([
+            $order->house_number ?? null,
+            $order->street ?? null,
+            $order->barangay ?? null,
+            $order->municipality ?? null,
+            $order->province ?? null,
+        ])->filter()->implode(', ') ?: 'Laguna';
+
+        $itemsSummary = $items->isNotEmpty()
+            ? $items->map(fn ($i) => "{$i['qty']}x {$i['name']}")->implode(', ')
+            : "Order #{$order->id} Package";
+
+        return response()->json([
+            'status' => 'success',
+            'found' => true,
+            'waybill' => [
+                'barcode' => (string) $order->id,
+                'order_id' => (int) $order->id,
+                'order_number' => $order->order_number ?: ('ORD-' . str_pad((string) $order->id, 5, '0', STR_PAD_LEFT)),
+                'order_status' => $order->order_status ?? 'packed',
+                'created_at' => $order->created_at,
+                'shop_name' => $shopName,
+                'recipient_name' => $order->buyer_name ?: 'Lumora Buyer',
+                'recipient_phone' => $order->contact_number ?: '09170000000',
+                'house_number' => $order->house_number,
+                'street' => $order->street,
+                'barangay' => $order->barangay,
+                'city' => $order->municipality ?: 'Pila',
+                'province' => $order->province ?: 'Laguna',
+                'postal_code' => null,
+                'address_line' => $addressLine,
+                'payment_method' => $paymentMethod,
+                'is_cod' => $isCod,
+                'cod_amount' => $codAmount,
+                'total_amount' => $total,
+                'items_summary' => $itemsSummary,
+                'items' => $items->values()->all(),
+            ],
+        ]);
+    }
+
+    /**
+     * Receive status updates from Lumora Logistics (Scanner & Rider App).
+     */
+    public function waybillStatusUpdate(Request $request, string $barcode): JsonResponse
+    {
+        $cleanCode = trim($barcode, "*# \t\n\r\0\x0B");
+        $numericId = is_numeric($cleanCode) ? (int) $cleanCode : null;
+        if ($numericId === null && preg_match('/(\d+)$/', $cleanCode, $m)) {
+            $numericId = (int) $m[1];
+        }
+
+        $hasOrderNumber = Schema::hasColumn('orders', 'order_number');
+        $query = DB::table('orders');
+        $query->where(function ($q) use ($numericId, $cleanCode, $hasOrderNumber) {
+            if ($numericId !== null) {
+                $q->where('id', $numericId);
+            }
+            if ($hasOrderNumber) {
+                $q->orWhere('order_number', $cleanCode);
+            }
+        });
+
+        $order = $query->first();
+        if (! $order) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        $logisticsStatus = strtolower((string) $request->input('status', 'scanned'));
+        $mappedStatus = match ($logisticsStatus) {
+            'delivered', 'completed' => 'delivered',
+            'cancelled', 'failed' => 'cancelled',
+            default => 'shipped',
+        };
+
+        $updatePayload = [
+            'status' => $mappedStatus,
+            'updated_at' => now(),
+        ];
+        if ($mappedStatus === 'delivered' && Schema::hasColumn('orders', 'delivered_at')) {
+            $updatePayload['delivered_at'] = now();
+        }
+
+        DB::table('orders')->where('id', $order->id)->update($updatePayload);
+
+        if (Schema::hasTable('order_status_histories')) {
+            try {
+                $historyRow = [
+                    'order_id' => $order->id,
+                    'status' => $mappedStatus,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+                if (Schema::hasColumn('order_status_histories', 'remarks')) {
+                    $historyRow['remarks'] = $request->input('note', "Updated via Lumora Logistics ({$logisticsStatus})");
+                } elseif (Schema::hasColumn('order_status_histories', 'notes')) {
+                    $historyRow['notes'] = $request->input('note', "Updated via Lumora Logistics ({$logisticsStatus})");
+                }
+                DB::table('order_status_histories')->insert($historyRow);
+            } catch (\Throwable) {
+                // Ignore schema differences
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'order_id' => $order->id,
+            'new_status' => $mappedStatus,
+        ]);
+    }
 }
