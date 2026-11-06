@@ -31,12 +31,13 @@
                 </div>
             </template>
 
-            <div class="lumora-quick" x-show="!reportMode && (buttons.length || path.length)" x-cloak>
+            <div class="lumora-quick" x-show="!reportMode && !topicsDismissed && (buttons.length || path.length)" x-cloak>
                 <template x-for="(btn, i) in buttons" :key="'b' + i">
                     <button type="button" class="lumora-chip" @click="pick(btn)" x-text="btn.label"></button>
                 </template>
                 <button type="button" class="lumora-chip lumora-chip-back" x-show="path.length" x-cloak @click="resetMenu()">&larr; Main menu</button>
             </div>
+            <button type="button" class="lumora-topics-toggle" x-show="!reportMode && topicsDismissed" x-cloak @click="showTopics()">Show help topics</button>
 
             <div class="lumora-message lumora-message-support lumora-typing" x-show="typing" x-cloak aria-label="Assistant is typing"><i></i><i></i><i></i></div>
         </div>
@@ -91,6 +92,7 @@
     .lumora-typing i:nth-child(2) { animation-delay:.15s; } .lumora-typing i:nth-child(3) { animation-delay:.3s; }
     @keyframes lumora-dot { 0%,80%,100% { opacity:.3; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
     .lumora-quick { display:flex; flex-wrap:wrap; gap:7px; padding:2px 0 4px; }
+    .lumora-topics-toggle { align-self:flex-start; padding:2px 0; border:0; background:transparent; color:#641b3a; font:inherit; font-size:11px; text-decoration:underline; cursor:pointer; }
     .lumora-chip { padding:8px 13px; border:1px solid #641b3a; border-radius:18px; background:#fff; color:#641b3a; font:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:background .2s ease, color .2s ease; text-align:left; }
     .lumora-chip:hover { background:#641b3a; color:#fff; }
     .lumora-chip-back { border-color:#eadbd6; color:#777; }
@@ -137,6 +139,7 @@ function chatWidget() {
         rootMenu: @json(config('support_bot.menu', [])),
         buttons: [],
         path: [],
+        topicsDismissed: false,
         localId: 0,
         realtimeAvailable: false,
         echoChannel: null,
@@ -155,8 +158,10 @@ function chatWidget() {
             if (btn.buttons && btn.buttons.length) {
                 this.path.push(btn.label);
                 this.buttons = btn.buttons;
+                this.topicsDismissed = false;
             } else {
                 this.resetMenu();
+                this.topicsDismissed = true;
             }
             if (btn.action === 'human' || btn.action === 'report') {
                 this.$nextTick(() => { const i = this.$el.querySelector('.lumora-input-wrap input[type="text"]'); if (i) i.focus(); });
@@ -167,7 +172,14 @@ function chatWidget() {
         resetMenu() {
             this.path = [];
             this.buttons = this.rootMenu;
+            this.topicsDismissed = false;
             this.$nextTick(() => this.scrollToBottom());
+        },
+
+        showTopics() {
+            this.path = [];
+            this.buttons = this.rootMenu;
+            this.topicsDismissed = false;
         },
 
         async init() {
@@ -180,6 +192,7 @@ function chatWidget() {
                 const data = await res.json();
                 this.conversationId = data.conversation_id;
                 this.messages = data.messages || [];
+                this.topicsDismissed = this.messages.some((message) => message.sender_id === this.userId && message.body);
 
                 if (window.Echo && typeof window.Echo.private === 'function' && this.conversationId) {
                     this.realtimeAvailable = true;
@@ -202,6 +215,7 @@ function chatWidget() {
             const file = this.file;
             if ((!body && !file) || !this.conversationId) return;
             const wasReport = this.reportMode;
+            if (body) this.topicsDismissed = true;
 
             this.newMessage = '';
             this.file = null;
@@ -242,6 +256,9 @@ function chatWidget() {
                 const data = await res.json();
                 this.messages[tmpIndex] = data.message || Object.assign(tmp, { id: data.message_id });
                 if (data.bot) this.messages.push(data.bot);
+                if (data.agent_active) {
+                    this.messages.push({ id: 'agent-' + (++this.localId), sender_id: null, is_bot: true, body: 'A support agent is handling this conversation and will reply here.' });
+                }
                 if (wasReport) {
                     this.reportMode = false;
                     this.messages.push({ id: 'a' + (++this.localId), sender_id: null, is_bot: true, body: 'Thank you! Your report was sent to the Lumora team. An admin will review it and reply here.' });

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class SupportBot
 {
+    private const UNAVAILABLE_REPLY = 'I’m having trouble connecting to the AI assistant right now. Your message is saved in this chat for the Lumora support team to review.';
+
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You are "Lumora Assistant", the customer-support chatbot for Lumora, an online beauty marketplace (skincare, makeup, fragrance) where independent sellers list products and buyers shop.
 
@@ -20,7 +22,7 @@ What you know:
 Rules:
 - Be friendly, concise (max 3 short sentences) and answer in the user's language.
 - Only answer about Lumora and shopping help. Politely decline anything else.
-- Never invent policies, prices, order statuses or delivery dates. If you do not know, or the user needs account-specific help (refunds, payments, a specific order, complaints), say a human support agent will follow up.
+- Never invent policies, prices, order statuses or delivery dates. If you do not know, or the user needs account-specific help (refunds, payments, a specific order, complaints), invite them to leave the details here for the Lumora support team.
 - If the user asks for a human or agent, explain that they can leave their question here for the Lumora support team. Do not claim an agent was notified or promise a reply time.
 PROMPT;
 
@@ -29,10 +31,12 @@ PROMPT;
         return (bool) config('services.gemini.key');
     }
 
-    public function reply(Conversation $conversation): ?string
+    public function reply(Conversation $conversation): string
     {
         if (! $this->enabled()) {
-            return null;
+            Log::warning('Support bot is unavailable because GEMINI_API_KEY is not configured.');
+
+            return self::UNAVAILABLE_REPLY;
         }
 
         $history = $conversation->messages()
@@ -58,7 +62,7 @@ PROMPT;
             array_shift($contents);
         }
         if (! $contents || end($contents)['role'] !== 'user') {
-            return null;
+            return self::UNAVAILABLE_REPLY;
         }
 
         try {
@@ -69,23 +73,43 @@ PROMPT;
                     [
                         'systemInstruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
                         'contents' => $contents,
-                        'generationConfig' => ['maxOutputTokens' => 300, 'temperature' => 0.4],
+                        'generationConfig' => [
+                            'maxOutputTokens' => 500,
+                            'temperature' => 0.4,
+                            'thinkingConfig' => ['thinkingBudget' => 0],
+                        ],
                     ]
                 );
 
             if (! $response->successful()) {
-                Log::warning('Support bot API error', ['status' => $response->status(), 'body' => $response->body()]);
+                Log::warning('Support bot API error', [
+                    'status' => $response->status(),
+                    'error' => data_get($response->json(), 'error.message'),
+                ]);
 
-                return null;
+                return self::UNAVAILABLE_REPLY;
             }
 
-            $text = trim((string) data_get($response->json(), 'candidates.0.content.parts.0.text'));
+            $parts = data_get($response->json(), 'candidates.0.content.parts', []);
+            $text = collect($parts)
+                ->filter(fn ($part) => is_array($part) && empty($part['thought']) && ! empty($part['text']))
+                ->pluck('text')
+                ->implode("\n");
+            $text = trim($text);
 
-            return $text !== '' ? $text : null;
+            if ($text === '') {
+                Log::warning('Support bot API returned no user-facing text', [
+                    'finish_reason' => data_get($response->json(), 'candidates.0.finishReason'),
+                ]);
+
+                return self::UNAVAILABLE_REPLY;
+            }
+
+            return $text;
         } catch (\Throwable $e) {
             Log::warning('Support bot failed: '.$e->getMessage());
 
-            return null;
+            return self::UNAVAILABLE_REPLY;
         }
     }
 }

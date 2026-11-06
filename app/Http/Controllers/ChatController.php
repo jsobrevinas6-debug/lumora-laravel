@@ -78,6 +78,7 @@ class ChatController extends Controller
         broadcast(new MessageSent($message))->toOthers();
 
         $botPayload = null;
+        $agentActive = false;
 
         // The assistant answers the owner's messages, but never on reports,
         // and steps aside while a human admin is active.
@@ -86,6 +87,7 @@ class ChatController extends Controller
                 ->where('created_at', '>=', now()->subMinutes(30))
                 ->whereHas('sender', fn ($q) => $q->where('role', 'admin'))
                 ->exists();
+            $agentActive = $adminActive;
 
             if (! $adminActive) {
                 $replyText = $bot->reply($conversation);
@@ -111,6 +113,7 @@ class ChatController extends Controller
             'message_id' => $message->id,
             'message'    => $message->load('sender')->toChatArray(),
             'bot'        => $botPayload,
+            'agent_active' => $agentActive,
         ]);
     }
 
