@@ -27,7 +27,8 @@ return [
         ],
         [
             'label' => 'Who is the developers of Lumora',
-            'answer' => 'Lumora was created by the Lumora development team. (Replace this text with the developers\' names.)',
+            'answer' => 'Meet the people behind Lumora.',
+            'action' => 'developers',
         ],
         [
             'label' => 'I will report a product',

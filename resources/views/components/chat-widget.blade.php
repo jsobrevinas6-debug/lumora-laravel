@@ -131,6 +131,7 @@ function chatWidget() {
         open: false,
         conversationId: null,
         userId: {{ auth()->id() ?? 'null' }},
+        developersUrl: @json(route('about') . '#meet-the-developers'),
         messages: [],
         newMessage: '',
         typing: false,
@@ -152,6 +153,11 @@ function chatWidget() {
         },
 
         pick(btn) {
+            if (btn.action === 'developers') {
+                window.location.assign(this.developersUrl);
+                return;
+            }
+
             if (btn.action === 'report') this.reportMode = true;
             this.messages.push({ id: 'q' + (++this.localId), sender_id: this.userId, body: btn.label });
             this.messages.push({ id: 'a' + (++this.localId), sender_id: null, is_bot: true, body: btn.answer || '' });

@@ -128,7 +128,7 @@
             </div>
         </section>
 
-        <section class="mx-auto max-w-[1240px] px-6 py-12" aria-labelledby="developersHeading">
+        <section id="meet-the-developers" class="mx-auto max-w-[1240px] px-6 py-12 scroll-mt-24" aria-labelledby="developersHeading">
             <div class="mb-8 text-center">
                 <h2 id="developersHeading" class="font-serif text-4xl font-semibold text-[#3D1B3D]">Meet the Developers</h2>
                 <p class="mt-3 text-sm text-[#8A7B7E]">The minds behind Lumora.</p>
