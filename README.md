@@ -21,6 +21,17 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## AI customer support
+
+The customer support chat can generate replies with Google Gemini. Add a Gemini API key to your local `.env` file:
+
+```dotenv
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+The key is used server-side and is never sent to the browser. If the key is blank or the Gemini request fails, the existing support chat and topic buttons remain available, but generated replies are disabled. After changing environment settings on a deployed app, clear Laravel's cached configuration with `php artisan config:clear` (or rebuild the config cache).
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.

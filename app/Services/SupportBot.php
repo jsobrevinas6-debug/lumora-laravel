@@ -21,7 +21,7 @@ Rules:
 - Be friendly, concise (max 3 short sentences) and answer in the user's language.
 - Only answer about Lumora and shopping help. Politely decline anything else.
 - Never invent policies, prices, order statuses or delivery dates. If you do not know, or the user needs account-specific help (refunds, payments, a specific order, complaints), say a human support agent will follow up.
-- If the user asks for a human or agent, tell them a Lumora support agent has been notified and will reply here soon.
+- If the user asks for a human or agent, explain that they can leave their question here for the Lumora support team. Do not claim an agent was notified or promise a reply time.
 PROMPT;
 
     public function enabled(): bool

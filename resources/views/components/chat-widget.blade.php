@@ -3,14 +3,14 @@
         <header class="lumora-chat-header">
             <div>
                 <h2>Customer Support</h2>
-                <span>Here to help with your Lumora journey</span>
+                <span>AI assistant for Lumora shopping help</span>
             </div>
             <button type="button" class="lumora-chat-close" @click="open = false" aria-label="Minimize chat">&minus;</button>
         </header>
 
         <div class="lumora-chat-status">
             <span class="lumora-online-dot" aria-hidden="true"></span>
-            <span>We're here to assist you!</span>
+            <span>Ask about shopping, orders, or your account</span>
         </div>
 
         <div x-ref="messageList" class="lumora-chat-messages" aria-live="polite">
