@@ -238,6 +238,12 @@
         .review-upload-preview { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
         .review-upload-preview:empty { display:none; }
         .review-upload-preview img,.review-upload-preview video { width:78px; height:78px; border-radius:8px; background:#f3eae4; object-fit:cover; }
+        .review-thanks-backdrop { position:fixed; inset:0; z-index:1100; display:grid; place-items:center; padding:20px; background:rgba(35,18,29,.58); }
+        .review-thanks-dialog { width:min(440px,100%); padding:34px 28px 28px; border:1px solid var(--line); border-radius:20px; background:#fffdfa; box-shadow:0 24px 80px rgba(35,18,29,.28); text-align:center; }
+        .review-thanks-icon { width:54px; height:54px; display:grid; place-items:center; margin:0 auto 16px; border-radius:50%; background:#e8f0ea; color:#52735b; font-size:26px; font-weight:700; }
+        .review-thanks-dialog h2 { margin:0 0 10px; color:var(--plum); font:600 27px/1.2 'Playfair Display',Georgia,serif; }
+        .review-thanks-dialog p { margin:0; color:var(--muted); line-height:1.65; }
+        .review-thanks-close { min-height:42px; margin-top:22px; padding:0 22px; border:1px solid var(--plum); border-radius:999px; background:var(--plum); color:#fff; font:700 12px Inter,sans-serif; cursor:pointer; }
         .review-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
         .review-submit, .review-delete { min-height:42px; padding:0 18px; border-radius:8px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
         .review-submit { border:1px solid var(--plum); background:var(--plum); color:white; }
@@ -268,7 +274,7 @@
     </header>
 
     <main class="product-shell">
-        @if (session('success'))
+        @if (session('success') && !session('review_submitted'))
             <div class="flash success">{{ session('success') }}</div>
         @endif
         @if (session('error') || $errors->any())
@@ -726,6 +732,17 @@
     </main>
 </div>
 
+@if (session('review_submitted'))
+    <div class="review-thanks-backdrop" id="reviewThanksModal" role="presentation">
+        <section class="review-thanks-dialog" role="dialog" aria-modal="true" aria-labelledby="reviewThanksTitle" aria-describedby="reviewThanksDescription" tabindex="-1">
+            <span class="review-thanks-icon" aria-hidden="true">✓</span>
+            <h2 id="reviewThanksTitle">Thanks for rating this product!</h2>
+            <p id="reviewThanksDescription">Your review has been submitted. Each customer can submit one review per product.</p>
+            <button type="button" class="review-thanks-close" data-close-review-thanks>Got it</button>
+        </section>
+    </div>
+@endif
+
 @if (view()->exists('components.chat-widget'))
     @include('components.chat-widget')
 @endif
@@ -793,6 +810,28 @@
             });
         });
     });
+    const reviewThanksModal = document.getElementById('reviewThanksModal');
+    const reviewThanksDialog = reviewThanksModal?.querySelector('[role="dialog"]');
+    const closeReviewThanks = () => {
+        if (!reviewThanksModal) return;
+        reviewThanksModal.remove();
+        document.querySelector('[data-tab="reviews"]')?.focus();
+    };
+    if (reviewThanksModal && reviewThanksDialog) {
+        document.querySelector('[data-close-review-thanks]')?.focus();
+        reviewThanksModal.addEventListener('click', event => {
+            if (event.target === reviewThanksModal) closeReviewThanks();
+        });
+        reviewThanksModal.querySelector('[data-close-review-thanks]')?.addEventListener('click', closeReviewThanks);
+        document.addEventListener('keydown', event => {
+            if (!reviewThanksModal.isConnected) return;
+            if (event.key === 'Escape') closeReviewThanks();
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                document.querySelector('[data-close-review-thanks]')?.focus();
+            }
+        });
+    }
     (function () {
         const stage = document.getElementById('mainPhotoStage');
         const scene = document.getElementById('cube3dScene');

@@ -86,6 +86,7 @@ class ProductReviewController extends Controller
             'user_id' => $request->user()->id,
             'product_id' => $product->id,
         ]);
+        $isExistingReview = $review->exists;
         $currentMedia = $review->media ?? [];
         $uploads = array_values(array_filter((array) $request->file('media', [])));
 
@@ -121,8 +122,10 @@ class ProductReviewController extends Controller
             throw $exception;
         }
 
-        return redirect()->to(route('shop.product', ['id' => $product->id]).'#reviews')
-            ->with('success', $existingReview ? 'Your review has been updated.' : 'Your review has been saved.');
+        $response = redirect()->to(route('shop.product', ['id' => $product->id]).'#reviews')
+            ->with('success', $isExistingReview ? 'Your review has been updated.' : 'Your review has been saved.');
+
+        return $isExistingReview ? $response : $response->with('review_submitted', true);
     }
 
     private function deliveredOrderFor(Request $request, Product $product): ?Order
