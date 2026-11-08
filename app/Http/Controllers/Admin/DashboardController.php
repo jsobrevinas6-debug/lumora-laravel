@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\SellerApprovedMail;
 use App\Mail\SellerApplicationRejectedMail;
 use App\Models\Order;
+use App\Models\ReturnRequest;
 use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
 use App\Notifications\ProductApprovalRejectedNotification;
@@ -855,6 +856,60 @@ class DashboardController extends Controller
         session()->flash('flash_success', 'Complaint dismissed.');
 
         return redirect()->route('admin.complaints');
+    }
+
+    public function returnRequests()
+    {
+        $requests = ReturnRequest::query()
+            ->with(['order.items.product', 'order.seller', 'buyer', 'evidence', 'logisticsNotification'])
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.returns', compact('requests'));
+    }
+
+    public function returnEvidence(ReturnRequest $returnRequest, $evidence)
+    {
+        $file = $returnRequest->evidence()->findOrFail($evidence);
+        $path = ltrim(str_replace('\\', '/', (string) $file->file_path), '/');
+        abort_unless(str_starts_with($path, 'return_request_evidence/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($path), 404);
+
+        return response()->file($disk->path($path), [
+            'Content-Type' => $file->mime_type,
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function approveReturnRequest(ReturnRequest $returnRequest)
+    {
+        DB::transaction(function () use ($returnRequest) {
+            $lockedRequest = ReturnRequest::query()->lockForUpdate()->findOrFail($returnRequest->id);
+            abort_unless($lockedRequest->status === 'pending', 409, 'This request has already been reviewed.');
+            $lockedRequest->update(['status' => 'approved', 'reviewed_at' => now()]);
+
+            // Durable outbox entry for Lumora Logistics to pick up.
+            $lockedRequest->logisticsNotification()->create(['status' => 'pending']);
+            $lockedRequest->buyer->notify(new \App\Notifications\ReturnRequestStatusNotification($lockedRequest, 'approved'));
+        });
+
+        return redirect()->route('admin.returns.index')->with('flash_success', 'Return approved and queued for Lumora Logistics.');
+    }
+
+    public function denyReturnRequest(Request $request, ReturnRequest $returnRequest)
+    {
+        $validated = $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);
+        DB::transaction(function () use ($returnRequest, $validated) {
+            $lockedRequest = ReturnRequest::query()->lockForUpdate()->findOrFail($returnRequest->id);
+            abort_unless($lockedRequest->status === 'pending', 409, 'This request has already been reviewed.');
+            $lockedRequest->update(['status' => 'denied', 'admin_note' => $validated['admin_note'], 'reviewed_at' => now()]);
+            $lockedRequest->buyer->notify(new \App\Notifications\ReturnRequestStatusNotification($lockedRequest, 'denied', $validated['admin_note']));
+        });
+
+        return redirect()->route('admin.returns.index')->with('flash_success', 'Return/refund request denied.');
     }
 
     /**

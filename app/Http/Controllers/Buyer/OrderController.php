@@ -20,27 +20,17 @@ class OrderController extends Controller
 
     public function index(Request $request): View
     {
-        $statuses = [
-            'pending',
-            'processing',
-            'packed',
-            'shipped',
-            'out_for_delivery',
-            'delivered',
-            'cancelled',
-            'returned',
-        ];
-
         $sortOptions = [
             'latest',
             'oldest',
             'highest',
-            'lowest',
         ];
+
+        $statuses = ['all', 'pending', 'packed', 'shipped', 'delivered', 'cancelled'];
 
         $activeStatus = $request->get('status', 'all');
 
-        if (! in_array($activeStatus, array_merge(['all'], $statuses), true)) {
+        if (! in_array($activeStatus, $statuses, true)) {
             $activeStatus = 'all';
         }
 
@@ -51,13 +41,16 @@ class OrderController extends Controller
             $sort = 'latest';
         }
 
+        $baseQuery = Order::query()->where('user_id', $request->user()->id);
+        $statusCounts = (clone $baseQuery)->selectRaw('status, COUNT(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
+        $totalOrderCount = (int) $statusCounts->sum();
+
         $query = Order::query()
             ->where('user_id', $request->user()->id)
             ->with([
-                'items.product',
-                'statusHistory' => function ($query) {
-                    $query->latest();
-                },
+                'items.product:id,name,image,status,stock',
+                'returnRequest',
+                'items.seller:id,name,role',
             ]);
 
         if ($activeStatus !== 'all') {
@@ -76,19 +69,110 @@ class OrderController extends Controller
         match ($sort) {
             'oldest' => $query->oldest(),
             'highest' => $query->orderByDesc('total'),
-            'lowest' => $query->orderBy('total'),
             default => $query->latest(),
         };
 
-        $orders = $query->paginate(10)->withQueryString();
+        $orders = $query->orderByDesc('id')->paginate(10)->withQueryString();
 
         return view('buyer.orders.index', compact(
             'orders',
             'statuses',
+            'statusCounts',
+            'totalOrderCount',
             'activeStatus',
             'search',
             'sort'
         ));
+    }
+
+    public function cancel(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
+
+        DB::transaction(function () use ($order, $request) {
+            $lockedOrder = Order::query()->lockForUpdate()->with('items.product')->findOrFail($order->id);
+            abort_unless($lockedOrder->status === 'pending', 422, 'Only pending orders can be cancelled.');
+
+            foreach ($lockedOrder->items as $item) {
+                if ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+                    $item->product->decrement('sales_count', min((int) $item->quantity, (int) $item->product->sales_count));
+                }
+            }
+
+            $lockedOrder->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            $lockedOrder->statusHistory()->create([
+                'status' => 'cancelled',
+                'remarks' => 'Cancelled by buyer.',
+                'changed_by' => $request->user()->id,
+            ]);
+        });
+
+        return redirect()->route('buyer.orders.index')->with('success', 'Your order was cancelled.');
+    }
+
+    public function reorder(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
+        abort_unless($order->status === 'delivered', 422, 'Only delivered orders can be reordered.');
+
+        $order->load('items.product');
+        $cart = $request->session()->get(self::CART_KEY, []);
+        $selected = collect($request->session()->get(self::SELECTED_KEY, []))->map(fn ($id) => (int) $id);
+        $added = 0;
+
+        foreach ($order->items as $item) {
+            $product = $item->product;
+            if (! $product || $product->status !== 'active' || (int) $product->stock < 1) {
+                continue;
+            }
+
+            $key = (string) $product->id;
+            $quantity = min((int) $item->quantity, (int) $product->stock);
+            $cart[$key] = ['quantity' => min((int) ($cart[$key]['quantity'] ?? 0) + $quantity, (int) $product->stock)];
+            $selected->push((int) $product->id);
+            $added++;
+        }
+
+        $request->session()->put(self::CART_KEY, $cart);
+        $request->session()->put(self::SELECTED_KEY, $selected->unique()->values()->all());
+
+        if ($added === 0) {
+            return redirect()->route('buyer.orders.show', $order)->with('error', 'The products in this order are currently unavailable.');
+        }
+
+        return redirect()->route('buyer.cart')->with('success', 'Available items from this order were added to your cart.');
+    }
+
+    public function requestReturn(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 404);
+        abort_unless($order->status === 'delivered', 422, 'Return requests are available for delivered orders only.');
+        abort_if($order->returnRequest()->exists(), 409, 'A return request has already been submitted for this order.');
+
+        $validated = $request->validate([
+            'reason' => ['required', 'in:damaged,wrong_item,missing_items,not_as_described,changed_mind,other'],
+            'details' => ['required', 'string', 'min:10', 'max:2000'],
+            'evidence' => ['nullable', 'array', 'max:5'],
+            'evidence.*' => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov,webm', 'max:51200'],
+        ]);
+
+        DB::transaction(function () use ($request, $order, $validated) {
+            $returnRequest = $order->returnRequest()->create([
+                'buyer_id' => $request->user()->id,
+                'reason' => $validated['reason'],
+                'details' => $validated['details'],
+            ]);
+
+            foreach ($request->file('evidence', []) as $file) {
+                $returnRequest->evidence()->create([
+                    'file_path' => $file->store('return_request_evidence', 'local'),
+                    'mime_type' => $file->getMimeType(),
+                ]);
+            }
+        });
+
+        return redirect()->route('buyer.orders.index')->with('success', 'Your return/refund request has been submitted for review.');
     }
 
     public function create(Request $request): View|RedirectResponse

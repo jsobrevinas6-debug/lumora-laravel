@@ -231,7 +231,10 @@ class OrderController extends Controller
         ];
         $barcodeValue = (string) $order->id;
         $barcodeSequence = '*'.$barcodeValue.'*';
-        $module = 2;
+        // Use wider Code 39 modules for phone-camera scanning, while scaling
+        // down for long order IDs so the barcode stays within the label width.
+        $module = max(2, min(4, (int) floor(500 / (16 * strlen($barcodeValue) + 52))));
+        $barcodeHeight = 90;
         $cursor = 0;
         // Build a plain HTML table rather than inline SVG. Dompdf can omit
         // inline SVG from streamed PDFs, leaving only the human-readable ID.
@@ -249,11 +252,11 @@ class OrderController extends Controller
         $barcodeCells = '';
         foreach ($barcodeRuns as [$width, $isBar]) {
             $background = $isBar ? '#000000' : '#FFFFFF';
-            $barcodeCells .= '<td style="width:'.$width.'px;height:44px;padding:0;border:0;background:'.$background.';"></td>';
+            $barcodeCells .= '<td style="width:'.$width.'px;height:'.$barcodeHeight.'px;padding:0;border:0;background:'.$background.';"></td>';
         }
         $barcodeHtml = '<table cellpadding="0" cellspacing="0" style="margin:0 auto;border-collapse:collapse;border:0;"><tr>'.$barcodeCells.'</tr></table>';
 
-        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total', 'barcodeHtml', 'barcodeValue'));
+        $pdf = Pdf::loadView('seller.waybill-pdf', compact('order', 'items', 'shopName', 'total', 'barcodeHtml', 'barcodeValue', 'barcodeHeight'));
 
         return $pdf->stream('waybill-order-' . $orderId . '.pdf');
     }

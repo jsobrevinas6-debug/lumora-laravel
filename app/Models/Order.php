@@ -73,6 +73,11 @@ class Order extends Model
         return $this->hasMany(OrderStatusHistory::class);
     }
 
+    public function returnRequest(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ReturnRequest::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

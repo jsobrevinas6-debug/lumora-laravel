@@ -80,6 +80,7 @@
     </a>
     <a href="{{ route('admin.compliance') }}" class="nav-link {{ request()->routeIs('admin.compliance') ? 'active' : '' }}">Compliance</a>
     <a href="{{ route('admin.complaints') }}" class="nav-link {{ request()->routeIs('admin.complaints') ? 'active' : '' }}">Complaints</a>
+    <a href="{{ route('admin.returns.index') }}" class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">Return / Refund</a>
     <a href="{{ route('admin.chat.index') }}" class="nav-link {{ request()->routeIs('admin.chat.*') ? 'active' : '' }}">Messages</a>
     <a href="{{ route('admin.commission') }}" class="nav-link {{ request()->routeIs('admin.commission') ? 'active' : '' }}">Commission</a>
     <a href="{{ route('admin.payout-requests.index') }}" class="nav-link {{ request()->routeIs('admin.payout-requests.*') ? 'active' : '' }}">Payout Requests</a>

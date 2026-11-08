@@ -84,6 +84,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/complaints/{id}/resolve', [DashboardController::class, 'resolveComplaint'])->name('complaints.resolve');
     Route::post('/complaints/{id}/dismiss', [DashboardController::class, 'dismissComplaint'])->name('complaints.dismiss');
 
+    Route::get('/returns-refunds', [DashboardController::class, 'returnRequests'])->name('returns.index');
+    Route::get('/returns-refunds/{returnRequest}/evidence/{evidence}', [DashboardController::class, 'returnEvidence'])->name('returns.evidence');
+    Route::post('/returns-refunds/{returnRequest}/approve', [DashboardController::class, 'approveReturnRequest'])->name('returns.approve');
+    Route::post('/returns-refunds/{returnRequest}/deny', [DashboardController::class, 'denyReturnRequest'])->name('returns.deny');
+
     Route::get('/commission', [DashboardController::class, 'commission'])->name('commission');
     Route::get('/payout-requests', [DashboardController::class, 'payoutRequests'])->name('payout-requests.index');
     Route::post('/payout-requests/{id}/approve', [DashboardController::class, 'approvePayoutRequest'])->name('payout-requests.approve');
@@ -233,6 +238,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/orders', [BuyerOrderController::class, 'index'])
     ->name('buyer.orders.index');
 
+    Route::patch('/account/orders/{order}/cancel', [BuyerOrderController::class, 'cancel'])
+    ->name('buyer.orders.cancel');
+
+    Route::post('/account/orders/{order}/reorder', [BuyerOrderController::class, 'reorder'])
+    ->name('buyer.orders.reorder');
+
     Route::get('/account/wallet', [PaymentMethodController::class, 'index'])
     ->name('buyer.wallet.index');
 
@@ -262,6 +273,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/orders/{order}/payment-proof', [BuyerOrderController::class, 'replacePaymentProof'])
     ->name('buyer.orders.payment-proof');
+
+    Route::post('/orders/{order}/return-request', [BuyerOrderController::class, 'requestReturn'])
+    ->name('buyer.orders.return-request');
 
 
 });
