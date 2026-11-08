@@ -1149,8 +1149,8 @@
                         <h3>Shop</h3>
                         <ul>
                             <li><a href="{{ route('shop.index') }}">All Products</a></li>
-                            <li><a href="{{ route('shop.index') }}?sort=top_sales">Best Sellers</a></li>
-                            <li><a href="{{ route('shop.index') }}?sort=latest">New Arrivals</a></li>
+                            <li><a href="{{ route('shop.index', ['category' => 'mens-clothing']) }}">Clothing Men</a></li>
+                            <li><a href="{{ route('shop.index', ['category' => 'womens-clothing']) }}">Clothing Women</a></li>
                             <li><a href="{{ route('shop.index') }}?category=skincare">Skincare</a></li>
                             <li><a href="{{ route('shop.index') }}?category=makeup">Makeup</a></li>
                             <li><a href="{{ route('shop.index') }}?category=fragrance">Fragrance</a></li>

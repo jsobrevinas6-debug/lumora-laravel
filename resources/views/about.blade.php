@@ -205,8 +205,8 @@
                     <h3 class="mb-4 text-xs font-bold uppercase tracking-[0.08em] text-[#3D1B3D]">Shop</h3>
                     <ul class="grid gap-2.5 text-xs text-[#8A7B7E]">
                         <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}">All Products</a></li>
-                        <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}?sort=top_sales">Best Sellers</a></li>
-                        <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}?sort=latest">New Arrivals</a></li>
+                        <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index', ['category' => 'mens-clothing']) }}">Clothing Men</a></li>
+                        <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index', ['category' => 'womens-clothing']) }}">Clothing Women</a></li>
                         <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}?category=skincare">Skincare</a></li>
                         <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}?category=makeup">Makeup</a></li>
                         <li><a class="transition-colors hover:text-[#B96562]" href="{{ route('shop.index') }}?category=fragrance">Fragrance</a></li>
