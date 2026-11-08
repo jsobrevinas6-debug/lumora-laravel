@@ -307,10 +307,25 @@
                 </form>
             </header>
 
-            @php($tabLabels = ['all' => 'All', 'pending' => 'To Pack', 'packed' => 'To Ship', 'shipped' => 'To Receive', 'delivered' => 'Completed', 'cancelled' => 'Cancelled'])
+            @php
+                $tabLabels = [
+                    'all' => 'All',
+                    'pending' => 'To Pack',
+                    'packed' => 'To Ship',
+                    'shipped' => 'To Receive',
+                    'delivered' => 'Completed',
+                    'cancelled' => 'Cancelled',
+                ];
+            @endphp
             <nav class="orders-tabs" aria-label="Order status filters">
                 @foreach ($tabLabels as $status => $label)
-                    @php($tabQuery = array_filter(['status' => $status === 'all' ? null : $status, 'search' => $search ?: null, 'sort' => $sort !== 'latest' ? $sort : null]))
+                    @php
+                        $tabQuery = array_filter([
+                            'status' => $status === 'all' ? null : $status,
+                            'search' => $search ?: null,
+                            'sort' => $sort !== 'latest' ? $sort : null,
+                        ]);
+                    @endphp
                     <a class="orders-tab {{ $activeStatus === $status ? 'active' : '' }}" href="{{ route('buyer.orders.index', $tabQuery) }}" @if($activeStatus === $status) aria-current="page" @endif>
                         {{ $label }} <span class="tab-count">{{ $status === 'all' ? $totalOrderCount : (int) $statusCounts->get($status, 0) }}</span>
                     </a>
