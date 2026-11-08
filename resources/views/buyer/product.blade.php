@@ -735,6 +735,10 @@
         document.querySelector('[data-tab="reviews"]')?.click();
         document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
+    if (window.location.hash === '#reviews') {
+        document.querySelector('[data-tab="reviews"]')?.click();
+        requestAnimationFrame(() => document.getElementById('reviews')?.scrollIntoView({ block: 'start' }));
+    }
     (function () {
         const stage = document.getElementById('mainPhotoStage');
         const scene = document.getElementById('cube3dScene');

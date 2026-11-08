@@ -34,7 +34,8 @@ class ProductReviewController extends Controller
             ]
         );
 
-        return back()->with('success', 'Your review has been saved.');
+        return redirect()->to(route('shop.product', ['id' => $product->id]).'#reviews')
+            ->with('success', 'Your review has been saved.');
     }
 
     public function update(Request $request, Product $product, ProductReview $review): RedirectResponse
@@ -49,7 +50,8 @@ class ProductReviewController extends Controller
             'review' => $validated['review'] ?? null,
         ]);
 
-        return back()->with('success', 'Your review has been updated.');
+        return redirect()->to(route('shop.product', ['id' => $product->id]).'#reviews')
+            ->with('success', 'Your review has been updated.');
     }
 
     public function destroy(Request $request, Product $product, ProductReview $review): RedirectResponse
@@ -59,7 +61,8 @@ class ProductReviewController extends Controller
 
         $review->delete();
 
-        return back()->with('success', 'Your review has been deleted.');
+        return redirect()->to(route('shop.product', ['id' => $product->id]).'#reviews')
+            ->with('success', 'Your review has been deleted.');
     }
 
     private function validateReview(Request $request): array
