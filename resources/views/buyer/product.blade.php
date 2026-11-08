@@ -223,6 +223,8 @@
         .review-date { color:var(--muted); font-size:12px; }
         .verified-badge { display:inline-flex; margin-top:6px; padding:3px 8px; border-radius:999px; background:rgba(111,143,120,.13); color:#6F8F78; font-size:10px; font-weight:800; text-transform:uppercase; }
         .review-text { margin:10px 0 0; color:var(--muted); line-height:1.65; }
+        .review-media { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,150px)); gap:10px; margin-top:14px; }
+        .review-media a,.review-media img,.review-media video { display:block; width:100%; aspect-ratio:1; overflow:hidden; border-radius:9px; background:#f3eae4; object-fit:cover; }
         .review-form { margin-top:24px; padding:18px; border:1px solid var(--line); border-radius:10px; background:#FFFDFC; }
         .review-form h3 { margin:0 0 14px; font-family:Georgia,serif; color:var(--plum); font-size:22px; font-weight:500; }
         .star-input { display:inline-flex; flex-direction:row-reverse; gap:4px; margin-bottom:14px; }
@@ -230,6 +232,12 @@
         .star-input label { color:#EAE3DD; font-size:28px; line-height:1; cursor:pointer; transition:color .2s ease; }
         .star-input input:checked ~ label, .star-input label:hover, .star-input label:hover ~ label { color:#C98F72; }
         .review-textarea { width:100%; min-height:110px; padding:13px; border:1px solid var(--line); border-radius:8px; background:white; color:var(--plum); font:inherit; resize:vertical; }
+        .review-upload { display:grid; gap:7px; margin-top:14px; color:var(--plum); font-size:12px; font-weight:700; }
+        .review-upload input { width:100%; padding:10px; border:1px dashed #cdb9ae; border-radius:8px; background:#fff; color:var(--muted); font:inherit; font-weight:400; }
+        .review-upload-help { margin:0; color:var(--muted); font-size:11px; font-weight:400; }
+        .review-upload-preview { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        .review-upload-preview:empty { display:none; }
+        .review-upload-preview img,.review-upload-preview video { width:78px; height:78px; border-radius:8px; background:#f3eae4; object-fit:cover; }
         .review-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
         .review-submit, .review-delete { min-height:42px; padding:0 18px; border-radius:8px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
         .review-submit { border:1px solid var(--plum); background:var(--plum); color:white; }
@@ -449,6 +457,7 @@
                                 @if ($review->review)
                                     <p class="review-text">{{ $review->review }}</p>
                                 @endif
+                                @include('components.review-media', ['reviewMedia' => $review->media ?? []])
                             </article>
                         @endforeach
                     </div>
@@ -458,7 +467,7 @@
                 @endif
 
                 @if ($userReview)
-                    <form class="review-form" method="POST" action="{{ route('buyer.products.reviews.update', ['product' => $product->id, 'review' => $userReview->id]) }}">
+                    <form class="review-form" method="POST" enctype="multipart/form-data" action="{{ route('buyer.products.reviews.update', ['product' => $product->id, 'review' => $userReview->id]) }}">
                         @csrf
                         @method('PATCH')
                         <h3>Edit Review</h3>
@@ -469,6 +478,12 @@
                             @endfor
                         </div>
                         <textarea class="review-textarea" name="review" maxlength="2000" placeholder="Share your experience with this product...">{{ old('review', $userReview->review) }}</textarea>
+                        @include('components.review-media', ['reviewMedia' => $userReview->media ?? []])
+                        <label class="review-upload">Add photos or videos
+                            <input type="file" name="media[]" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" multiple data-review-media-input data-existing-count="{{ count($userReview->media ?? []) }}">
+                            <span class="review-upload-help">Up to 4 items total, 20 MB per file. New files are added to your existing review media.</span>
+                        </label>
+                        <div class="review-upload-preview" data-upload-preview aria-live="polite"></div>
                         <div class="review-actions">
                             <button class="review-submit" type="submit">Update Review</button>
                         </div>
@@ -479,7 +494,7 @@
                         <button class="review-delete" type="submit">Delete Review</button>
                     </form>
                 @elseif ($canReview)
-                    <form class="review-form" method="POST" action="{{ route('buyer.products.reviews.store', ['product' => $product->id]) }}">
+                    <form class="review-form" method="POST" enctype="multipart/form-data" action="{{ route('buyer.products.reviews.store', ['product' => $product->id]) }}">
                         @csrf
                         <h3>Write a Review</h3>
                         <div class="star-input" aria-label="Choose a rating">
@@ -489,6 +504,11 @@
                             @endfor
                         </div>
                         <textarea class="review-textarea" name="review" maxlength="2000" placeholder="Share your experience with this product...">{{ old('review') }}</textarea>
+                        <label class="review-upload">Add photos or videos
+                            <input type="file" name="media[]" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" multiple data-review-media-input data-existing-count="0">
+                            <span class="review-upload-help">Add up to 4 photos or videos, 20 MB per file.</span>
+                        </label>
+                        <div class="review-upload-preview" data-upload-preview aria-live="polite"></div>
                         <div class="review-actions">
                             <button class="review-submit" type="submit">Submit Review</button>
                         </div>
@@ -739,6 +759,40 @@
         document.querySelector('[data-tab="reviews"]')?.click();
         requestAnimationFrame(() => document.getElementById('reviews')?.scrollIntoView({ block: 'start' }));
     }
+    document.querySelectorAll('[data-review-media-input]').forEach(input => {
+        const preview = input.closest('form')?.querySelector('[data-upload-preview]');
+        const existingCount = Number(input.dataset.existingCount || 0);
+        input.addEventListener('change', () => {
+            const files = Array.from(input.files || []);
+            if (files.length + existingCount > 4) {
+                alert(`You can attach up to ${4 - existingCount} more file(s) to this review.`);
+                input.value = '';
+                preview?.replaceChildren();
+                return;
+            }
+            if (files.some(file => file.size > 20 * 1024 * 1024)) {
+                alert('Each review photo or video must be 20 MB or smaller.');
+                input.value = '';
+                preview?.replaceChildren();
+                return;
+            }
+            if (!preview) return;
+            preview.replaceChildren();
+            files.forEach(file => {
+                const url = URL.createObjectURL(file);
+                const media = document.createElement(file.type.startsWith('video/') ? 'video' : 'img');
+                media.src = url;
+                media.setAttribute('aria-label', file.type.startsWith('video/') ? 'Video preview' : 'Photo preview');
+                if (media.tagName === 'VIDEO') {
+                    media.controls = true;
+                    media.muted = true;
+                } else {
+                    media.alt = `Preview of ${file.name}`;
+                }
+                preview.append(media);
+            });
+        });
+    });
     (function () {
         const stage = document.getElementById('mainPhotoStage');
         const scene = document.getElementById('cube3dScene');

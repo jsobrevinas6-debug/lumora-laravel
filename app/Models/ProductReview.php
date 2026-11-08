@@ -16,10 +16,12 @@ class ProductReview extends Model
         'order_id',
         'rating',
         'review',
+        'media',
     ];
 
     protected $casts = [
         'rating' => 'integer',
+        'media' => 'array',
     ];
 
     public function user(): BelongsTo
