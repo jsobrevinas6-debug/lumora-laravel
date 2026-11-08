@@ -45,6 +45,8 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'terms_accepted' => ['accepted'],
+            'seller_terms_accepted' => ['accepted_if:signup_type,seller'],
+            'marketing_opt_in' => ['sometimes', 'boolean'],
             'signup_type' => ['in:buyer,seller'],
             ...SellerApplicationFields::registrationRules(),
         ];
@@ -61,7 +63,8 @@ class RegisteredUserController extends Controller
             'last_name.regex' => "You can't input special characters in your name (only ñ and Ñ are allowed).",
             'middle_initial.regex' => "You can't input special characters in your name (only ñ and Ñ are allowed).",
             'date_of_birth.before_or_equal' => 'You must be at least 18 years old to sign up.',
-            'terms_accepted.accepted' => 'Please agree to the User Agreement and Data Privacy Notice before signing up.',
+            'terms_accepted.accepted' => 'Please accept the agreement to create your account.',
+            'seller_terms_accepted.accepted_if' => 'Please accept the Seller Agreement to create a seller account.',
             'postal_code.max' => 'Postal code must be a maximum of 4 digits.',
             'postal_code.regex' => 'Postal code must contain numbers only (maximum 4 digits).',
             'id_document.mimes' => 'Valid ID must be a JPG, PNG, or PDF file only.',
@@ -108,6 +111,10 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'buyer',
             'status' => 'active',
+            'terms_accepted_at' => now(),
+            'terms_version' => config('legal.terms_version'),
+            'seller_terms_accepted_at' => $signupType === 'seller' ? now() : null,
+            'marketing_opt_in' => $request->boolean('marketing_opt_in'),
         ];
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'postal_code')) {

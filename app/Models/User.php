@@ -47,6 +47,10 @@ class User extends Authenticatable
         'status',
         'shop_name',
         'shop_description',
+        'terms_accepted_at',
+        'terms_version',
+        'seller_terms_accepted_at',
+        'marketing_opt_in',
     ];
 
     /**
@@ -68,6 +72,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'seller_terms_accepted_at' => 'datetime',
+            'marketing_opt_in' => 'boolean',
             'date_of_birth' => 'date',
             'password' => 'hashed',
         ];

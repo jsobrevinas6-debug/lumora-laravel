@@ -27,6 +27,7 @@
 
         .error-box { background:#fdece6; color:#b8451f; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
         .error-box ul { margin:4px 0 0 18px; padding:0; }
+        .field-error[hidden] { display:none !important; }
         .field-error { display:block; margin-top:6px; color:#dc2626; font-size:.74rem; line-height:1.4; }
         .success-box { background:#eef3ec; color:#5C7355; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
 
@@ -60,13 +61,30 @@
         .verify-btn.verified { background:#6C8A63; border-color:#6C8A63; color:#fff; cursor:default; }
         .verify-note { font-size:.74rem; color:var(--text-muted); margin-top:5px; }
         .btn-row { display:flex; gap:10px; margin-top:20px; }
-        .agreement-box { margin-top:18px; padding:14px 15px; border:1px solid var(--border); border-radius:12px; background:#fffaf7; }
-        .agreement-check { display:flex; align-items:flex-start; gap:10px; margin:0; color:var(--text-dark); font-size:.76rem; line-height:1.55; cursor:pointer; }
-        .agreement-check input { width:17px; height:17px; flex:0 0 17px; margin:1px 0 0; accent-color:var(--maroon); }
+        .agreement-box { margin-top:18px; padding:14px 15px; border:1px solid var(--border); border-radius:14px; background:#fffaf7; transition:background .2s,border-color .2s; }
+        .agreement-box.is-accepted { border-color:#c98b6b; background:#fff3ef; }
+        .agreement-box.has-error { border-color:#dc2626; background:#fff0f0; }
+        .agreement-box.shake { animation:consent-shake .32s ease; }
+        @keyframes consent-shake { 25%,75% { transform:translateX(-5px); } 50% { transform:translateX(5px); } }
+        .agreement-check { display:flex; align-items:flex-start; gap:11px; min-height:44px; margin:0; padding:9px 0; color:var(--text-dark); font-size:.78rem; line-height:1.55; cursor:pointer; }
+        .agreement-check input { position:absolute; width:1px; height:1px; opacity:0; }
+        .checkmark { position:relative; width:22px; height:22px; flex:0 0 22px; border:1.5px solid #9c858e; border-radius:6px; background:#fff; transition:.15s; }
+        .agreement-check:hover .checkmark { border-color:#c98b6b; }
+        .agreement-check input:focus-visible + .checkmark { outline:3px solid rgba(201,139,107,.42); outline-offset:2px; }
+        .agreement-check input:checked + .checkmark { border-color:#4a1233; background:#4a1233; }
+        .agreement-check input:checked + .checkmark::after { content:""; position:absolute; left:6px; top:2px; width:6px; height:11px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
         .agreement-copy { display:block; }
-        .agreement-details { margin:10px 0 0 27px; color:var(--text-muted); font-size:.72rem; line-height:1.55; }
+        .legal-link { color:#4a1233; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
+        .agreement-details { margin:7px 0 0 33px; color:var(--text-muted); font-size:.75rem; line-height:1.55; }
         .agreement-details summary { color:var(--maroon); font-weight:600; cursor:pointer; }
+        .agreement-details summary::marker { color:#c98b6b; }
+        .agreement-details[open] summary::after { transform:rotate(225deg) translateY(-2px); }
+        .agreement-details summary::after { content:""; display:inline-block; width:7px; height:7px; margin:0 0 2px 7px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg); transition:transform .15s; }
+        .agreement-details ul { margin:6px 0 0 18px; }
         .agreement-details p { margin:6px 0 0; }
+        .marketing-check { margin:10px 0 0; }
+        .optional-tag { margin-left:5px; color:var(--text-muted); font-size:.68rem; font-weight:600; }
+        .required-note { margin-top:9px; color:var(--text-muted); font-size:.7rem; }
         button.submit-btn { flex:1; padding:12px; border-radius:24px; border:none; font-weight:600; font-size:.85rem; font-family:inherit; cursor:pointer; }
         button.buyer-btn { background:var(--maroon-dark); color:#fff; }
         button.buyer-btn:hover { background:#22102a; }
@@ -75,6 +93,21 @@
 
         .approval-note { background:var(--beige); border-radius:9px; padding:10px 12px; font-size:.76rem; color:#5C4A52; line-height:1.5; margin-top:16px; }
 
+        @media (max-width: 760px) {
+            .login-shell { padding:12px; }
+            .login-frame { display:block; min-height:0; }
+            .login-art { display:none; }
+            .login-panel { max-height:none; overflow:visible; padding:28px 20px; }
+            .btn-row { flex-direction:column; }
+            button.submit-btn { width:100%; flex:auto; }
+            .row-3 { grid-template-columns:1fr 1fr; }
+            .row-3 > :last-child { grid-column:1 / -1; }
+        }
+        @media (max-width: 420px) {
+            .login-panel { padding:24px 15px; }
+            .row-2, .row-3, .row-3-equal { grid-template-columns:1fr; }
+            .row-3 > :last-child { grid-column:auto; }
+        }
         .login-link { text-align:center; margin-top:18px; font-size:.82rem; color:var(--text-muted); }
         .login-link a { color:var(--maroon); font-weight:600; text-decoration:none; }
         .back-home { display:inline-flex; align-items:center; gap:6px; margin-bottom:18px; color:var(--maroon); font-size:.78rem; font-weight:600; text-decoration:none; }
@@ -189,24 +222,42 @@
                 <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8"></div>
             </div>
 
-            <div class="agreement-box">
+            <div class="agreement-box @if (old('terms_accepted')) is-accepted @endif @if ($errors->has('terms_accepted') || $errors->has('seller_terms_accepted')) has-error @endif" id="agreementBox">
                 <label class="agreement-check" for="termsAccepted">
-                    <input id="termsAccepted" type="checkbox" name="terms_accepted" value="1" required @checked(old('terms_accepted'))>
-                    <span class="agreement-copy">I agree to the Lumora User Agreement and acknowledge the Data Privacy Notice for the personal information I provide during registration.</span>
+                    <input id="termsAccepted" type="checkbox" name="terms_accepted" value="1" aria-required="true" aria-describedby="termsError" @checked(old('terms_accepted'))>
+                    <span class="checkmark" aria-hidden="true"></span>
+                    <span class="agreement-copy">I agree to the <a class="legal-link" href="{{ route('legal.user-agreement') }}" target="_blank" rel="noopener">Lumora User Agreement</a> and acknowledge the <a class="legal-link" href="{{ route('legal.privacy-notice') }}" target="_blank" rel="noopener">Data Privacy Notice</a> for the personal information I provide during registration.</span>
                 </label>
-                @if ($errors->has('terms_accepted'))
-                    <span class="field-error" role="alert">{{ $errors->first('terms_accepted') }}</span>
-                @endif
+                <span class="field-error" id="termsError" role="alert" @if (! $errors->has('terms_accepted')) hidden @endif>{{ $errors->first('terms_accepted') ?: 'Please accept the agreement to create your account.' }}</span>
+                <div id="sellerTermsRow" @if (old('signup_type') !== 'seller') hidden @endif>
+                    <label class="agreement-check" for="sellerTermsAccepted">
+                        <input id="sellerTermsAccepted" type="checkbox" name="seller_terms_accepted" value="1" aria-required="true" aria-describedby="sellerTermsError" @checked(old('seller_terms_accepted'))>
+                        <span class="checkmark" aria-hidden="true"></span>
+                        <span class="agreement-copy">I agree to the <a class="legal-link" href="{{ route('legal.seller-agreement') }}" target="_blank" rel="noopener">Lumora Seller Agreement</a>, including fees and seller policies.</span>
+                    </label>
+                    <span class="field-error" id="sellerTermsError" role="alert" @if (! $errors->has('seller_terms_accepted')) hidden @endif>{{ $errors->first('seller_terms_accepted') ?: 'Please accept the Seller Agreement to create a seller account.' }}</span>
+                </div>
                 <details class="agreement-details">
                     <summary>What information is used?</summary>
-                    <p>Lumora uses the name, date of birth, email, contact number, address, and any seller application details entered here to create and secure your account, verify your email, support marketplace orders, and review seller applications when applicable.</p>
+                    <ul>
+                        <li>Name &amp; birthday: create your account and confirm your age.</li>
+                        <li>Email &amp; phone: verify you and send order updates.</li>
+                        <li>Address: deliver orders and calculate shipping.</li>
+                        <li>Password: stored securely and never shared.</li>
+                    </ul>
+                    <p><a class="legal-link" href="{{ route('legal.privacy-notice') }}" target="_blank" rel="noopener">Read the full Data Privacy Notice &rarr;</a></p>
                 </details>
             </div>
-
+            <label class="agreement-check marketing-check" for="marketingOptIn">
+                <input id="marketingOptIn" type="checkbox" name="marketing_opt_in" value="1" @checked(old('marketing_opt_in'))>
+                <span class="checkmark" aria-hidden="true"></span>
+                <span>Send me news, offers and new arrivals. <span class="optional-tag">Optional</span></span>
+            </label>
             <div class="btn-row">
                 <button type="submit" name="signup_type" value="buyer" class="submit-btn buyer-btn">Sign Up</button>
                 <button type="button" class="submit-btn seller-btn" onclick="openSellerModal()">Sign Up as Seller</button>
             </div>
+            <p class="required-note">* Required. Marketing consent is optional.</p>
         </form>
         <div class="login-link">Already have an account? <a href="{{ route('login') }}">Log in</a></div>
     </div>
@@ -394,21 +445,34 @@ nameInputs.forEach((input) => {
     input.addEventListener('input', () => checkNameInput(input, false));
 });
 
-function validateSignupFields() {
+function showConsentError(type) {
+    const box = document.getElementById('agreementBox');
+    const seller = type === 'seller';
+    const input = document.getElementById(seller ? 'sellerTermsAccepted' : 'termsAccepted');
+    const error = document.getElementById(seller ? 'sellerTermsError' : 'termsError');
+    error.hidden = false;
+    error.textContent = seller
+        ? 'Please accept the Seller Agreement to create a seller account.'
+        : 'Please accept the agreement to create your account.';
+    box.classList.add('has-error', 'shake');
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus({ preventScroll: true });
+    setTimeout(() => box.classList.remove('shake'), 350);
+    return false;
+}
+
+function validateSignupFields(type = 'buyer') {
     const termsCheckbox = document.getElementById('termsAccepted');
-    if (termsCheckbox && !termsCheckbox.checked) {
-        termsCheckbox.focus();
-        termsCheckbox.reportValidity();
-        return false;
+    if (!termsCheckbox.checked) return showConsentError('buyer');
+    if (type === 'seller' && !document.getElementById('sellerTermsAccepted').checked) {
+        return showConsentError('seller');
     }
 
     let allNamesValid = true;
     nameInputs.forEach((input) => {
         if (!checkNameInput(input, true)) allNamesValid = false;
     });
-    if (!allNamesValid) {
-        return false;
-    }
+    if (!allNamesValid) return false;
     if (!computeAge()) {
         const dobInput = document.getElementById('date_of_birth');
         const ageErr = document.getElementById('ageError');
@@ -423,23 +487,35 @@ function validateSignupFields() {
         return false;
     }
     const postalInput = document.querySelector('[data-postal-code]');
-    if (postalInput && postalInput.value.trim() !== '') {
-        if (!/^\d{1,4}$/.test(postalInput.value.trim())) {
-            const postalErr = postalInput.parentElement?.querySelector('[data-postal-error]');
-            if (postalErr) {
-                postalErr.textContent = 'Postal code must be a maximum of 4 digits.';
-                postalErr.style.display = 'block';
-            }
-            postalInput.style.borderColor = '#dc2626';
-            postalInput.focus();
-            return false;
+    if (postalInput && postalInput.value.trim() !== '' && !/^\d{1,4}$/.test(postalInput.value.trim())) {
+        const postalErr = postalInput.parentElement?.querySelector('[data-postal-error]');
+        if (postalErr) {
+            postalErr.textContent = 'Postal code must be a maximum of 4 digits.';
+            postalErr.style.display = 'block';
         }
+        postalInput.style.borderColor = '#dc2626';
+        postalInput.focus();
+        return false;
     }
     return true;
 }
 
+const consentBox = document.getElementById('agreementBox');
+document.getElementById('termsAccepted').addEventListener('change', function() {
+    document.getElementById('termsError').hidden = this.checked;
+    consentBox.classList.toggle('has-error', !this.checked || (document.getElementById('sellerTermsRow').hidden === false && !document.getElementById('sellerTermsAccepted').checked));
+    consentBox.classList.toggle('is-accepted', this.checked);
+});
+document.getElementById('sellerTermsAccepted').addEventListener('change', function() {
+    document.getElementById('sellerTermsError').hidden = this.checked;
+    const sellerRequired = !document.getElementById('sellerTermsRow').hidden;
+    consentBox.classList.toggle('has-error', !document.getElementById('termsAccepted').checked || (sellerRequired && !this.checked));
+});
+
 document.getElementById('registerForm').addEventListener('submit', function(e) {
-    if (!validateSignupFields()) {
+    const type = e.submitter?.value === 'seller' ? 'seller' : 'buyer';
+    document.getElementById('sellerTermsRow').hidden = type !== 'seller';
+    if (!validateSignupFields(type)) {
         e.preventDefault();
         return;
     }
@@ -452,16 +528,14 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 });
 
 function openSellerModal() {
-    if (!validateSignupFields()) {
-        return;
-    }
+    document.getElementById('sellerTermsRow').hidden = false;
+    if (!validateSignupFields('seller')) return;
     document.getElementById('sellerModalOverlay').style.display = 'flex';
     document.getElementById('business_name').required = true;
     document.getElementById('category').required = true;
     document.getElementById('id_document').required = true;
     document.getElementById('business_permit').required = true;
 }
-
 function closeSellerModal() {
     document.getElementById('sellerModalOverlay').style.display = 'none';
     document.getElementById('business_name').required = false;
