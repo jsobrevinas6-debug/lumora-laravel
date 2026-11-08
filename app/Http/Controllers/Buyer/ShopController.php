@@ -225,6 +225,7 @@ class ShopController extends Controller
         }
 
         $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'discount' => ['nullable', 'integer', 'in:10,20'],
@@ -241,7 +242,16 @@ class ShopController extends Controller
         }
 
         $sort = $validated['sort'] ?? 'newest';
+        $search = trim((string) ($validated['q'] ?? ''));
         $baseQuery = Product::query()->where('status', 'active');
+
+        if ($search !== '') {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
 
         $categoryCounts = (clone $baseQuery)
             ->select('category', DB::raw('COUNT(*) as total'))
@@ -257,6 +267,12 @@ class ShopController extends Controller
                 ->withCount('reviews')
                 ->where('category', $category);
 
+            if ($search !== '') {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
             if ($minPrice !== null) $query->where('price', '>=', $minPrice);
             if ($maxPrice !== null) $query->where('price', '<=', $maxPrice);
             if ($request->boolean('in_stock')) $query->where('stock', '>', 0);
@@ -286,6 +302,7 @@ class ShopController extends Controller
                 'categoryTitle' => CategoryCatalog::label($category),
                 'categoryCounts' => $categoryCounts,
                 'filters' => [
+                    'q' => $search,
                     'min_price' => $minPrice,
                     'max_price' => $maxPrice,
                     'discount' => $validated['discount'] ?? null,
@@ -296,16 +313,29 @@ class ShopController extends Controller
             ]);
         }
 
-        $products = $baseQuery
+        $productsQuery = $baseQuery
             ->withAvg('reviews', 'rating')
-            ->withCount('reviews')
-            ->orderByDesc('created_at')
-            ->get();
+            ->withCount('reviews');
+
+        if ($sort === 'top_sales' && Schema::hasColumn('products', 'sales_count')) {
+            $productsQuery->orderByDesc('sales_count')->orderByDesc('created_at');
+        } elseif ($sort === 'popular') {
+            $productsQuery->orderByDesc('reviews_avg_rating')->orderByDesc('created_at');
+        } elseif ($sort === 'price_asc') {
+            $productsQuery->orderBy('price')->orderByDesc('created_at');
+        } elseif ($sort === 'price_desc') {
+            $productsQuery->orderByDesc('price')->orderByDesc('created_at');
+        } else {
+            $productsQuery->orderByDesc('created_at');
+        }
+
+        $products = $productsQuery->get();
 
         return view('buyer.shop', [
             'products' => $products,
             'categoryCounts' => $categoryCounts,
             'categoryTree' => CategoryCatalog::tree(),
+            'searchQuery' => $search,
         ]);
     }
 

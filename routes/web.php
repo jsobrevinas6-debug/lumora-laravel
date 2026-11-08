@@ -17,6 +17,8 @@ use App\Http\Controllers\Buyer\ChatController as BuyerChatController;
 use App\Http\Controllers\Buyer\PaymentMethodController;
 use App\Http\Controllers\Buyer\ProductReportController;
 use App\Http\Controllers\Buyer\ProductReviewController;
+use App\Http\Controllers\Buyer\CustomerCareController;
+use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +47,14 @@ Route::post('/csrf-debug', function (\Illuminate\Http\Request $request) {
 Route::get('/about', function () {
     return view('about');
 })->name('about');
+
+Route::get('/help-center/{topic?}', [CustomerCareController::class, 'show'])
+    ->where('topic', 'help|shipping|returns|tracking|size-guide|contact|faq|payments')
+    ->name('help.center');
+
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('newsletter.subscribe');
 
 Route::get('/dashboard', function () {
     return match (request()->user()->role) {

@@ -221,6 +221,7 @@
         .lumora-site-footer{width:100%;max-width:none;margin:64px auto 0;padding:0 24px 30px;background:#fff8f3;border-top:1px solid var(--line);color:var(--ink)}
         .lumora-footer-inner{max-width:1240px;margin:0 auto}
         .lumora-newsletter{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.85fr);gap:30px;align-items:center;margin:0 auto 46px;padding:34px;border:1px solid var(--line);border-radius:16px;background:#fffaf5}
+        .lumora-newsletter-feedback{grid-column:1/-1;margin:-18px 0 0!important}
         .lumora-newsletter-label{margin:0 0 10px;color:var(--rose);font-size:11px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase}
         .lumora-newsletter h2{margin:0;color:var(--plum);font-size:34px;font-weight:600;line-height:1.05}
         .lumora-newsletter p{max-width:430px;margin:12px 0 0;color:var(--muted);font-size:13px;line-height:1.65}
@@ -235,18 +236,19 @@
         .lumora-footer-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr) 1.35fr;gap:34px;padding:8px 0 34px;text-align:left}
         .lumora-footer-brand p{max-width:220px;margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.65}
         .lumora-socials{display:flex;gap:9px;flex-wrap:wrap}
-        .lumora-socials a,.lumora-back-top{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--cream);color:var(--plum);transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
-        .lumora-socials a:hover,.lumora-back-top:hover{background:var(--plum);border-color:var(--plum);color:#fff;transform:translateY(-1px)}
+        .lumora-socials a,.lumora-socials button,.lumora-back-top{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--cream);color:var(--plum);transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease;cursor:pointer}
+        .lumora-socials a:hover,.lumora-socials button:hover,.lumora-back-top:hover{background:var(--plum);border-color:var(--plum);color:#fff;transform:translateY(-1px)}
+        .lumora-site-footer a:focus-visible,.lumora-site-footer button:focus-visible,.lumora-site-footer input:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
         .lumora-socials svg,.lumora-back-top svg{width:17px;height:17px}
         .lumora-footer-column h3{margin:0 0 15px;color:var(--plum);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
         .lumora-footer-column ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
         .lumora-footer-column a{color:var(--muted);font-size:12px;transition:color .2s ease}
         .lumora-footer-column a:hover{color:var(--rose)}
         .payment-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-        .payment-badge{min-width:86px;height:40px;display:grid;place-items:center;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--cream);color:var(--plum);font-size:11px;font-weight:700}
+        .payment-badge{min-width:86px;height:40px;display:grid;place-items:center;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--cream);color:var(--plum);font-size:11px;font-weight:700;text-decoration:none}
         .payment-badge img{display:block;max-width:72px;max-height:25px;object-fit:contain}
         .footer-assurances{display:grid;gap:9px;margin-top:2px}
-        .footer-assurance{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+        .footer-assurance{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;text-decoration:none}
         .footer-assurance svg{width:16px;height:16px;color:var(--rose);flex:0 0 auto}
         .lumora-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:20px;border-top:1px solid var(--line)}
         .lumora-footer-bottom p{margin:0;color:var(--muted);font-size:12px}
@@ -1112,14 +1114,17 @@
                     <h2 id="lumoraNewsletterHeading">Be the first to know.</h2>
                     <p>Get exclusive offers, new arrivals, and beauty inspiration straight to your inbox.</p>
                 </div>
-                <form class="lumora-newsletter-form" action="{{ route('shop.index') }}" method="GET">
+                <form id="footer-newsletter" class="lumora-newsletter-form" action="{{ route('newsletter.subscribe') }}" method="POST">
+                    @csrf
                     <label class="lumora-newsletter-input">
                         <span class="sr-only">Email address</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
-                        <input type="email" name="newsletter_email" placeholder="Enter your email" autocomplete="email">
+                        <input type="email" name="email" value="{{ old('email') }}" placeholder="Enter your email" autocomplete="email" required>
                     </label>
                     <button type="submit">Subscribe</button>
                 </form>
+                @if (session('newsletter_success'))<p class="lumora-newsletter-feedback" role="status" style="color:#356e3b">{{ session('newsletter_success') }}</p>@endif
+                @error('email')<p class="lumora-newsletter-feedback" role="alert" style="color:#a23e3b">{{ $message }}</p>@enderror
             </section>
 
             <section class="lumora-footer-main" aria-label="Footer navigation">
@@ -1128,13 +1133,13 @@
                         <x-logo :href="route('shop.index')" aria-label="Lumora home" class="mb-4" />
                         <p>Curated essentials for beauty,<br>confidence,<br>and the everyday.</p>
                         <div class="lumora-socials" aria-label="Social links">
-                            <a href="#" aria-label="Instagram">
+                            <button type="button" data-lumora-share aria-label="Share Lumora using your device’s share menu">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="4"/><circle cx="12" cy="12" r="3.2"/><circle cx="16.3" cy="7.8" r=".7" fill="currentColor" stroke="none"/></svg>
-                            </a>
-                            <a href="#" aria-label="Facebook">
+                            </button>
+                            <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(route('shop.index')) }}" target="_blank" rel="noopener noreferrer" aria-label="Share Lumora on Facebook">
                                 <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 8.2h2.2V5h-2.7C10.6 5 9 6.7 9 9.4V12H7v3.1h2V20h3.3v-4.9h2.8l.5-3.1h-3.3V9.7c0-.9.4-1.5 1.7-1.5Z"/></svg>
                             </a>
-                            <a href="#" aria-label="Twitter">
+                            <a href="https://twitter.com/intent/tweet?url={{ urlencode(route('shop.index')) }}&text={{ urlencode('Discover Lumora Beauty Lives Here') }}" target="_blank" rel="noopener noreferrer" aria-label="Share Lumora on X">
                                 <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 5H21l-6.5 7.4 7.6 10.1h-6l-4.7-6.1-5.3 6.1H3.9l7-8-7.3-9.5h6.1l4.2 5.6L18.9 5Zm-.7 15.7h1.2L9 6.7H7.7l10.5 14Z"/></svg>
                             </a>
                         </div>
@@ -1150,20 +1155,20 @@
                             <li><a href="{{ route('shop.index') }}?category=makeup">Makeup</a></li>
                             <li><a href="{{ route('shop.index') }}?category=fragrance">Fragrance</a></li>
                             <li><a href="{{ route('shop.index') }}?category=personal-care">Body Care</a></li>
-                            <li><a href="{{ route('shop.index') }}?category=bundles">Bundles</a></li>
+                            <li><a href="{{ route('shop.index') }}?q=bundle">Bundles</a></li>
                         </ul>
                     </nav>
 
                     <nav class="lumora-footer-column" aria-label="Customer Care">
                         <h3>Customer Care</h3>
                         <ul>
-                            <li><a href="#">Help Center</a></li>
-                            <li><a href="#">Shipping Information</a></li>
-                            <li><a href="#">Returns</a></li>
-                            <li><a href="#">Track Order</a></li>
-                            <li><a href="#">Size Guide</a></li>
-                            <li><a href="#">Contact Us</a></li>
-                            <li><a href="#">FAQ</a></li>
+                            <li><a href="{{ route('help.center', 'help') }}">Help Center</a></li>
+                            <li><a href="{{ route('help.center', 'shipping') }}">Shipping Information</a></li>
+                            <li><a href="{{ route('help.center', 'returns') }}">Returns</a></li>
+                            <li><a href="{{ auth()->check() ? route('buyer.orders.index') : route('login') }}">Track Order</a></li>
+                            <li><a href="{{ route('help.center', 'size-guide') }}">Size Guide</a></li>
+                            <li><a href="{{ route('help.center', 'contact') }}">Contact Us</a></li>
+                            <li><a href="{{ route('help.center', 'faq') }}">FAQ</a></li>
                         </ul>
                     </nav>
 
@@ -1177,26 +1182,26 @@
                     <div class="lumora-footer-column lumora-footer-payments">
                         <h3>We Accept</h3>
                         <div class="payment-badges" aria-label="Accepted payment methods">
-                            <span class="payment-badge">
+                            <a class="payment-badge" href="{{ route('help.center', 'payments') }}" aria-label="Learn about GCash payments">
                                 <img src="{{ asset('images/payments/gcash.svg') }}" alt="GCash">
-                            </span>
-                            <span class="payment-badge">
+                            </a>
+                            <a class="payment-badge" href="{{ route('help.center', 'payments') }}" aria-label="Learn about Maya payments">
                                 <img src="{{ asset('images/payments/maya.svg') }}" alt="Maya">
-                            </span>
+                            </a>
                         </div>
                         <div class="footer-assurances" aria-label="Shopping assurances">
-                            <div class="footer-assurance">
+                            <a href="{{ route('help.center', 'shipping') }}" class="footer-assurance">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="18" cy="18" r="1.5"/></svg>
                                 <span>Free Shipping</span>
-                            </div>
-                            <div class="footer-assurance">
+                            </a>
+                            <a href="{{ route('help.center', 'returns') }}" class="footer-assurance">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 7h10v10H7z"/><path d="M7 11 4 8l3-3"/><path d="M17 13l3 3-3 3"/></svg>
                                 <span>Easy Returns</span>
-                            </div>
-                            <div class="footer-assurance">
+                            </a>
+                            <a href="{{ route('help.center', 'payments') }}" class="footer-assurance">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 2.8 8 7 10 4.2-2 7-5.6 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
                                 <span>Secure Payment</span>
-                            </div>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -1249,6 +1254,15 @@
     <script>
         document.querySelector('[data-back-to-top]')?.addEventListener('click', function () {
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        document.querySelector('[data-lumora-share]')?.addEventListener('click', async function () {
+            const shareData = { title: 'Lumora', text: 'Discover Lumora — beauty lives here.', url: '{{ route('shop.index') }}' };
+            try {
+                if (navigator.share) await navigator.share(shareData);
+                else { await navigator.clipboard.writeText(shareData.url); alert('Lumora link copied. Share it on Instagram.'); }
+            } catch (error) {
+                if (error.name !== 'AbortError') alert('Copy this link to share Lumora: ' + shareData.url);
+            }
         });
     </script>
 
