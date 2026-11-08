@@ -60,6 +60,13 @@
         .verify-btn.verified { background:#6C8A63; border-color:#6C8A63; color:#fff; cursor:default; }
         .verify-note { font-size:.74rem; color:var(--text-muted); margin-top:5px; }
         .btn-row { display:flex; gap:10px; margin-top:20px; }
+        .agreement-box { margin-top:18px; padding:14px 15px; border:1px solid var(--border); border-radius:12px; background:#fffaf7; }
+        .agreement-check { display:flex; align-items:flex-start; gap:10px; margin:0; color:var(--text-dark); font-size:.76rem; line-height:1.55; cursor:pointer; }
+        .agreement-check input { width:17px; height:17px; flex:0 0 17px; margin:1px 0 0; accent-color:var(--maroon); }
+        .agreement-copy { display:block; }
+        .agreement-details { margin:10px 0 0 27px; color:var(--text-muted); font-size:.72rem; line-height:1.55; }
+        .agreement-details summary { color:var(--maroon); font-weight:600; cursor:pointer; }
+        .agreement-details p { margin:6px 0 0; }
         button.submit-btn { flex:1; padding:12px; border-radius:24px; border:none; font-weight:600; font-size:.85rem; font-family:inherit; cursor:pointer; }
         button.buyer-btn { background:var(--maroon-dark); color:#fff; }
         button.buyer-btn:hover { background:#22102a; }
@@ -180,6 +187,20 @@
             <div class="row-2">
                 <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8"></div>
                 <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8"></div>
+            </div>
+
+            <div class="agreement-box">
+                <label class="agreement-check" for="termsAccepted">
+                    <input id="termsAccepted" type="checkbox" name="terms_accepted" value="1" required @checked(old('terms_accepted'))>
+                    <span class="agreement-copy">I agree to the Lumora User Agreement and acknowledge the Data Privacy Notice for the personal information I provide during registration.</span>
+                </label>
+                @if ($errors->has('terms_accepted'))
+                    <span class="field-error" role="alert">{{ $errors->first('terms_accepted') }}</span>
+                @endif
+                <details class="agreement-details">
+                    <summary>What information is used?</summary>
+                    <p>Lumora uses the name, date of birth, email, contact number, address, and any seller application details entered here to create and secure your account, verify your email, support marketplace orders, and review seller applications when applicable.</p>
+                </details>
             </div>
 
             <div class="btn-row">
@@ -374,6 +395,13 @@ nameInputs.forEach((input) => {
 });
 
 function validateSignupFields() {
+    const termsCheckbox = document.getElementById('termsAccepted');
+    if (termsCheckbox && !termsCheckbox.checked) {
+        termsCheckbox.focus();
+        termsCheckbox.reportValidity();
+        return false;
+    }
+
     let allNamesValid = true;
     nameInputs.forEach((input) => {
         if (!checkNameInput(input, true)) allNamesValid = false;

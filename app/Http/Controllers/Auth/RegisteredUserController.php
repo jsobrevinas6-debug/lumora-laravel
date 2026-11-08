@@ -44,6 +44,7 @@ class RegisteredUserController extends Controller
             'postal_code' => ['nullable', 'string', 'max:4', 'regex:/^\d{1,4}$/'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms_accepted' => ['accepted'],
             'signup_type' => ['in:buyer,seller'],
             ...SellerApplicationFields::registrationRules(),
         ];
@@ -60,6 +61,7 @@ class RegisteredUserController extends Controller
             'last_name.regex' => "You can't input special characters in your name (only ñ and Ñ are allowed).",
             'middle_initial.regex' => "You can't input special characters in your name (only ñ and Ñ are allowed).",
             'date_of_birth.before_or_equal' => 'You must be at least 18 years old to sign up.',
+            'terms_accepted.accepted' => 'Please agree to the User Agreement and Data Privacy Notice before signing up.',
             'postal_code.max' => 'Postal code must be a maximum of 4 digits.',
             'postal_code.regex' => 'Postal code must contain numbers only (maximum 4 digits).',
             'id_document.mimes' => 'Valid ID must be a JPG, PNG, or PDF file only.',
