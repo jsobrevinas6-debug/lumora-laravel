@@ -399,7 +399,9 @@
                                     <a class="action-ghost" href="{{ route('buyer.orders.show', $order) }}" data-card-action>View details</a>
                                     @if ($firstItem?->product_id)<a class="action-outline" href="{{ route('shop.product', $firstItem->product_id) }}#reviews" data-card-action>Write a review</a>@endif
                                     <form method="POST" action="{{ route('buyer.orders.reorder', $order) }}" data-card-action>@csrf<button class="action-primary" type="submit">Buy again</button></form>
-                                    @if (! $order->returnRequest)<button class="action-outline" type="button" data-return-open="{{ $order->id }}" data-card-action>Return / Refund</button>@else<span class="request-status">Return request {{ ucfirst(str_replace('_', ' ', $order->returnRequest->status)) }}</span>@endif
+                                    @if ($returnRequestsEnabled)
+                                        @if (! $order->returnRequest)<button class="action-outline" type="button" data-return-open="{{ $order->id }}" data-card-action>Return / Refund</button>@else<span class="request-status">Return request {{ ucfirst(str_replace('_', ' ', $order->returnRequest->status)) }}</span>@endif
+                                    @endif
                                 @else
                                     <a class="action-ghost" href="{{ route('buyer.orders.show', $order) }}" data-card-action>View details</a>
                                 @endif
@@ -440,7 +442,7 @@
 </main>
 
 @foreach ($orders as $order)
-    @if ($order->status === 'delivered' && ! $order->returnRequest)
+    @if ($returnRequestsEnabled && $order->status === 'delivered' && ! $order->returnRequest)
         <div class="return-modal" id="return-modal-{{ $order->id }}" hidden>
             <section class="return-dialog" role="dialog" aria-modal="true" aria-labelledby="return-title-{{ $order->id }}">
                 <h2 id="return-title-{{ $order->id }}">Return / Refund Request</h2>

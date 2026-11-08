@@ -44,14 +44,19 @@ class OrderController extends Controller
         $baseQuery = Order::query()->where('user_id', $request->user()->id);
         $statusCounts = (clone $baseQuery)->selectRaw('status, COUNT(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
         $totalOrderCount = (int) $statusCounts->sum();
+        $returnRequestsEnabled = Schema::hasTable('return_requests');
+
+        $relations = [
+            'items.product:id,name,image,status,stock',
+            'items.seller:id,name,role',
+        ];
+        if ($returnRequestsEnabled) {
+            $relations[] = 'returnRequest';
+        }
 
         $query = Order::query()
             ->where('user_id', $request->user()->id)
-            ->with([
-                'items.product:id,name,image,status,stock',
-                'returnRequest',
-                'items.seller:id,name,role',
-            ]);
+            ->with($relations);
 
         if ($activeStatus !== 'all') {
             $query->where('status', $activeStatus);
@@ -79,6 +84,7 @@ class OrderController extends Controller
             'statuses',
             'statusCounts',
             'totalOrderCount',
+            'returnRequestsEnabled',
             'activeStatus',
             'search',
             'sort'
@@ -146,6 +152,7 @@ class OrderController extends Controller
 
     public function requestReturn(Request $request, Order $order): RedirectResponse
     {
+        abort_unless(Schema::hasTable('return_requests'), 503, 'Return requests are temporarily unavailable.');
         abort_unless($order->user_id === $request->user()->id, 404);
         abort_unless($order->status === 'delivered', 422, 'Return requests are available for delivered orders only.');
         abort_if($order->returnRequest()->exists(), 409, 'A return request has already been submitted for this order.');
