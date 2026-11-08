@@ -33,6 +33,19 @@
             @endforeach
         </nav>
     </article>
+    @if ($topic === 'faq' && filled($searchQuery ?? ''))
+        <section aria-labelledby="faq-search-results" style="margin-top:28px;padding:28px;border:1px solid #e7d9d2;border-radius:20px;background:#fffdfa">
+            <h2 id="faq-search-results" style="margin:0 0 16px;color:#4a1233;font:600 26px 'Playfair Display',Georgia,serif">Search results for “{{ $searchQuery }}”</h2>
+            @forelse ($matchedFaqs as $faq)
+                <details style="padding:14px 0;border-top:1px solid #e7d9d2">
+                    <summary style="color:#4a1233;font-weight:700;cursor:pointer">{{ $faq['question'] }}</summary>
+                    <p style="margin:10px 0 0;color:#65585a;line-height:1.8">{{ $faq['answer'] }}</p>
+                </details>
+            @empty
+                <p style="color:#65585a">No matching answers found. Try a shorter search or browse the topics above.</p>
+            @endforelse
+        </section>
+    @endif
 </main>
 @auth
     @include('components.chat-widget')

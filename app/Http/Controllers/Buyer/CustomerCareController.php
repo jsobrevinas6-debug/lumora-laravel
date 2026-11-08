@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -24,10 +25,40 @@ class CustomerCareController extends Controller
         $topic = $topic ?: 'help';
         abort_unless(array_key_exists($topic, self::TOPICS), 404);
 
+        if ($topic === 'help') {
+            $recentOrders = $request->user()
+                ? Order::query()
+                    ->where('user_id', $request->user()->id)
+                    ->latest('id')
+                    ->limit(3)
+                    ->get(['id', 'order_number', 'status'])
+                : collect();
+
+            return view('buyer.help-center-home', [
+                'faqs' => config('help_center.faqs', []),
+                'recentOrders' => $recentOrders,
+            ]);
+        }
+
+        $searchQuery = trim((string) $request->query('q', ''));
+        $matchedFaqs = [];
+        if ($topic === 'faq' && $searchQuery !== '') {
+            $terms = preg_split('/\s+/', mb_strtolower($searchQuery), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $matchedFaqs = collect(config('help_center.faqs', []))
+                ->filter(function (array $faq) use ($terms): bool {
+                    $content = mb_strtolower($faq['question'].' '.$faq['answer']);
+                    return collect($terms)->every(fn (string $term) => str_contains($content, $term));
+                })
+                ->values()
+                ->all();
+        }
+
         return view('buyer.help-center', [
             'topic' => $topic,
             'title' => self::TOPICS[$topic][0],
             'description' => self::TOPICS[$topic][1],
+            'searchQuery' => $searchQuery,
+            'matchedFaqs' => $matchedFaqs,
         ]);
     }
 }
