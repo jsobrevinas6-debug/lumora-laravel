@@ -16,6 +16,10 @@ class OrderStatusHistory extends Model
         'order_id',
         'status',
         'remarks',
+        'tracking_status',
+        'tracking_label',
+        'location',
+        'courier_name',
         'changed_by',
     ];
 

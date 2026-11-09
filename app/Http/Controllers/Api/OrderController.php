@@ -83,7 +83,7 @@ class OrderController extends Controller
                 ]);
             }
 
-            $shipping = 15.0;
+            $shipping = 50.0;
             $subtotal = round($lines->sum(fn (array $l) => (float) $l['product']->price * $l['quantity']), 2);
             $discount = round($lines->sum(fn (array $l) => ((float) $l['product']->price - $l['unit_price']) * $l['quantity']), 2);
             $netItems = max(0, round($subtotal - $discount, 2));
@@ -530,6 +530,16 @@ class OrderController extends Controller
      */
     public function waybillStatusUpdate(Request $request, string $barcode): JsonResponse
     {
+        $trackingUpdate = $request->validate([
+            'status' => ['required', 'string', 'max:40'],
+            'label' => ['nullable', 'string', 'max:160'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'hub' => ['nullable', 'string', 'max:255'],
+            'rider_name' => ['nullable', 'string', 'max:120'],
+            'operator' => ['nullable', 'string', 'max:120'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
         $cleanCode = trim($barcode, "*# \t\n\r\0\x0B");
         $numericId = is_numeric($cleanCode) ? (int) $cleanCode : null;
         if ($numericId === null && preg_match('/(\d+)$/', $cleanCode, $m)) {
@@ -552,37 +562,71 @@ class OrderController extends Controller
             return response()->json(['status' => 'not_found'], 404);
         }
 
-        $logisticsStatus = strtolower((string) $request->input('status', 'scanned'));
+        $logisticsStatus = strtolower(trim($trackingUpdate['status']));
         $mappedStatus = match ($logisticsStatus) {
             'delivered', 'completed' => 'delivered',
             'cancelled', 'failed' => 'cancelled',
+            'out_for_delivery' => 'out_for_delivery',
+            'received', 'scanned', 'sorted', 'assigned', 'rider_received' => 'processing',
             default => 'shipped',
         };
 
-        $updatePayload = [
-            'status' => $mappedStatus,
-            'updated_at' => now(),
-        ];
-        if ($mappedStatus === 'delivered' && Schema::hasColumn('orders', 'delivered_at')) {
-            $updatePayload['delivered_at'] = now();
+        $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 1, 'shipped' => 2, 'out_for_delivery' => 3, 'delivered' => 4];
+        $isTerminal = in_array($order->status, ['cancelled', 'returned', 'delivered'], true);
+        $canAdvance = ! $isTerminal && (($statusRank[$mappedStatus] ?? 0) >= ($statusRank[$order->status] ?? 0)
+            || in_array($mappedStatus, ['cancelled'], true));
+
+        if ($canAdvance) {
+            $updatePayload = [
+                'status' => $mappedStatus,
+                'updated_at' => now(),
+            ];
+            if ($mappedStatus === 'delivered' && Schema::hasColumn('orders', 'delivered_at')) {
+                $updatePayload['delivered_at'] = now();
+            }
+
+            DB::table('orders')->where('id', $order->id)->update($updatePayload);
         }
 
-        DB::table('orders')->where('id', $order->id)->update($updatePayload);
-
-        if (Schema::hasTable('order_status_histories')) {
+        if (Schema::hasTable('order_status_history')) {
             try {
                 $historyRow = [
                     'order_id' => $order->id,
                     'status' => $mappedStatus,
+                    'tracking_status' => $logisticsStatus,
+                    'tracking_label' => $trackingUpdate['label'] ?? \Illuminate\Support\Str::headline($logisticsStatus),
+                    'location' => $trackingUpdate['location'] ?? ($trackingUpdate['hub'] ?? null),
+                    'courier_name' => $trackingUpdate['rider_name'] ?? ($trackingUpdate['operator'] ?? null),
+                    'remarks' => $trackingUpdate['note'] ?? "Updated via Lumora Logistics ({$logisticsStatus})",
+                    'changed_by' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
-                if (Schema::hasColumn('order_status_histories', 'remarks')) {
-                    $historyRow['remarks'] = $request->input('note', "Updated via Lumora Logistics ({$logisticsStatus})");
-                } elseif (Schema::hasColumn('order_status_histories', 'notes')) {
-                    $historyRow['notes'] = $request->input('note', "Updated via Lumora Logistics ({$logisticsStatus})");
+
+                foreach (['tracking_status', 'tracking_label', 'location', 'courier_name'] as $column) {
+                    if (! Schema::hasColumn('order_status_history', $column)) {
+                        unset($historyRow[$column]);
+                    }
                 }
-                DB::table('order_status_histories')->insert($historyRow);
+
+                $duplicateQuery = DB::table('order_status_history')
+                    ->where('order_id', $order->id)
+                    ->where('status', $mappedStatus)
+                    ->where('remarks', $historyRow['remarks'])
+                    ->where('created_at', '>=', now()->subSeconds(30));
+
+                if (Schema::hasColumn('order_status_history', 'tracking_status')) {
+                    $duplicateQuery->where('tracking_status', $logisticsStatus);
+                }
+                if (Schema::hasColumn('order_status_history', 'location')) {
+                    $duplicateQuery->where('location', $historyRow['location'] ?? null);
+                }
+
+                $duplicate = $duplicateQuery->exists();
+
+                if (! $duplicate) {
+                    DB::table('order_status_history')->insert($historyRow);
+                }
             } catch (\Throwable) {
                 // Ignore schema differences
             }
@@ -592,6 +636,7 @@ class OrderController extends Controller
             'status' => 'success',
             'order_id' => $order->id,
             'new_status' => $mappedStatus,
+            'tracking_status' => $logisticsStatus,
         ]);
     }
 }

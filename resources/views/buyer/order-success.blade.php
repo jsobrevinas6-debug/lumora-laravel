@@ -103,6 +103,18 @@
         .step-caption { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
         .step-marker { display: none; }
         .progress-note { margin: 15px 0 0; color: var(--muted); font-size: 12px; }
+        .tracking-card { margin: 0 0 22px; padding: 24px 28px 20px; }
+        .tracking-card h2 { margin: 0 0 19px; color: var(--ink); font-size: 20px; font-weight: 600; }
+        .tracking-events { display: grid; }
+        .tracking-event { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 13px; min-height: 86px; }
+        .tracking-event:not(:last-child)::before { position: absolute; top: 17px; bottom: -1px; left: 8px; width: 2px; background: var(--border); content: ''; }
+        .tracking-marker { position: relative; z-index: 1; width: 18px; height: 18px; display: grid; place-items: center; border: 1.5px solid var(--accent); border-radius: 50%; background: var(--card); color: var(--accent-strong); font-size: 10px; }
+        .tracking-event:first-child .tracking-marker { background: #F7E9E4; }
+        .tracking-event-content { padding: 0 0 19px; }
+        .tracking-event-title { margin: 0; color: var(--ink); font-size: 13px; font-weight: 700; line-height: 1.45; }
+        .tracking-event-location, .tracking-event-description, .tracking-event-courier, .tracking-event-time { margin: 4px 0 0; color: var(--body); font-size: 11px; line-height: 1.55; }
+        .tracking-event-time { margin-top: 7px; color: var(--muted); font-size: 10px; }
+        .tracking-empty { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
         .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 22px; }
         .main-column, .side-column { display: grid; gap: 18px; min-width: 0; }
         .items-card, .details-card, .summary-card { padding: 23px; }
@@ -170,6 +182,7 @@
             .order-pills { gap: 7px; }
             .pill { min-height: 34px; padding: 4px 10px; font-size: 11px; }
             .progress-card { padding: 20px 18px; }
+            .tracking-card { padding: 20px 18px; }
             .progress-card h2 { margin-bottom: 15px; }
             .progress-steps { display: grid; grid-template-columns: 1fr; gap: 0; }
             .progress-step { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 12px; min-height: 56px; }
@@ -253,6 +266,48 @@
                     @if ($order->tracking_number) · Tracking number {{ $order->tracking_number }} @endif
                     @if ($order->estimated_delivery) · Estimated delivery {{ $order->estimated_delivery->format('M j, Y') }} @endif
                 </p>
+            @endif
+        </section>
+
+        <section class="card tracking-card" id="order-tracking" aria-labelledby="tracking-heading">
+            <h2 id="tracking-heading">Track my order</h2>
+            @if ($order->statusHistory->isNotEmpty())
+                <div class="tracking-events" role="list" aria-label="Parcel tracking updates">
+                    @foreach ($order->statusHistory as $event)
+                        @php
+                            $trackingLabel = $event->tracking_label ?: match ($event->tracking_status) {
+                                'received' => 'Received by Lumora Logistics',
+                                'scanned' => 'Scanned at logistics hub',
+                                'sorted' => 'Sorted at logistics hub',
+                                'assigned' => 'Assigned to courier',
+                                'rider_received' => 'Received by courier',
+                                'in_transit' => 'In Transit',
+                                'out_for_delivery' => 'Out for Delivery',
+                                'delivered' => 'Delivered',
+                                'exception', 'failed' => 'Delivery exception',
+                                default => \Illuminate\Support\Str::headline($event->status),
+                            };
+                        @endphp
+                        <article class="tracking-event" role="listitem">
+                            <span class="tracking-marker" aria-hidden="true">{{ $loop->first ? '✓' : '·' }}</span>
+                            <div class="tracking-event-content">
+                                <h3 class="tracking-event-title">{{ $trackingLabel }}</h3>
+                                @if ($event->location)
+                                    <p class="tracking-event-location">{{ $event->location }}</p>
+                                @endif
+                                @if ($event->remarks)
+                                    <p class="tracking-event-description">{{ $event->remarks }}</p>
+                                @endif
+                                @if ($event->courier_name)
+                                    <p class="tracking-event-courier">Courier {{ $event->courier_name }}</p>
+                                @endif
+                                <p class="tracking-event-time">{{ $event->created_at?->timezone('Asia/Manila')->format('M j, Y · g:i A') ?? 'Time unavailable' }} PHT</p>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="tracking-empty">Tracking updates will appear here after Lumora Logistics scans your parcel.</p>
             @endif
         </section>
 
@@ -355,7 +410,7 @@
                     </div>
                     <div class="summary-total"><span>Total</span><strong>₱{{ number_format((float) $order->total, 2) }}</strong></div>
                     <div class="action-links">
-                        <a class="action-button primary" href="#order-progress">
+                        <a class="action-button primary" href="#order-tracking">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h17M13 5l7 7-7 7"/></svg>
                             Track order
                         </a>
