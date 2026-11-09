@@ -217,7 +217,9 @@
                     @endif
 
                     @if ($isActive && $estimatedDelivery && $progressRank < 4)
-                        @php($expectedDate = $estimatedDelivery->timezone('Asia/Manila'))
+                        @php
+                            $expectedDate = $estimatedDelivery->timezone('Asia/Manila');
+                        @endphp
                         <p class="expected-event">Next expected step: {{ $expectedDate->isToday() ? 'Expected today' : 'Expected '.$expectedDate->format('M j') }} · {{ $steps[min($progressRank + 1, 4)]['label'] }}</p>
                     @endif
                 </section>
