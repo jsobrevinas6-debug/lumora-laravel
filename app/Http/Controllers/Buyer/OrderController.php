@@ -106,10 +106,7 @@ class OrderController extends Controller
                 }
             }
 
-            $lockedOrder->update(['status' => 'cancelled', 'cancelled_at' => now()]);
-            $lockedOrder->statusHistory()->create([
-                'status' => 'cancelled',
-                'remarks' => 'Cancelled by buyer.',
+            $lockedOrder->updateStatus('cancelled', 'Cancelled by buyer.', event: [
                 'changed_by' => $request->user()->id,
             ]);
         });
@@ -417,11 +414,7 @@ class OrderController extends Controller
 
             $order = Order::create($orderData);
 
-            $order->statusHistory()->create([
-                'status' => 'pending',
-                'remarks' => 'Order Placed',
-                'changed_by' => null,
-            ]);
+            $order->updateStatus('pending', 'Order placed.');
 
             foreach ($lines as $line) {
                 $product = $line['product'];
@@ -467,8 +460,7 @@ class OrderController extends Controller
 
         $order->load([
             'items.product',
-            'statusHistory' => fn ($query) => $query->latest(),
-            'statusHistory.changedBy',
+            'statusHistories.changedBy',
         ]);
 
         $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
@@ -481,12 +473,15 @@ class OrderController extends Controller
     {
         abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
 
-        $order->load([
-            'items.product',
-            'statusHistory' => fn ($query) => $query->latest(),
-        ]);
+        $returnRequestsEnabled = Schema::hasTable('return_requests');
+        $relations = ['user', 'seller', 'items.product', 'items.seller', 'statusHistories'];
+        if ($returnRequestsEnabled) {
+            $relations[] = 'returnRequest';
+        }
+        $order->load($relations);
+        $cartCount = collect($request->session()->get(self::CART_KEY, []))->sum('quantity');
 
-        return view('buyer.orders.track', compact('order'));
+        return view('buyer.orders.track', compact('order', 'cartCount', 'returnRequestsEnabled'));
     }
 
     public function replacePaymentProof(Request $request, Order $order): RedirectResponse

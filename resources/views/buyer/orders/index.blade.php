@@ -349,7 +349,7 @@
                             $previewItems = $order->items->take(3);
                             $remainingItems = max($order->items->count() - $previewItems->count(), 0);
                             $status = $order->status ?? 'pending';
-                            $statusLabel = ucwords(str_replace('_', ' ', $status));
+                            $statusLabel = $order->status_label;
                             $firstItem = $order->items->first();
                             $activeProgress = in_array($status, ['pending', 'packed', 'shipped'], true);
                             $progressMap = ['pending' => 1, 'packed' => 2, 'shipped' => 3];

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderStatusHistory;
 use App\Notifications\PayoutRequestStatusNotification;
 use App\Notifications\ProductApprovalRejectedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -158,14 +157,7 @@ class OrderController extends Controller
                     'oi.updated_at' => $now,
                 ]);
 
-            $order->forceFill([
-                'status' => 'packed',
-            ])->save();
-
-            OrderStatusHistory::create([
-                'order_id' => $order->id,
-                'status' => 'packed',
-                'remarks' => 'Order marked as packed by seller.',
+            $order->updateStatus('packed', 'Order marked as packed by seller.', event: [
                 'changed_by' => $sellerId,
             ]);
 

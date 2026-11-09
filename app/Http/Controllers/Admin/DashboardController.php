@@ -218,12 +218,8 @@ class DashboardController extends Controller
         DB::transaction(function () use ($order) {
             $order->update([
                 'payment_status' => 'failed',
-                'status' => 'cancelled',
-                'cancelled_at' => now(),
             ]);
-            $order->statusHistory()->create([
-                'status' => 'cancelled',
-                'remarks' => 'E-wallet payment receipt rejected by admin.',
+            $order->updateStatus('cancelled', 'E-wallet payment receipt rejected by admin.', event: [
                 'changed_by' => auth()->id(),
             ]);
         });

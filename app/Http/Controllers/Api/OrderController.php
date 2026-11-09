@@ -23,7 +23,7 @@ class OrderController extends Controller
             ->where('user_id', $request->user()->id)
             ->with([
                 'items.product',
-                'statusHistory' => fn ($q) => $q->oldest(),
+                'statusHistories',
             ])
             ->latest()
             ->get();
@@ -161,9 +161,7 @@ class OrderController extends Controller
 
             $order = Order::create($orderData);
 
-            $order->statusHistory()->create([
-                'status' => 'pending',
-                'remarks' => 'Order Placed via Mobile App',
+            $order->updateStatus('pending', 'Order placed via mobile app.', event: [
                 'changed_by' => $request->user()->id,
             ]);
 
@@ -182,7 +180,7 @@ class OrderController extends Controller
                 $product->increment('sales_count', $line['quantity']);
             }
 
-            return $order->load(['items.product', 'statusHistory']);
+            return $order->load(['items.product', 'statusHistories']);
         });
 
         return response()->json([
@@ -202,14 +200,7 @@ class OrderController extends Controller
         $reason = trim((string) $request->input('reason', 'Cancelled by buyer'));
 
         DB::transaction(function () use ($request, $order, $reason) {
-            $order->update([
-                'status' => 'cancelled',
-                'cancelled_at' => now(),
-            ]);
-
-            $order->statusHistory()->create([
-                'status' => 'cancelled',
-                'remarks' => 'Order cancelled by buyer: '.$reason,
+            $order->updateStatus('cancelled', 'Order cancelled by buyer: '.$reason, event: [
                 'changed_by' => $request->user()->id,
             ]);
 
@@ -232,12 +223,10 @@ class OrderController extends Controller
         $solution = trim((string) $request->input('preferred_solution', 'Refund'));
         $description = trim((string) $request->input('description', ''));
 
-        $order->update(['status' => 'returned']);
-        $order->statusHistory()->create([
-            'status' => 'returned',
-            'remarks' => trim("Return & Refund requested ({$solution}) — {$reason}. {$description}"),
+        $order->updateStatus('returned', trim("Return & Refund requested ({$solution}) — {$reason}. {$description}"), event: [
             'changed_by' => $request->user()->id,
         ]);
+
 
         return response()->json(['message' => 'Return request submitted.']);
     }
@@ -246,12 +235,10 @@ class OrderController extends Controller
     {
         $order = $this->findBuyerOrder($request, $orderId);
         $notes = trim((string) $request->input('dispute_notes', ''));
-
-        $order->statusHistory()->create([
-            'status' => 'disputed',
-            'remarks' => trim('Buyer escalated dispute to Admin. '.$notes),
+        $order->recordStatusUpdate('disputed', trim('Buyer escalated dispute to Admin. '.$notes), event: [
             'changed_by' => $request->user()->id,
         ]);
+
 
         return response()->json(['message' => 'Dispute escalated to Admin.']);
     }
@@ -381,9 +368,13 @@ class OrderController extends Controller
                 'quantity' => (int) $it->quantity,
                 'imagePath' => $it->product?->image_url,
             ])->values(),
-            'statusHistory' => $o->statusHistory->map(fn ($h) => [
+            'statusHistory' => $o->statusHistories->map(fn ($h) => [
                 'status' => $h->status,
-                'notes' => (string) ($h->remarks ?? ''),
+                'notes' => (string) ($h->note ?? ''),
+                'location' => $h->location,
+                'trackingStatus' => $h->tracking_status,
+                'trackingLabel' => $h->tracking_label,
+                'courierName' => $h->courier_name,
                 'created_at' => $h->created_at?->toIso8601String(),
             ])->values(),
         ];
@@ -547,7 +538,7 @@ class OrderController extends Controller
         }
 
         $hasOrderNumber = Schema::hasColumn('orders', 'order_number');
-        $query = DB::table('orders');
+        $query = Order::query();
         $query->where(function ($q) use ($numericId, $cleanCode, $hasOrderNumber) {
             if ($numericId !== null) {
                 $q->where('id', $numericId);
@@ -565,77 +556,41 @@ class OrderController extends Controller
         $logisticsStatus = strtolower(trim($trackingUpdate['status']));
         $mappedStatus = match ($logisticsStatus) {
             'delivered', 'completed' => 'delivered',
-            'cancelled', 'failed' => 'cancelled',
+            'cancelled' => 'cancelled',
+            'exception', 'failed' => $order->status,
             'out_for_delivery' => 'out_for_delivery',
-            'received', 'scanned', 'sorted', 'assigned', 'rider_received' => 'processing',
+            'received', 'scanned' => 'processing',
+            'sorted', 'assigned' => 'packed',
+            'rider_received', 'in_transit' => 'shipped',
             default => 'shipped',
         };
 
-        $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 1, 'shipped' => 2, 'out_for_delivery' => 3, 'delivered' => 4];
+        $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 2, 'shipped' => 3, 'out_for_delivery' => 4, 'delivered' => 5];
         $isTerminal = in_array($order->status, ['cancelled', 'returned', 'delivered'], true);
         $canAdvance = ! $isTerminal && (($statusRank[$mappedStatus] ?? 0) >= ($statusRank[$order->status] ?? 0)
             || in_array($mappedStatus, ['cancelled'], true));
 
-        if ($canAdvance) {
-            $updatePayload = [
-                'status' => $mappedStatus,
-                'updated_at' => now(),
-            ];
-            if ($mappedStatus === 'delivered' && Schema::hasColumn('orders', 'delivered_at')) {
-                $updatePayload['delivered_at'] = now();
-            }
+        $location = $trackingUpdate['location'] ?? ($trackingUpdate['hub'] ?? null);
+        $note = $trackingUpdate['note'] ?? "Updated via Lumora Logistics ({$logisticsStatus})";
+        $sameRecentEvent = $order->statusHistories()
+            ->where('tracking_status', $logisticsStatus)
+            ->where('location', $location)
+            ->where('note', $note)
+            ->where('created_at', '>=', now()->subSeconds(30))
+            ->exists();
 
-            DB::table('orders')->where('id', $order->id)->update($updatePayload);
-        }
-
-        if (Schema::hasTable('order_status_history')) {
-            try {
-                $historyRow = [
-                    'order_id' => $order->id,
-                    'status' => $mappedStatus,
-                    'tracking_status' => $logisticsStatus,
-                    'tracking_label' => $trackingUpdate['label'] ?? \Illuminate\Support\Str::headline($logisticsStatus),
-                    'location' => $trackingUpdate['location'] ?? ($trackingUpdate['hub'] ?? null),
-                    'courier_name' => $trackingUpdate['rider_name'] ?? ($trackingUpdate['operator'] ?? null),
-                    'remarks' => $trackingUpdate['note'] ?? "Updated via Lumora Logistics ({$logisticsStatus})",
-                    'changed_by' => null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-
-                foreach (['tracking_status', 'tracking_label', 'location', 'courier_name'] as $column) {
-                    if (! Schema::hasColumn('order_status_history', $column)) {
-                        unset($historyRow[$column]);
-                    }
-                }
-
-                $duplicateQuery = DB::table('order_status_history')
-                    ->where('order_id', $order->id)
-                    ->where('status', $mappedStatus)
-                    ->where('remarks', $historyRow['remarks'])
-                    ->where('created_at', '>=', now()->subSeconds(30));
-
-                if (Schema::hasColumn('order_status_history', 'tracking_status')) {
-                    $duplicateQuery->where('tracking_status', $logisticsStatus);
-                }
-                if (Schema::hasColumn('order_status_history', 'location')) {
-                    $duplicateQuery->where('location', $historyRow['location'] ?? null);
-                }
-
-                $duplicate = $duplicateQuery->exists();
-
-                if (! $duplicate) {
-                    DB::table('order_status_history')->insert($historyRow);
-                }
-            } catch (\Throwable) {
-                // Ignore schema differences
-            }
+        if (! $sameRecentEvent && ($canAdvance || $order->status === $mappedStatus)) {
+            $order->updateStatus($mappedStatus, $note, $location, [
+                'tracking_status' => $logisticsStatus,
+                'tracking_label' => $trackingUpdate['label'] ?? \Illuminate\Support\Str::headline($logisticsStatus),
+                'courier_name' => $trackingUpdate['rider_name'] ?? ($trackingUpdate['operator'] ?? null),
+            ]);
         }
 
         return response()->json([
             'status' => 'success',
             'order_id' => $order->id,
-            'new_status' => $mappedStatus,
+            'new_status' => $order->fresh()->status,
             'tracking_status' => $logisticsStatus,
         ]);
     }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Order extends Model
 {
@@ -68,9 +69,68 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderByDesc('created_at')->orderByDesc('id');
+    }
+
+    /** Backwards-compatible relation name used by the mobile API. */
     public function statusHistory(): HasMany
     {
-        return $this->hasMany(OrderStatusHistory::class);
+        return $this->statusHistories();
+    }
+
+    /**
+     * Set the order's current status and append the matching tracking event atomically.
+     * Extra event metadata may include tracking_status, tracking_label, courier_name, and changed_by.
+     */
+    public function updateStatus(string $status, ?string $note = null, ?string $location = null, array $event = []): self
+    {
+        return DB::transaction(function () use ($status, $note, $location, $event) {
+            $order = static::query()->lockForUpdate()->findOrFail($this->getKey());
+            $status = strtolower(trim($status));
+
+            if ($order->status !== $status) {
+                $order->status = $status;
+
+                if ($status === 'delivered' && ! $order->delivered_at) {
+                    $order->delivered_at = now();
+                }
+                if ($status === 'cancelled' && ! $order->cancelled_at) {
+                    $order->cancelled_at = now();
+                }
+
+                $order->save();
+            }
+
+            $order->statusHistories()->create([
+                'status' => $status,
+                'note' => $note,
+                'location' => $location,
+                'tracking_status' => $event['tracking_status'] ?? null,
+                'tracking_label' => $event['tracking_label'] ?? null,
+                'courier_name' => $event['courier_name'] ?? null,
+                'changed_by' => $event['changed_by'] ?? null,
+            ]);
+
+            $this->setRawAttributes($order->getAttributes(), true);
+
+            return $this;
+        });
+    }
+
+    /** Record a tracking event that does not change the order's lifecycle status (for example, a dispute). */
+    public function recordStatusUpdate(string $status, ?string $note = null, ?string $location = null, array $event = []): OrderStatusHistory
+    {
+        return $this->statusHistories()->create([
+            'status' => $status,
+            'note' => $note,
+            'location' => $location,
+            'tracking_status' => $event['tracking_status'] ?? null,
+            'tracking_label' => $event['tracking_label'] ?? null,
+            'courier_name' => $event['courier_name'] ?? null,
+            'changed_by' => $event['changed_by'] ?? null,
+        ]);
     }
 
     public function returnRequest(): \Illuminate\Database\Eloquent\Relations\HasOne

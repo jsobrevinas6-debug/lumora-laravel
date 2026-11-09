@@ -10,15 +10,15 @@ class OrderStatusHistory extends Model
 {
     use HasFactory;
 
-    protected $table = 'order_status_history';
+    protected $table = 'order_status_histories';
 
     protected $fillable = [
         'order_id',
         'status',
-        'remarks',
+        'note',
+        'location',
         'tracking_status',
         'tracking_label',
-        'location',
         'courier_name',
         'changed_by',
     ];

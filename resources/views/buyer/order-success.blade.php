@@ -271,11 +271,11 @@
 
         <section class="card tracking-card" id="order-tracking" aria-labelledby="tracking-heading">
             <h2 id="tracking-heading">Track my order</h2>
-            @if ($order->statusHistory->isNotEmpty())
+            @if ($order->statusHistories->isNotEmpty())
                 <div class="tracking-events" role="list" aria-label="Parcel tracking updates">
-                    @foreach ($order->statusHistory as $event)
+                    @foreach ($order->statusHistories as $event)
                         @php
-                            $trackingLabel = $event->tracking_label ?: match ($event->tracking_status) {
+                            $trackingLabel = $event->tracking_label ?: match ($event->tracking_status ?: $event->status) {
                                 'received' => 'Received by Lumora Logistics',
                                 'scanned' => 'Scanned at logistics hub',
                                 'sorted' => 'Sorted at logistics hub',
@@ -295,8 +295,8 @@
                                 @if ($event->location)
                                     <p class="tracking-event-location">{{ $event->location }}</p>
                                 @endif
-                                @if ($event->remarks)
-                                    <p class="tracking-event-description">{{ $event->remarks }}</p>
+                                @if ($event->note)
+                                    <p class="tracking-event-description">{{ $event->note }}</p>
                                 @endif
                                 @if ($event->courier_name)
                                     <p class="tracking-event-courier">Courier {{ $event->courier_name }}</p>
@@ -377,7 +377,7 @@
                 @endif
 
             @if (in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true) && $order->payment_status === 'pending' && $order->status === 'pending' && ! $order->payment_proof_available)
-                <section class="card receipt-resubmit" aria-labelledby="receipt-resubmit-heading">
+                <section class="card receipt-resubmit" id="return-request" aria-labelledby="receipt-resubmit-heading">
                     <h2 id="receipt-resubmit-heading">Submit your payment receipt</h2>
                     <p>The receipt for this order is unavailable. Upload it again and enter the last six digits of your reference number so the seller can review your payment.</p>
                     <form method="POST" action="{{ route('buyer.orders.payment-proof', $order) }}" enctype="multipart/form-data">
