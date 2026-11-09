@@ -36,7 +36,7 @@ class OrderController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'payment_method' => ['required', 'string', 'max:50'],
+            'payment_method' => ['required', 'string', 'in:cod,gcash,maya'],
             'shipping_address' => ['nullable', 'string', 'max:500'],
             'note_to_seller' => ['nullable', 'string', 'max:1000'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
@@ -314,10 +314,6 @@ class OrderController extends Controller
         if (str_contains($lower, 'maya')) {
             return 'maya';
         }
-        if (str_contains($lower, 'bank')) {
-            return 'bank_transfer';
-        }
-
         return 'cod';
     }
 

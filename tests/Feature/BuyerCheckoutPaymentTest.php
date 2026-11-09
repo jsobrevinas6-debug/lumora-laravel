@@ -7,6 +7,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -99,7 +100,7 @@ class BuyerCheckoutPaymentTest extends TestCase
             ->assertSee('Cash on Delivery')
             ->assertSee('GCash')
             ->assertSee('Maya')
-            ->assertSee('Bank Account')
+            ->assertDontSee('Bank Account')
             ->assertSee('Saved Wallets')
             ->assertSee('0917 *** 4567')
             ->assertSee('Manage Wallet');
@@ -146,6 +147,7 @@ class BuyerCheckoutPaymentTest extends TestCase
                 'lumora_cart_selected' => [$product->id],
             ])
             ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
                 'payment_method' => 'cod',
             ]);
 
@@ -185,8 +187,11 @@ class BuyerCheckoutPaymentTest extends TestCase
                 'lumora_cart_selected' => [$product->id],
             ])
             ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
                 'payment_method' => 'maya',
                 'payment_method_id' => $wallet->id,
+                'payment_proof' => UploadedFile::fake()->image('receipt.png'),
+                'payment_reference_last6' => '123456',
             ]);
 
         $order = Order::query()->first();
@@ -208,14 +213,14 @@ class BuyerCheckoutPaymentTest extends TestCase
 
         $buyer = User::factory()->create(['role' => 'buyer']);
 
-        foreach (['gcash', 'maya', 'bank_transfer'] as $type) {
+        foreach (['gcash', 'maya'] as $type) {
             $product = $this->product();
             $wallet = PaymentMethod::create([
                 'user_id' => $buyer->id,
                 'type' => $type,
-                'provider' => ['gcash' => 'GCash', 'maya' => 'Maya', 'bank_transfer' => 'Bank Account'][$type],
+                'provider' => ['gcash' => 'GCash', 'maya' => 'Maya'][$type],
                 'account_name' => 'Lumora Buyer',
-                'account_identifier' => $type === 'bank_transfer' ? '1234 5678 9012' : '09171234567',
+                'account_identifier' => '09171234567',
                 'is_default' => true,
             ]);
 
@@ -226,8 +231,11 @@ class BuyerCheckoutPaymentTest extends TestCase
                     'lumora_cart_selected' => [$product->id],
                 ])
                 ->post('/checkout/place-order', [
+                    'checkout_token' => bin2hex(random_bytes(32)),
                     'payment_method' => $type,
                     'payment_method_id' => $wallet->id,
+                    'payment_proof' => UploadedFile::fake()->image('receipt.png'),
+                    'payment_reference_last6' => '123456',
                 ]);
 
             $order = Order::query()->latest('id')->first();
@@ -269,6 +277,7 @@ class BuyerCheckoutPaymentTest extends TestCase
                 'lumora_cart_selected' => [$product->id],
             ])
             ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
                 'payment_method' => 'gcash',
                 'payment_method_id' => $otherWallet->id,
             ])
@@ -290,6 +299,7 @@ class BuyerCheckoutPaymentTest extends TestCase
                 'lumora_cart_selected' => [$product->id],
             ])
             ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
                 'payment_method' => 'gcash',
                 'payment_method_id' => $ownWallet->id,
             ])
@@ -318,10 +328,30 @@ class BuyerCheckoutPaymentTest extends TestCase
                 'lumora_cart_selected' => [$product->id],
             ])
             ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
                 'payment_method' => 'cod',
                 'payment_method_id' => $wallet->id,
             ])
             ->assertSessionHasErrors('payment_method_id');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_checkout_rejects_forged_bank_transfer_payment_method(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $product = $this->product();
+
+        $this->actingAs($buyer)
+            ->withSession([
+                'lumora_cart' => [(string) $product->id => ['quantity' => 1]],
+                'lumora_cart_selected' => [$product->id],
+            ])
+            ->post('/checkout/place-order', [
+                'checkout_token' => bin2hex(random_bytes(32)),
+                'payment_method' => 'bank_transfer',
+            ])
+            ->assertSessionHasErrors('payment_method');
 
         $this->assertDatabaseCount('orders', 0);
     }

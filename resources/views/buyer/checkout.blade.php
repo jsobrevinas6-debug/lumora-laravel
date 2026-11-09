@@ -10,10 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --plum: #3d1b3d;
+            --plum: #4a1233;
             --plum-dark: #2c102c;
-            --rose: #b96562;
-            --rose-soft: #d99a96;
+            --rose: #c98b6b;
+            --rose-soft: #d5a187;
             --gold: #c9972b;
             --cream: #fffdfb;
             --blush: #fbefea;
@@ -32,6 +32,8 @@
             background: linear-gradient(135deg, #fffdfb 0%, #fbefea 44%, #f3d8de 100%);
         }
         a { color: inherit; text-decoration: none; }
+        a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline:3px solid rgba(201,139,107,.55); outline-offset:3px; }
+        [hidden] { display:none !important; }
         h1, h2, h3 { margin: 0; color: var(--plum); font-family: 'Playfair Display', Georgia, serif; font-weight: 600; }
 
         .checkout-header {
@@ -56,6 +58,7 @@
         }
         .step { display: flex; align-items: center; gap: 18px; white-space: nowrap; }
         .step.active { color: var(--plum); font-weight: 600; }
+        .mobile-steps { display:none; }
         .step.active::after {
             content: '';
             position: absolute;
@@ -85,7 +88,7 @@
         .card {
             background: rgba(255, 253, 251, .91);
             border: 1px solid var(--line);
-            border-radius: 13px;
+            border-radius: 22px;
             box-shadow: 0 8px 30px rgba(61, 27, 61, .035);
         }
         .delivery-card { padding: 29px 34px 27px; }
@@ -110,7 +113,11 @@
             line-height: 1.52;
         }
         .address-name { margin-bottom: 4px; color: var(--ink); font-weight: 600; font-size: 16px; }
-        .contact { margin-top: 6px; color: var(--rose); }
+        .contact { margin-top: 6px; color: var(--ink); }
+        .address-actions { display:flex; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap; }
+        .address-change { display:inline-flex; align-items:center; min-height:34px; padding:0 13px; border:1px solid var(--rose-soft); border-radius:999px; background:#fff; color:var(--plum); font-size:12px; font-weight:700; }
+        .delivery-notes { width:100%; min-height:74px; margin-top:18px; padding:12px 14px; resize:vertical; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:13px Inter,Arial,sans-serif; }
+        .delivery-notes:focus-visible { outline:3px solid rgba(201,139,107,.35); outline-offset:2px; }
         .items-card { margin-top: 16px; padding: 27px 34px 17px; }
         .items-card .card-title { margin-bottom: 14px; }
         .item {
@@ -131,8 +138,14 @@
         .item-details { flex: 1; min-width: 0; }
         .item-name { color: var(--ink); font: 600 17px/1.2 Inter, Arial, sans-serif; }
         .item-meta { margin-top: 8px; color: var(--muted); font-size: 14px; }
-        .item-qty { width: 75px; color: var(--ink); font-size: 14px; white-space: nowrap; }
-        .item-price { width: 117px; color: var(--plum); font-size: 16px; font-weight: 600; text-align: right; white-space: nowrap; }
+        .quantity-control { display:flex; align-items:center; gap:7px; }
+        .quantity-button { width:30px; height:30px; border:1px solid var(--line); border-radius:50%; background:#fff; color:var(--plum); font-size:17px; cursor:pointer; }
+        .quantity-button:disabled { opacity:.4; cursor:not-allowed; }
+        .quantity-value { min-width:22px; color:var(--ink); font-size:13px; text-align:center; }
+        .item-price { width:140px; color:var(--plum); font-size:16px; font-weight:600; text-align:right; white-space:nowrap; }
+        .item-price-current { display:block; }
+        .item-price-original { display:block; color:var(--muted); font-size:12px; font-weight:400; }
+        .discount-chip, .method-chip { display:inline-flex; align-items:center; border-radius:999px; background:#fbefea; padding:3px 8px; color:var(--plum); font-size:10px; font-weight:700; }
         .return-link { display: inline-flex; gap: 11px; margin-top: 24px; color: var(--rose); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 
         .summary-card {
@@ -155,7 +168,6 @@
             opacity: .45;
         }
         .summary-title { padding-bottom: 23px; border-bottom: 1px solid #d8c9bd; font-size: 30px; }
-        .summary-title::after { content: '✦'; float: right; color: var(--gold); font: 20px Georgia, serif; }
         .summary-row { display: flex; justify-content: space-between; gap: 20px; margin-top: 23px; color: var(--ink); font-size: 15px; }
         .summary-row strong { font-weight: 500; }
         .summary-row.discount strong { color: var(--rose); }
@@ -172,6 +184,7 @@
         .voucher-feedback.error { display: block; color: var(--rose); font-weight: 500; }
         .voucher-remove-btn { border: 0; background: transparent; color: var(--rose); font-size: 11px; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
         .summary-total { display: flex; justify-content: space-between; margin-top: 22px; padding-top: 24px; border-top: 1px solid #d8c9bd; color: var(--plum); font: 600 29px 'Playfair Display', Georgia, serif; }
+        .savings-line { margin:7px 0 0; color:#39704c; font-size:12px; font-weight:700; text-align:right; }
         .payment-label { display: block; margin-top: 39px; margin-bottom: 14px; color: var(--plum); font: 600 21px 'Playfair Display', Georgia, serif; }
         .payment-option {
             display: flex;
@@ -232,7 +245,7 @@
             min-height: 62px;
             margin: 0;
             border: 1px solid var(--line);
-            border-radius: 10px;
+            border-radius: 14px;
             background: rgba(255, 253, 251, .78);
             padding: 13px 14px;
             color: var(--ink);
@@ -244,6 +257,7 @@
             border-color: var(--rose-soft);
             background: #fff7f3;
         }
+        .payment-radio-card:focus-within, .wallet-card:focus-within { outline:3px solid rgba(201,139,107,.38); outline-offset:2px; }
         .payment-radio-card input,
         .wallet-card input {
             width: 19px;
@@ -251,6 +265,8 @@
             margin-top: 2px;
             accent-color: var(--plum);
         }
+        .payment-explanation { display:none; margin:7px 2px 2px 31px; color:#5f5053; font-size:12px; line-height:1.5; }
+        .payment-explanation.is-visible { display:block; }
         .payment-radio-card strong,
         .wallet-card strong {
             display: block;
@@ -258,6 +274,7 @@
             font-size: 14px;
             font-weight: 700;
         }
+        .payment-radio-card strong .method-chip { display:inline-flex; width:max-content; margin:0 0 0 8px; padding:3px 8px; font-size:10px; vertical-align:middle; }
         .payment-radio-card span,
         .wallet-card span {
             display: block;
@@ -340,11 +357,18 @@
             transition: background .2s ease, transform .2s ease;
         }
         .place-order:hover { background: var(--plum-dark); transform: translateY(-1px); }
+        .place-order:disabled { opacity:.68; cursor:wait; transform:none; }
+        .order-legal { margin:12px 0 0; color:#63565a; font-size:11px; line-height:1.6; text-align:center; }
+        .order-legal a { color:var(--plum); text-decoration:underline; text-underline-offset:2px; }
+        .secure-returns { margin:7px 0 0; color:#63565a; font-size:11px; text-align:center; }
+        .mobile-checkout-bar { display:none; }
+        .success-message { margin:0 0 12px; padding:10px 12px; border-radius:10px; background:#edf6ef; color:#315d3d; font-size:12px; }
         .error { margin-bottom: 18px; padding: 12px 15px; border-radius: 8px; color: var(--rose); background: #fff3e9; font-size: 13px; }
 
-        @media (max-width: 1050px) {
+        @media (max-width: 900px) {
             .header-inner, .page { width: min(100% - 44px, 850px); }
-            .steps { display: none; }
+            .steps { gap:9px; font-size:12px; }
+            .step { gap:7px; }
             .layout { grid-template-columns: 1fr; gap: 24px; }
             .summary-card { position: static; min-height: auto; }
         }
@@ -354,19 +378,26 @@
             .secure { font-size: 12px; }
             .page { padding-top: 31px; }
             .page-title { font-size: 38px; }
+            .steps { display:none; }
+            .mobile-steps { display:flex; align-items:center; gap:10px; margin:-14px 0 24px; color:var(--muted); font-size:11px; }
+            .mobile-steps strong { color:var(--plum); }
             .delivery-card, .items-card, .summary-card { padding: 22px 18px; }
             .card-title, .summary-title { font-size: 25px; }
             .address-row { gap: 16px; align-items: flex-start; }
             .pin { width: 58px; height: 58px; flex-basis: 58px; font-size: 25px; }
             .address-copy { padding-left: 16px; font-size: 12px; }
-            .item { gap: 12px; }
+            .item { gap: 10px; flex-wrap:wrap; padding:12px 0; }
             .item-image { width: 76px; height: 68px; flex-basis: 76px; }
             .item-name { font-size: 13px; }
-            .item-meta, .item-qty, .item-price { font-size: 11px; }
-            .item-qty { width: 45px; }
-            .item-price { width: 73px; }
+            .item-meta { font-size: 11px; }
+            .item-price { width:auto; margin-left:auto; font-size:12px; }
+            .quantity-control { margin-left:88px; }
             .payment-card-head { flex-direction: column; gap: 8px; }
             .manage-wallet { align-self: flex-start; }
+            .mobile-checkout-bar { position:fixed; z-index:900; right:0; bottom:0; left:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 16px calc(11px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:rgba(255,253,251,.97); box-shadow:0 -8px 25px rgba(61,27,61,.09); }
+            .mobile-checkout-total { color:var(--plum); font:600 18px 'Playfair Display',Georgia,serif; white-space:nowrap; }
+            .mobile-checkout-bar .place-order { width:auto; height:48px; min-width:170px; margin:0; padding:0 16px; font:600 13px Inter,Arial,sans-serif; }
+            body { padding-bottom:78px; }
         }
     </style>
 </head>
@@ -375,9 +406,9 @@
     <div class="header-inner">
         <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
         <nav class="steps" aria-label="Checkout progress">
-            <span class="step">Cart <span class="chevron">›</span></span>
-            <span class="step active">Checkout <span class="chevron">›</span></span>
-            <span class="step">Confirmation</span>
+            <span class="step">Cart <span class="chevron">&rsaquo;</span></span>
+            <span class="step active">Checkout <span class="chevron">&rsaquo;</span></span>
+            <span class="step">Done</span>
         </nav>
         <div class="secure"><span class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span> Secure checkout</div>
     </div>
@@ -385,6 +416,7 @@
 
 <main class="page">
     <h1 class="page-title">Checkout</h1>
+    <nav class="mobile-steps" aria-label="Checkout progress"><span>Cart</span><span aria-hidden="true">›</span><strong aria-current="step">Checkout</strong><span aria-hidden="true">›</span><span>Done</span></nav>
 
     @if($errors->any())
         <div class="error">{{ $errors->first() }}</div>
@@ -402,10 +434,14 @@
                             {{ $buyer->house_number }} {{ $buyer->street }}<br>
                         @endif
                         {{ $buyer->barangay }}@if($buyer->barangay && $buyer->municipality), @endif{{ $buyer->municipality }}<br>
-                        {{ $buyer->province }}<br>
-                        <div class="contact">☎ {{ $buyer->contact_number }}</div>
+                        {{ $buyer->province }}@if($buyer->postal_code), {{ $buyer->postal_code }}@endif<br>
+                        <div class="contact">{{ $formattedPhone ?: 'Phone unavailable' }}</div>
+                        <div class="address-actions"><a class="address-change" href="{{ route('profile.edit', ['return_to' => $addressReturnTo]) }}#shipping-address">Change delivery address</a></div>
                     </div>
                 </div>
+                <label class="delivery-notes-label" for="deliveryNotes">Delivery notes for the rider (optional)</label>
+                <textarea class="delivery-notes" id="deliveryNotes" name="delivery_notes" form="checkoutForm" maxlength="200" placeholder="Gate code, landmark, or delivery instructions (200 characters max)">{{ old('delivery_notes') }}</textarea>
+                @error('delivery_notes')<span class="payment-error" role="alert">{{ $message }}</span>@enderror
             </div>
 
             <div class="card items-card">
@@ -413,44 +449,66 @@
                 @foreach($cartItems as $item)
                     @php
                         $product = $item['product'];
+                        $quantity = (int) old('quantities.'.$item['product_id'], $item['quantity']);
+                        $discountPercent = (float) ($product->discount_percent ?? 0);
+                        $sellerName = $product->seller?->name ?? 'Lumora seller';
                     @endphp
-                    <div class="item">
+                    <div class="item" data-checkout-item data-product-id="{{ $item['product_id'] }}" data-cart-update-url="{{ route('buyer.cart.update', $product) }}" data-cart-sync="{{ ($checkoutMode ?? 'cart') === 'cart' ? 'true' : 'false' }}" data-original-unit="{{ $item['original_price'] }}" data-sale-unit="{{ $item['unit_price'] }}" data-discount-percent="{{ $discountPercent }}">
                         <img class="item-image" src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
                         <div class="item-details">
                             <div class="item-name">{{ $product->name }}</div>
-                            <div class="item-meta">Quantity: {{ $item['quantity'] }}</div>
+                            <div class="item-meta">
+                                @if(filled($product->size))Size {{ $product->size }} &middot; @endif
+                                @if(filled($product->variant_type)){{ \Illuminate\Support\Str::headline($product->variant_type) }} &middot; @endif
+                                {{ $sellerName }}
+                            </div>
+                            <div class="quantity-control" aria-label="Quantity for {{ $product->name }}">
+                                <button class="quantity-button" type="button" data-quantity-decrement aria-label="Decrease quantity for {{ $product->name }}" @disabled($quantity <= 1)>&#8722;</button>
+                                <output class="quantity-value" data-quantity-output>{{ $quantity }}</output>
+                                <button class="quantity-button" type="button" data-quantity-increment aria-label="Increase quantity for {{ $product->name }}" @disabled($quantity >= min((int) $product->stock, 99))>+</button>
+                                <span class="sr-only">Quantity: {{ $quantity }}</span>
+                            </div>
+                            <input type="hidden" form="checkoutForm" name="quantities[{{ $item['product_id'] }}]" value="{{ $quantity }}" data-quantity-input data-max-quantity="{{ min((int) $product->stock, 99) }}">
                         </div>
-                        <div class="item-qty">Qty: {{ $item['quantity'] }}</div>
-                        <div class="item-price">₱{{ number_format($item['line_total'], 2) }}</div>
+                        <div class="item-price" data-item-price>
+                            <span class="item-price-current">&#8369;{{ number_format($item['line_total'], 2) }}</span>
+                            @if($discountPercent > 0)
+                                <del class="item-price-original">&#8369;{{ number_format($item['original_price'] * $quantity, 2) }}</del>
+                                <span class="discount-chip">{{ rtrim(rtrim(number_format($discountPercent, 2), '0'), '.') }}% off</span>
+                            @endif
+                        </div>
                     </div>
                 @endforeach
             </div>
-            <a class="return-link" href="{{ $returnUrl ?? route('buyer.cart') }}">← &nbsp;{{ ($checkoutMode ?? 'cart') === 'buy_now' ? 'Return to product' : 'Return to cart' }}</a>
+            <a class="return-link" href="{{ route('buyer.cart') }}">&larr; &nbsp;Back to cart</a>
         </section>
 
         <aside class="card summary-card">
             <h2 class="summary-title">Order summary</h2>
-            <div class="summary-row"><span>Subtotal</span><strong>₱{{ number_format($summary['subtotal'], 2) }}</strong></div>
-            <div class="summary-row discount"><span>Discount</span><strong>- ₱{{ number_format($summary['discount'], 2) }}</strong></div>
-            <div class="summary-row"><span>Shipping</span><strong>₱{{ number_format($summary['shipping'], 2) }}</strong></div>
-            <div class="summary-row discount" id="voucherSummaryRow" style="display:none;"><span>Voucher (<span id="voucherSummaryCode"></span>)</span><strong id="voucherSummaryAmount">- ₱0.00</strong></div>
+            <div class="summary-row"><span>Subtotal</span><strong id="subtotalAmount" data-base-subtotal="{{ (float) $summary['subtotal'] }}">&#8369;{{ number_format($summary['subtotal'], 2) }}</strong></div>
+            <div class="summary-row discount" id="discountSummaryRow" @if($summary['discount'] <= 0) hidden @endif><span>Discount</span><strong id="discountAmount" data-base-discount="{{ (float) $summary['discount'] }}">&minus; &#8369;{{ number_format($summary['discount'], 2) }}</strong></div>
+            <div class="summary-row"><span>Shipping</span><strong id="shippingAmount" data-shipping="{{ (float) $summary['shipping'] }}">&#8369;{{ number_format($summary['shipping'], 2) }}</strong></div>
+            <div class="summary-row discount" id="voucherSummaryRow" hidden><span>Voucher (<span id="voucherSummaryCode"></span>)</span><strong id="voucherSummaryAmount">&minus; &#8369;0.00</strong></div>
             <div class="voucher-box">
                 <label class="voucher-label" for="voucherCodeInput">Voucher Code</label>
                 <div class="voucher-input-group">
-                    <input type="text" id="voucherCodeInput" class="voucher-input" placeholder="Enter voucher code" value="{{ old('voucher_code', '') }}" autocomplete="off">
+                    <input type="text" id="voucherCodeInput" class="voucher-input" placeholder="Enter voucher code" value="{{ old('voucher_code', '') }}" autocomplete="off" aria-describedby="voucherFeedback" aria-label="Voucher code">
                     <button type="button" id="applyVoucherBtn" class="voucher-apply-btn">Apply</button>
                 </div>
-                <div id="voucherFeedback" class="voucher-feedback" aria-live="polite"></div>
+                <div id="voucherFeedback" class="voucher-feedback @if($errors->has('voucher_code')) error @endif" aria-live="polite" role="status">
+                    @error('voucher_code')<span class="voucher-error-text">{{ $message }}</span>@enderror
+                </div>
             </div>
-            <div class="summary-total"><span>Total</span><strong id="summaryTotalAmount" data-base-total="{{ (float) $summary['total'] }}" data-net-items="{{ round((float) $summary['subtotal'] - (float) $summary['discount'], 2) }}" data-shipping="{{ (float) $summary['shipping'] }}">₱{{ number_format($summary['total'], 2) }}</strong></div>
-
-            <form method="POST" action="{{ route('buyer.checkout.store') }}" enctype="multipart/form-data">
+            <div class="summary-total"><span>Total</span><strong id="summaryTotalAmount" data-base-total="{{ (float) $summary['total'] }}" data-net-items="{{ round((float) $summary['subtotal'] - (float) $summary['discount'], 2) }}" data-shipping="{{ (float) $summary['shipping'] }}">&#8369;{{ number_format($summary['total'], 2) }}</strong></div>
+            <p class="savings-line" id="savingsLine" @if($summary['total_savings'] <= 0) hidden @endif>You save <span id="savingsAmount">&#8369;{{ number_format($summary['total_savings'], 2) }}</span></p>
+            <form id="checkoutForm" method="POST" action="{{ route('buyer.checkout.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="checkout_mode" value="{{ $checkoutMode ?? 'cart' }}">
-                <input type="hidden" name="voucher_code" id="appliedVoucherHidden" value="{{ old('voucher_code', '') }}">
+                <input type="hidden" name="checkout_token" value="{{ old('checkout_token', $checkoutToken) }}">
+                <input type="hidden" name="voucher_code" id="appliedVoucherHidden" value="">
                 @php
                     $wallets = collect($paymentMethods ?? [])
-                        ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+                        ->whereIn('type', ['gcash', 'maya'])
                         ->values();
                     $walletsByType = $wallets->groupBy('type');
                     $defaultWallet = $wallets->firstWhere('is_default', true);
@@ -458,26 +516,25 @@
                     $initialWallet = $cartPaymentOption === 'wallet' ? $defaultWallet : null;
                     $selectedWalletId = old('payment_method_id', $initialWallet?->id);
                     $selectedPaymentType = old('payment_method', $initialWallet?->type ?? 'cod');
+                    if (! in_array($selectedPaymentType, ['cod', 'gcash', 'maya'], true)) $selectedPaymentType = 'cod';
                     $paymentOptions = [
                         'cod' => [
                             'label' => 'Cash on Delivery',
-                            'description' => 'Pay when your order arrives.',
+                            'chip' => 'COD',
+                            'description' => 'Pay the rider when your order arrives.',
                             'empty' => null,
                         ],
                         'gcash' => [
                             'label' => 'GCash',
-                            'description' => 'Pay by QR code and upload your receipt.',
+                            'chip' => 'GCash',
+                            'description' => 'Pay securely using GCash.',
                             'empty' => null,
                         ],
                         'maya' => [
                             'label' => 'Maya',
-                            'description' => 'Pay by QR code and upload your receipt.',
+                            'chip' => 'Maya',
+                            'description' => 'Pay securely using Maya.',
                             'empty' => null,
-                        ],
-                        'bank_transfer' => [
-                            'label' => 'Bank Account',
-                            'description' => 'Use a saved bank account wallet at checkout.',
-                            'empty' => 'No saved bank account yet. You can add one from Wallet.',
                         ],
                     ];
 
@@ -490,7 +547,7 @@
                             return substr($digits ?: $identifier, 0, 4) . ' *** ' . $tail;
                         }
 
-                        return '**** **** ' . $tail;
+                        return '•••• •••• ' . $tail;
                     };
                 @endphp
 
@@ -518,10 +575,13 @@
                                         @checked($selectedPaymentType === $value)
                                     >
                                     <span>
-                                        <strong>{{ $option['label'] }}</strong>
+                                        <strong><span>{{ $option['label'] }}</span><span class="method-chip">{{ $option['chip'] }}</span></strong>
                                         <span>{{ $option['description'] }}</span>
                                     </span>
                                 </label>
+                                <p class="payment-explanation" data-payment-explanation="{{ $value }}">
+                                    @if($value === 'cod')Please prepare <span data-cod-total>&#8369;{{ number_format($summary['total'], 2) }}</span> in cash for the rider.@elseif($value === 'gcash' || $value === 'maya')How it works: Open the QR payment panel, scan the code, upload your receipt and enter the last six reference digits to place your order.@endif
+                                </p>
 
                                 @if($value !== 'cod' && $savedCount === 0 && $option['empty'])
                                     <p class="payment-note">
@@ -567,7 +627,9 @@
                     @error('payment_method_id')<span class="payment-error">{{ $message }}</span>@enderror
                 </section>
 
-                <button class="place-order" type="submit">Place order</button>
+                <button class="place-order" type="submit" data-place-order>Place order · &#8369;<span data-button-total>{{ number_format($summary['total'], 2) }}</span></button>
+                <p class="order-legal">By placing your order you agree to our <a href="{{ route('legal.user-agreement') }}" target="_blank" rel="noopener">Terms</a> and <a href="{{ route('help.center', 'returns') }}" target="_blank" rel="noopener">Return Policy</a>.</p>
+                <p class="secure-returns">Secure payment · Easy returns</p>
                 <div class="wallet-modal-backdrop" data-wallet-modal hidden>
                     <section class="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="walletModalTitle">
                         <div class="wallet-modal-head">
@@ -599,37 +661,238 @@
         </aside>
     </div>
 </main>
+<div class="mobile-checkout-bar" aria-label="Checkout total and place order">
+    <span class="mobile-checkout-total">&#8369;<span data-mobile-total>{{ number_format($summary['total'], 2) }}</span></span>
+    <button class="place-order" type="submit" form="checkoutForm" data-place-order>Place order</button>
+</div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const checkoutForm = document.getElementById('checkoutForm');
         const methodRadios = [...document.querySelectorAll('[data-payment-method]')];
         const walletRadios = [...document.querySelectorAll('[data-wallet-radio]')];
         const proofInput = document.querySelector('[data-payment-proof]');
-        const checkoutForm = document.querySelector('form[action="{{ route('buyer.checkout.store') }}"]');
         const walletModal = document.querySelector('[data-wallet-modal]');
         const walletLabel = document.querySelector('[data-wallet-label]');
         const referenceDigits = [...document.querySelectorAll('[data-reference-digit]')];
         const referenceValue = document.querySelector('[data-reference-value]');
         const modalError = document.querySelector('[data-wallet-modal-error]');
+        const placeButtons = [...document.querySelectorAll('[data-place-order]')];
+        const voucherInput = document.getElementById('voucherCodeInput');
+        const applyVoucherBtn = document.getElementById('applyVoucherBtn');
+        const voucherFeedback = document.getElementById('voucherFeedback');
+        const voucherSummaryRow = document.getElementById('voucherSummaryRow');
+        const voucherSummaryCode = document.getElementById('voucherSummaryCode');
+        const voucherSummaryAmount = document.getElementById('voucherSummaryAmount');
+        const appliedVoucherHidden = document.getElementById('appliedVoucherHidden');
+        const subtotalAmount = document.getElementById('subtotalAmount');
+        const discountSummaryRow = document.getElementById('discountSummaryRow');
+        const discountAmount = document.getElementById('discountAmount');
+        const shippingAmount = document.getElementById('shippingAmount');
+        const summaryTotalAmount = document.getElementById('summaryTotalAmount');
+        const savingsLine = document.getElementById('savingsLine');
+        const savingsAmount = document.getElementById('savingsAmount');
+        const builtInVouchers = Object.assign({
+            LUMORA10: { type: 'percent', value: 10, min_spend: 0, label: '10% OFF' },
+            LUMORA20: { type: 'percent', value: 20, min_spend: 0, label: '20% OFF' },
+            FREESHIP: { type: 'shipping', value: 0, min_spend: 0, label: 'Free Shipping' },
+        }, @json($activeVouchers ?? []), @json($unavailableVouchers ?? []));
+        let appliedCode = '';
+        let appliedRule = null;
         let confirmedWalletPayment = false;
+        let submissionStarted = false;
+        const formatCurrency = (value) => '\u20B1' + Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const roundMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+        const selectedMethod = () => methodRadios.find((radio) => radio.checked)?.value || 'cod';
 
-        const updateProofField = () => {
-            const needsProof = ['gcash', 'maya'].includes(methodRadios.find((radio) => radio.checked)?.value);
-            proofInput.required = false;
-        };
-        methodRadios.forEach((radio) => radio.addEventListener('change', updateProofField));
-        updateProofField();
+        function currentItemsTotals() {
+            let subtotal = 0;
+            let productDiscount = 0;
+            document.querySelectorAll('[data-checkout-item]').forEach((item) => {
+                const quantityInput = item.querySelector('[data-quantity-input]');
+                const quantity = Math.max(1, parseInt(quantityInput?.value || '1', 10));
+                const original = parseFloat(item.dataset.originalUnit || '0');
+                const sale = parseFloat(item.dataset.saleUnit || '0');
+                subtotal += original * quantity;
+                productDiscount += Math.max(0, original - sale) * quantity;
+                const output = item.querySelector('[data-quantity-output]');
+                if (output) output.textContent = String(quantity);
+                const currentPrice = item.querySelector('.item-price-current');
+                const originalPrice = item.querySelector('.item-price-original');
+                if (currentPrice) currentPrice.textContent = formatCurrency(sale * quantity);
+                if (originalPrice) originalPrice.textContent = formatCurrency(original * quantity);
+                const minus = item.querySelector('[data-quantity-decrement]');
+                const plus = item.querySelector('[data-quantity-increment]');
+                const max = parseInt(quantityInput?.dataset.maxQuantity || '99', 10);
+                if (minus) minus.disabled = quantity <= 1;
+                if (plus) plus.disabled = quantity >= max;
+            });
+            return { subtotal: roundMoney(subtotal), productDiscount: roundMoney(productDiscount) };
+        }
 
-        const closeWalletModal = () => { walletModal.hidden = true; };
-        checkoutForm.addEventListener('submit', (event) => {
-            const method = methodRadios.find((radio) => radio.checked)?.value;
-            if (!['gcash', 'maya'].includes(method) || confirmedWalletPayment) return;
-            event.preventDefault();
-            walletLabel.textContent = method === 'maya' ? 'Maya' : 'GCash';
-            walletModal.hidden = false;
-            modalError.hidden = true;
+        function voucherSavings(netItems, shipping) {
+            if (!appliedRule) return { items: 0, shipping: 0 };
+            if (appliedRule.type === 'shipping') return { items: 0, shipping };
+            return { items: roundMoney(netItems * (parseFloat(appliedRule.value || '0') / 100)), shipping: 0 };
+        }
+
+        function renderTotals() {
+            const items = currentItemsTotals();
+            const shipping = parseFloat(shippingAmount?.dataset.shipping || '0');
+            const netItems = Math.max(0, roundMoney(items.subtotal - items.productDiscount));
+            const voucher = voucherSavings(netItems, shipping);
+            const totalDiscount = roundMoney(items.productDiscount + voucher.items);
+            const totalSavings = roundMoney(totalDiscount + voucher.shipping);
+            const total = Math.max(0, roundMoney(items.subtotal + shipping - totalDiscount - voucher.shipping));
+            if (subtotalAmount) subtotalAmount.textContent = formatCurrency(items.subtotal);
+            if (discountAmount) discountAmount.textContent = '\u2212 ' + formatCurrency(items.productDiscount);
+            if (discountSummaryRow) discountSummaryRow.hidden = items.productDiscount <= 0;
+            if (summaryTotalAmount) {
+                summaryTotalAmount.textContent = formatCurrency(total);
+                summaryTotalAmount.dataset.baseTotal = String(roundMoney(items.subtotal + shipping - items.productDiscount));
+                summaryTotalAmount.dataset.netItems = String(netItems);
+                summaryTotalAmount.dataset.shipping = String(shipping);
+            }
+            if (savingsAmount) savingsAmount.textContent = formatCurrency(totalSavings);
+            if (savingsLine) savingsLine.hidden = totalSavings <= 0;
+            if (voucherSummaryCode) voucherSummaryCode.textContent = appliedCode;
+            if (voucherSummaryAmount) voucherSummaryAmount.textContent = '\u2212 ' + formatCurrency(voucher.items || voucher.shipping);
+            if (voucherSummaryRow) voucherSummaryRow.hidden = !appliedRule;
+            document.querySelectorAll('[data-cod-total]').forEach((node) => { node.textContent = formatCurrency(total); });
+            document.querySelectorAll('[data-button-total]').forEach((node) => { node.textContent = Number(total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); });
+            document.querySelectorAll('[data-mobile-total]').forEach((node) => { node.textContent = Number(total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); });
+            return total;
+        }
+
+        function updatePaymentExplanation() {
+            const method = selectedMethod();
+            document.querySelectorAll('[data-payment-explanation]').forEach((node) => {
+                node.classList.toggle('is-visible', node.dataset.paymentExplanation === method);
+            });
+        }
+
+        document.querySelectorAll('[data-quantity-increment], [data-quantity-decrement]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const item = button.closest('[data-checkout-item]');
+                const input = item?.querySelector('[data-quantity-input]');
+                if (!input) return;
+                const current = parseInt(input.value || '1', 10);
+                const max = parseInt(input.dataset.maxQuantity || '99', 10);
+                input.value = String(button.hasAttribute('data-quantity-increment') ? Math.min(max, current + 1) : Math.max(1, current - 1));
+                renderTotals();
+                if (item.dataset.cartSync === 'true') {
+                    fetch(item.dataset.cartUpdateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        body: JSON.stringify({ quantity: Number(input.value) }),
+                    }).catch(() => {});
+                }
+            });
         });
+
+        function showVoucherError(message) {
+            appliedCode = '';
+            appliedRule = null;
+            if (appliedVoucherHidden) appliedVoucherHidden.value = '';
+            if (voucherFeedback) {
+                voucherFeedback.className = 'voucher-feedback error';
+                voucherFeedback.textContent = message;
+            }
+            renderTotals();
+        }
+
+        function clearVoucher() {
+            appliedCode = '';
+            appliedRule = null;
+            if (appliedVoucherHidden) appliedVoucherHidden.value = '';
+            if (voucherInput) voucherInput.value = '';
+            if (voucherFeedback) {
+                voucherFeedback.className = 'voucher-feedback';
+                voucherFeedback.replaceChildren();
+            }
+            renderTotals();
+        }
+
+        function applyVoucherCode() {
+            const code = (voucherInput?.value || '').trim().toUpperCase();
+            if (voucherInput) voucherInput.value = code;
+            if (!code) return showVoucherError('Please enter a voucher code.');
+            const rule = builtInVouchers[code];
+            if (!rule) return showVoucherError('This voucher code is invalid.');
+            if (rule.error) return showVoucherError(rule.error);
+            const totals = currentItemsTotals();
+            const netItems = Math.max(0, roundMoney(totals.subtotal - totals.productDiscount));
+            if (netItems < parseFloat(rule.min_spend || '0')) {
+                return showVoucherError('The minimum spend of ' + formatCurrency(rule.min_spend) + ' for this voucher has not been met.');
+            }
+            appliedCode = code;
+            appliedRule = rule;
+            if (appliedVoucherHidden) appliedVoucherHidden.value = code;
+            renderTotals();
+            if (voucherFeedback) {
+                voucherFeedback.className = 'voucher-feedback success';
+                voucherFeedback.replaceChildren();
+                const message = document.createElement('span');
+                message.textContent = code + ' applied. You saved ' + formatCurrency(voucherSavings(netItems, parseFloat(shippingAmount?.dataset.shipping || '0')).items || voucherSavings(netItems, parseFloat(shippingAmount?.dataset.shipping || '0')).shipping) + '.';
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'voucher-remove-btn';
+                remove.textContent = 'Remove';
+                remove.addEventListener('click', clearVoucher);
+                voucherFeedback.append(message, remove);
+            }
+        }
+
+        voucherInput?.addEventListener('input', () => {
+            const start = voucherInput.selectionStart;
+            voucherInput.value = voucherInput.value.toUpperCase();
+            voucherInput.setSelectionRange(start, start);
+            if (appliedCode && voucherInput.value.trim() !== appliedCode) {
+                appliedCode = '';
+                appliedRule = null;
+                if (appliedVoucherHidden) appliedVoucherHidden.value = '';
+                if (voucherFeedback) { voucherFeedback.className = 'voucher-feedback'; voucherFeedback.replaceChildren(); }
+                renderTotals();
+            }
+        });
+        applyVoucherBtn?.addEventListener('click', applyVoucherCode);
+        voucherInput?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); applyVoucherCode(); }
+        });
+
+        const walletForType = (type) => walletRadios.find((radio) => radio.dataset.walletType === type);
+        walletRadios.forEach((walletRadio) => walletRadio.addEventListener('change', () => {
+            if (!walletRadio.checked) return;
+            const matchingMethod = methodRadios.find((radio) => radio.value === walletRadio.dataset.walletType);
+            if (matchingMethod) matchingMethod.checked = true;
+            updatePaymentExplanation();
+        }));
+        methodRadios.forEach((radio) => radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            if (radio.value === 'cod') {
+                walletRadios.forEach((wallet) => { wallet.checked = false; });
+            } else if (!walletRadios.some((wallet) => wallet.checked && wallet.dataset.walletType === radio.value)) {
+                walletRadios.forEach((wallet) => { wallet.checked = false; });
+                const first = walletForType(radio.value);
+                if (first) first.checked = true;
+            }
+            updatePaymentExplanation();
+        }));
+        updatePaymentExplanation();
+        renderTotals();
+
+        const savedVoucherCode = (voucherInput?.value || '').trim().toUpperCase();
+        if (savedVoucherCode && builtInVouchers[savedVoucherCode] && !builtInVouchers[savedVoucherCode].error) {
+            if (voucherInput) voucherInput.value = savedVoucherCode;
+            applyVoucherCode();
+        }
+
+        const closeWalletModal = () => { if (walletModal) walletModal.hidden = true; };
         document.querySelectorAll('[data-wallet-close], [data-wallet-cancel]').forEach((button) => button.addEventListener('click', closeWalletModal));
-        walletModal.addEventListener('click', (event) => { if (event.target === walletModal) closeWalletModal(); });
+        walletModal?.addEventListener('click', (event) => { if (event.target === walletModal) closeWalletModal(); });
         referenceDigits.forEach((input, index) => {
             input.addEventListener('input', () => {
                 input.value = input.value.replace(/\D/g, '').slice(-1);
@@ -652,13 +915,13 @@
             const oldReference = @json(old('payment_reference_last6', ''));
             [...String(oldReference)].slice(-6).forEach((digit, index) => { if (referenceDigits[index]) referenceDigits[index].value = digit; });
         @endif
-        document.querySelector('[data-wallet-confirm]').addEventListener('click', () => {
+        document.querySelector('[data-wallet-confirm]')?.addEventListener('click', () => {
             const reference = referenceDigits.map((input) => input.value).join('');
-            referenceValue.value = reference;
-            if (!proofInput.files.length) {
+            if (referenceValue) referenceValue.value = reference;
+            if (!proofInput?.files?.length) {
                 modalError.textContent = 'Please upload your payment receipt screenshot.';
                 modalError.hidden = false;
-                proofInput.focus();
+                proofInput?.focus();
                 return;
             }
             if (!/^\d{6}$/.test(reference)) {
@@ -672,137 +935,21 @@
             checkoutForm.requestSubmit();
         });
 
-        const walletForType = (type) => walletRadios.find((radio) => radio.dataset.walletType === type);
-
-        walletRadios.forEach((walletRadio) => {
-            walletRadio.addEventListener('change', () => {
-                if (!walletRadio.checked) return;
-
-                const matchingMethod = methodRadios.find((radio) => radio.value === walletRadio.dataset.walletType);
-                if (matchingMethod) matchingMethod.checked = true;
+        checkoutForm?.addEventListener('submit', (event) => {
+            if (submissionStarted) { event.preventDefault(); return; }
+            const method = selectedMethod();
+            if (['gcash', 'maya'].includes(method) && !confirmedWalletPayment) {
+                event.preventDefault();
+                walletLabel.textContent = method === 'maya' ? 'Maya' : 'GCash';
+                walletModal.hidden = false;
+                modalError.hidden = true;
+                return;
+            }
+            submissionStarted = true;
+            placeButtons.forEach((button) => {
+                button.disabled = true;
+                button.textContent = 'Placing order…';
             });
-        });
-
-        methodRadios.forEach((methodRadio) => {
-            methodRadio.addEventListener('change', () => {
-                if (!methodRadio.checked) return;
-
-                if (methodRadio.value === 'cod') {
-                    walletRadios.forEach((radio) => {
-                        radio.checked = false;
-                    });
-                    return;
-                }
-
-                const currentWallet = walletRadios.find((radio) => radio.checked);
-                if (currentWallet?.dataset.walletType === methodRadio.value) return;
-
-                walletRadios.forEach((radio) => {
-                    radio.checked = false;
-                });
-
-                const firstMatchingWallet = walletForType(methodRadio.value);
-                if (firstMatchingWallet) firstMatchingWallet.checked = true;
-            });
-        });
-
-        // Voucher Code Input Logic
-        const voucherInput = document.getElementById('voucherCodeInput');
-        const applyVoucherBtn = document.getElementById('applyVoucherBtn');
-        const voucherFeedback = document.getElementById('voucherFeedback');
-        const voucherSummaryRow = document.getElementById('voucherSummaryRow');
-        const voucherSummaryCode = document.getElementById('voucherSummaryCode');
-        const voucherSummaryAmount = document.getElementById('voucherSummaryAmount');
-        const summaryTotalAmount = document.getElementById('summaryTotalAmount');
-        const appliedVoucherHidden = document.getElementById('appliedVoucherHidden');
-
-        const formatCurrency = (val) => '₱' + Number(val).toLocaleString('en-PH', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
-
-        const builtInVouchers = Object.assign({
-            'LUMORA10': { type: 'percent', value: 10, min_spend: 0, label: '10% OFF' },
-            'LUMORA20': { type: 'percent', value: 20, min_spend: 0, label: '20% OFF' },
-            'FREESHIP': { type: 'shipping', value: 0, min_spend: 0, label: 'Free Shipping' },
-        }, @json($activeVouchers ?? []));
-
-        function clearVoucher() {
-            const baseTotal = parseFloat(summaryTotalAmount?.dataset.baseTotal || '0');
-            if (voucherSummaryRow) voucherSummaryRow.style.display = 'none';
-            if (summaryTotalAmount) summaryTotalAmount.textContent = formatCurrency(baseTotal);
-            if (appliedVoucherHidden) appliedVoucherHidden.value = '';
-            if (voucherFeedback) {
-                voucherFeedback.className = 'voucher-feedback';
-                voucherFeedback.innerHTML = '';
-            }
-        }
-
-        function applyVoucherCode() {
-            const rawCode = (voucherInput?.value || '').trim().toUpperCase();
-            if (!rawCode) {
-                clearVoucher();
-                if (voucherFeedback) {
-                    voucherFeedback.className = 'voucher-feedback error';
-                    voucherFeedback.textContent = 'Please enter a voucher code.';
-                }
-                return;
-            }
-
-            const baseTotal = parseFloat(summaryTotalAmount?.dataset.baseTotal || '0');
-            const netItems = parseFloat(summaryTotalAmount?.dataset.netItems || '0');
-            const shipping = parseFloat(summaryTotalAmount?.dataset.shipping || '0');
-            const rule = builtInVouchers[rawCode];
-
-            if (!rule) {
-                clearVoucher();
-                if (voucherFeedback) {
-                    voucherFeedback.className = 'voucher-feedback error';
-                    voucherFeedback.textContent = 'Invalid or expired voucher code.';
-                }
-                return;
-            }
-
-            if (rule.min_spend && netItems < parseFloat(rule.min_spend)) {
-                clearVoucher();
-                if (voucherFeedback) {
-                    voucherFeedback.className = 'voucher-feedback error';
-                    voucherFeedback.textContent = 'Minimum spend of ' + formatCurrency(rule.min_spend) + ' required for this voucher.';
-                }
-                return;
-            }
-
-            let voucherSavings = 0;
-            if (rule.type === 'percent') {
-                voucherSavings = Math.round(netItems * (rule.value / 100) * 100) / 100;
-            } else {
-                voucherSavings = shipping;
-            }
-
-            const newTotal = Math.max(0, Math.round((baseTotal - voucherSavings) * 100) / 100);
-
-            if (voucherSummaryCode) voucherSummaryCode.textContent = rawCode;
-            if (voucherSummaryAmount) voucherSummaryAmount.textContent = '- ' + formatCurrency(voucherSavings);
-            if (voucherSummaryRow) voucherSummaryRow.style.display = 'flex';
-            if (summaryTotalAmount) summaryTotalAmount.textContent = formatCurrency(newTotal);
-            if (appliedVoucherHidden) appliedVoucherHidden.value = rawCode;
-
-            if (voucherFeedback) {
-                voucherFeedback.className = 'voucher-feedback success';
-                voucherFeedback.innerHTML = `<span>Voucher <strong>${rawCode}</strong> (${rule.label}) applied!</span><button type="button" class="voucher-remove-btn" id="removeVoucherBtn">Remove</button>`;
-                document.getElementById('removeVoucherBtn')?.addEventListener('click', () => {
-                    if (voucherInput) voucherInput.value = '';
-                    clearVoucher();
-                });
-            }
-        }
-
-        applyVoucherBtn?.addEventListener('click', applyVoucherCode);
-        voucherInput?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                applyVoucherCode();
-            }
         });
     });
 </script>

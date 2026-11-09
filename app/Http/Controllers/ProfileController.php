@@ -41,11 +41,14 @@ class ProfileController extends Controller
             'barangay' => ['nullable', 'string', 'max:255'],
             'street' => ['nullable', 'string', 'max:255'],
             'house_number' => ['nullable', 'string', 'max:255'],
+            'return_to' => ['nullable', 'string', 'in:/checkout,/cart/checkout'],
         ]);
 
+        $returnTo = $validated['return_to'] ?? null;
+        unset($validated['return_to']);
         $request->user()->update($validated);
 
-        return Redirect::to(route('profile.edit') . '#shipping-address')
+        return Redirect::to($returnTo ?: route('profile.edit') . '#shipping-address')
             ->with('status', 'address-updated');
     }
 

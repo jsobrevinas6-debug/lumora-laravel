@@ -37,6 +37,8 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'notes',
+        'delivery_notes',
+        'checkout_token',
     ];
 
     protected $casts = [

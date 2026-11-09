@@ -1,6 +1,9 @@
 <form method="post" action="{{ route('profile.address.update') }}" id="shipping-address-form" class="profile-form-stack">
     @csrf
     @method('patch')
+    @if (in_array(request()->query('return_to'), ['/checkout', '/cart/checkout'], true))
+        <input type="hidden" name="return_to" value="{{ request()->query('return_to') }}">
+    @endif
 
     <x-buyer-profile.section-card
         title="Shipping Address"

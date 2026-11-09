@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -183,6 +184,17 @@ class OrderController extends Controller
     {
         $checkoutMode = $request->routeIs('buyer.buy-now.checkout') ? 'buy_now' : 'cart';
         $items = $checkoutMode === 'buy_now' ? $this->buyNowItems($request) : $this->selectedItems($request);
+        $oldQuantities = (array) $request->old('quantities', []);
+        $items = $items->map(function (array $item) use ($oldQuantities) {
+            $quantity = (int) ($oldQuantities[$item['product_id']] ?? $oldQuantities[(string) $item['product_id']] ?? $item['quantity']);
+            if ($quantity >= 1 && $quantity <= (int) $item['product']->stock) {
+                $item['quantity'] = $quantity;
+                $item['line_discount'] = round(($item['original_price'] - $item['unit_price']) * $quantity, 2);
+                $item['line_total'] = round($item['unit_price'] * $quantity, 2);
+            }
+
+            return $item;
+        });
         $cartPaymentOption = $request->input('cart_payment_option', 'cod');
 
         if (! in_array($cartPaymentOption, ['cod', 'wallet'], true)) {
@@ -204,32 +216,39 @@ class OrderController extends Controller
         }
 
         $activeVouchers = [];
+        $unavailableVouchers = [];
         try {
             if (Schema::hasTable('vouchers')) {
-                $rows = DB::table('vouchers')
-                    ->where('is_active', true)
-                    ->whereIn('type', ['percent', 'shipping'])
-                    ->where(function ($q) {
-                        $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', now()->toDateString());
-                    })
-                    ->get();
+                $rows = DB::table('vouchers')->whereIn('type', ['percent', 'shipping'])->get();
                 foreach ($rows as $row) {
                     $codeKey = strtoupper(trim((string) $row->code));
-                    $label = $row->type === 'percent'
-                        ? (rtrim(rtrim(number_format((float) $row->value, 2), '0'), '.').'% OFF')
-                        : ($row->type === 'shipping' ? 'Free Shipping' : ('₱'.number_format((float) $row->value, 2).' OFF'));
-                    $activeVouchers[$codeKey] = [
+                    $reason = null;
+                    if (! $row->is_active) {
+                        $reason = 'This voucher is currently unavailable.';
+                    } elseif ($row->expires_at && $row->expires_at < now()->toDateString()) {
+                        $reason = 'This voucher has expired.';
+                    } elseif ($row->usage_limit !== null && (int) $row->used_count >= (int) $row->usage_limit) {
+                        $reason = 'This voucher has already been fully used.';
+                    }
+                    $voucherData = [
                         'type' => $row->type,
                         'value' => (float) $row->value,
                         'min_spend' => (float) ($row->min_spend ?? 0),
-                        'label' => $label,
+                        'label' => $row->type === 'percent'
+                            ? (rtrim(rtrim(number_format((float) $row->value, 2), '0'), '.').'% OFF')
+                            : 'Free Shipping',
+                        'error' => $reason,
                     ];
+                    if ($reason) {
+                        $unavailableVouchers[$codeKey] = $voucherData;
+                    } else {
+                        $activeVouchers[$codeKey] = $voucherData;
+                    }
                 }
             }
         } catch (\Throwable $e) {
-            // Ignore if table not migrated yet
+            // Ignore if table is not available in this environment.
         }
-
         return view('buyer.checkout', [
             'cartItems' => $items,
             'summary' => $this->summary($items),
@@ -237,12 +256,16 @@ class OrderController extends Controller
             'cartPaymentOption' => $cartPaymentOption,
             'checkoutMode' => $checkoutMode,
             'activeVouchers' => $activeVouchers,
+            'unavailableVouchers' => $unavailableVouchers,
+            'checkoutToken' => bin2hex(random_bytes(32)),
+            'formattedPhone' => $this->formatPhilippinePhone($request->user()->contact_number),
+            'addressReturnTo' => $checkoutMode === 'buy_now' ? route('buyer.buy-now.checkout') : route('buyer.cart.checkout'),
             'returnUrl' => $checkoutMode === 'buy_now'
                 ? route('shop.product', ['id' => $items->first()['product_id']])
                 : route('buyer.cart'),
             'paymentMethods' => $request->user()
                 ->paymentMethods()
-                ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+                ->whereIn('type', ['gcash', 'maya'])
                 ->orderByDesc('is_default')
                 ->latest()
                 ->get(),
@@ -277,175 +300,124 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'checkout_mode' => ['nullable', 'string', 'in:cart,buy_now'],
-            'payment_method' => ['required', 'string', 'in:cod,gcash,maya,bank_transfer'],
+            'checkout_token' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'payment_method' => ['required', 'string', 'in:cod,gcash,maya'],
             'payment_method_id' => ['nullable', 'integer'],
             'payment_proof' => ['required_if:payment_method,gcash,maya', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'payment_reference_last6' => ['required_if:payment_method,gcash,maya', 'nullable', 'regex:/^\d{6}$/'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
+            'delivery_notes' => ['nullable', 'string', 'max:200'],
+            'quantities' => ['nullable', 'array'],
+            'quantities.*' => ['required', 'integer', 'min:1', 'max:99'],
         ]);
 
-        $selectedWallet = null;
+        $checkoutToken = $validated['checkout_token'];
+        $existingOrder = Order::query()->where('user_id', $request->user()->id)->where('checkout_token', $checkoutToken)->first();
+        if ($existingOrder) {
+            return redirect()->route('buyer.orders.show', $existingOrder)->with('success', 'This order was already placed.');
+        }
 
+        $selectedWallet = null;
         if ($validated['payment_method'] === 'cod' && ! empty($validated['payment_method_id'])) {
-            return back()
-                ->withErrors(['payment_method_id' => 'Cash on Delivery cannot use a saved wallet.'])
-                ->withInput();
+            return back()->withErrors(['payment_method_id' => 'Cash on Delivery cannot use a saved wallet.'])->withInput();
         }
 
         if (! empty($validated['payment_method_id'])) {
-            $selectedWallet = $request->user()
-                ->paymentMethods()
-                ->whereIn('type', ['gcash', 'maya', 'bank_transfer'])
+            $selectedWallet = $request->user()->paymentMethods()
+                ->whereIn('type', ['gcash', 'maya'])
                 ->find($validated['payment_method_id']);
 
             if (! $selectedWallet || $selectedWallet->type !== $validated['payment_method']) {
-                return back()
-                    ->withErrors(['payment_method_id' => 'Select a saved wallet that matches your payment method.'])
-                    ->withInput();
+                return back()->withErrors(['payment_method_id' => 'Select a saved GCash or Maya wallet that matches your payment method.'])->withInput();
             }
         }
 
         if ($validated['payment_method'] === 'cod') {
             $selectedWallet = null;
-        } elseif ($validated['payment_method'] === 'bank_transfer' && ! $selectedWallet) {
-            return back()
-                ->withErrors(['payment_method_id' => 'Select a saved wallet for this payment method.'])
-                ->withInput();
         }
 
         $checkoutMode = $validated['checkout_mode'] ?? 'cart';
+        $voucherCode = strtoupper(trim((string) ($validated['voucher_code'] ?? '')));
 
-        $paymentProofPath = in_array($validated['payment_method'], ['gcash', 'maya'], true)
-            ? $request->file('payment_proof')?->store('payment-proofs', config('filesystems.payment_proof_disk'))
-            : null;
+        try {
+            $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode, $checkoutToken, $voucherCode) {
+                $quantities = (array) ($validated['quantities'] ?? []);
+                $lines = $checkoutMode === 'buy_now'
+                    ? $this->buyNowOrderLines($request, $quantities)
+                    : $this->cartOrderLines($request, $quantities);
+                $totals = $this->calculateCheckoutTotals($lines, $voucherCode, true);
 
-        $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode, $paymentProofPath) {
-            $lines = $checkoutMode === 'buy_now'
-                ? $this->buyNowOrderLines($request)
-                : $this->cartOrderLines($request);
+                $paymentProofPath = in_array($validated['payment_method'], ['gcash', 'maya'], true)
+                    ? $request->file('payment_proof')?->store('payment-proofs', config('filesystems.payment_proof_disk'))
+                    : null;
 
-            $shipping = 50;
+                $orderData = [
+                    'order_number' => $this->generateOrderNumber(),
+                    'checkout_token' => $checkoutToken,
+                    'user_id' => $request->user()->id,
+                    'seller_id' => $lines->pluck('product.seller_id')->filter()->first(),
+                    'status' => 'pending',
+                    'payment_status' => 'pending',
+                    'payment_method' => $validated['payment_method'],
+                    'payment_method_id' => $selectedWallet?->id,
+                    'payment_proof_path' => $paymentProofPath,
+                    'payment_reference_last6' => in_array($validated['payment_method'], ['gcash', 'maya'], true)
+                        ? $validated['payment_reference_last6']
+                        : null,
+                    'subtotal' => $totals['subtotal'],
+                    'shipping_fee' => $totals['shipping'],
+                    'discount' => $totals['discount'],
+                    'total' => $totals['total'],
+                    'delivery_notes' => trim((string) ($validated['delivery_notes'] ?? '')) ?: null,
+                ];
 
-            $subtotal = round($lines->sum(function (array $line) {
-                return (float) $line['product']->price * $line['quantity'];
-            }), 2);
-
-            $discount = round($lines->sum(function (array $line) {
-                return ((float) $line['product']->price - $line['unit_price']) * $line['quantity'];
-            }), 2);
-
-            $netItems = max(0, round($subtotal - $discount, 2));
-            $voucherCode = strtoupper(trim((string) ($validated['voucher_code'] ?? '')));
-            $voucherSavings = 0;
-            $shippingDiscount = 0;
-            $appliedVoucherCode = null;
-            $appliedVoucherType = null;
-
-            if ($voucherCode !== '') {
-                $dbVoucher = null;
-                try {
-                    if (Schema::hasTable('vouchers')) {
-                        $dbVoucher = DB::table('vouchers')
-                            ->where('code', $voucherCode)
-                            ->where('is_active', true)
-                            ->whereIn('type', ['percent', 'shipping'])
-                            ->where(function ($q) {
-                                $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', now()->toDateString());
-                            })
-                            ->first();
-                    }
-                } catch (\Throwable $e) {
-                    $dbVoucher = null;
+                if (Schema::hasColumn('orders', 'buyer_id')) {
+                    $orderData['buyer_id'] = $request->user()->id;
+                }
+                if (Schema::hasColumn('orders', 'voucher_code')) {
+                    $orderData['voucher_code'] = $totals['voucher_code'];
+                    $orderData['voucher_type'] = $totals['voucher_type'];
+                    $orderData['voucher_discount'] = $totals['voucher_savings'];
+                    $orderData['shipping_discount'] = $totals['shipping_discount'];
                 }
 
-                if ($dbVoucher) {
-                    if ($netItems >= (float) ($dbVoucher->min_spend ?? 0)) {
-                        $appliedVoucherCode = $voucherCode;
-                        $appliedVoucherType = $dbVoucher->type;
-                        if ($dbVoucher->type === 'percent') {
-                            $voucherSavings = round($netItems * (((float) $dbVoucher->value) / 100), 2);
-                        } else {
-                            $shippingDiscount = $shipping;
-                        }
-                    }
-                } elseif (in_array($voucherCode, ['LUMORA10', 'LUMORA20', 'FREESHIP'], true)) {
-                    $appliedVoucherCode = $voucherCode;
-                    if ($voucherCode === 'FREESHIP') {
-                        $appliedVoucherType = 'shipping';
-                        $shippingDiscount = $shipping;
-                    } else {
-                        $appliedVoucherType = 'percent';
-                        $voucherSavings = round($netItems * ($voucherCode === 'LUMORA20' ? 0.20 : 0.10), 2);
-                    }
+                $order = Order::create($orderData);
+                if ($totals['voucher_id']) {
+                    DB::table('vouchers')->where('id', $totals['voucher_id'])->increment('used_count');
                 }
+                $order->updateStatus('pending', 'Order placed.');
+
+                foreach ($lines as $line) {
+                    $product = $line['product'];
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'seller_id' => $product->seller_id,
+                        'quantity' => $line['quantity'],
+                        'price' => $line['unit_price'],
+                        'subtotal' => $line['line_total'],
+                    ]);
+                    $product->decrement('stock', $line['quantity']);
+                    $product->increment('sales_count', $line['quantity']);
+                }
+
+                if ($checkoutMode === 'buy_now') {
+                    $request->session()->forget(self::BUY_NOW_KEY);
+                } else {
+                    $selectedIds = $lines->pluck('product.id')->map(fn ($id) => (int) $id);
+                    $storedCart = $request->session()->get(self::CART_KEY, []);
+                    $remainingCart = collect($storedCart)->reject(fn ($item, $id) => $selectedIds->contains((int) $id))->all();
+                    $request->session()->put(self::CART_KEY, $remainingCart);
+                    $request->session()->put(self::SELECTED_KEY, []);
+                }
+
+                return $order;
+            });
+        } catch (\Illuminate\Database\QueryException $exception) {
+            $order = Order::query()->where('user_id', $request->user()->id)->where('checkout_token', $checkoutToken)->first();
+            if (! $order) {
+                throw $exception;
             }
-
-            $discount = round($discount + $voucherSavings, 2);
-            $total = max(0, round($subtotal + $shipping - $discount - $shippingDiscount, 2));
-
-            $orderData = [
-                'order_number' => $this->generateOrderNumber(),
-                'user_id' => $request->user()->id,
-                'seller_id' => $lines->pluck('product.seller_id')->filter()->first(),
-                'status' => 'pending',
-                'payment_status' => 'pending',
-                'payment_method' => $validated['payment_method'],
-                'payment_method_id' => $selectedWallet?->id,
-                'payment_proof_path' => $paymentProofPath,
-                'payment_reference_last6' => in_array($validated['payment_method'], ['gcash', 'maya'], true)
-                    ? $validated['payment_reference_last6']
-                    : null,
-                'subtotal' => $subtotal,
-                'shipping_fee' => $shipping,
-                'discount' => $discount,
-                'total' => $total,
-            ];
-
-            if (Schema::hasColumn('orders', 'buyer_id')) {
-                $orderData['buyer_id'] = $request->user()->id;
-            }
-
-            if (Schema::hasColumn('orders', 'voucher_code')) {
-                $orderData['voucher_code'] = $appliedVoucherCode;
-                $orderData['voucher_type'] = $appliedVoucherType;
-                $orderData['voucher_discount'] = $voucherSavings;
-                $orderData['shipping_discount'] = $shippingDiscount;
-            }
-
-            $order = Order::create($orderData);
-
-            $order->updateStatus('pending', 'Order placed.');
-
-            foreach ($lines as $line) {
-                $product = $line['product'];
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'seller_id' => $product->seller_id,
-                    'quantity' => $line['quantity'],
-                    'price' => $line['unit_price'],
-                    'subtotal' => $line['line_total'],
-                ]);
-
-                $product->decrement('stock', $line['quantity']);
-                $product->increment('sales_count', $line['quantity']);
-            }
-
-            if ($checkoutMode === 'buy_now') {
-                $request->session()->forget(self::BUY_NOW_KEY);
-            } else {
-                $selectedIds = $lines->pluck('product.id')->map(fn ($id) => (int) $id);
-                $storedCart = $request->session()->get(self::CART_KEY, []);
-                $remainingCart = collect($storedCart)
-                    ->reject(fn ($item, $id) => $selectedIds->contains((int) $id))
-                    ->all();
-
-                $request->session()->put(self::CART_KEY, $remainingCart);
-                $request->session()->put(self::SELECTED_KEY, []);
-            }
-
-            return $order;
-        });
+        }
 
         $redirect = in_array($validated['payment_method'], ['gcash', 'maya'], true)
             ? redirect()->route('buyer.orders.index', ['status' => 'pending'])
@@ -453,7 +425,6 @@ class OrderController extends Controller
 
         return $redirect->with('success', 'Order Successful');
     }
-
     public function show(Request $request, Order $order): View
     {
         abort_unless((int) $order->user_id === (int) $request->user()->id, 403);
@@ -548,19 +519,7 @@ class OrderController extends Controller
                 return null;
             }
 
-            $originalPrice = (float) $product->price;
-            $discountPercent = (float) ($product->discount_percent ?? 0);
-            $unitPrice = round($originalPrice * (1 - ($discountPercent / 100)), 2);
-
-            return [
-                'product' => $product,
-                'product_id' => $product->id,
-                'quantity' => $quantity,
-                'original_price' => $originalPrice,
-                'unit_price' => $unitPrice,
-                'line_discount' => round(($originalPrice - $unitPrice) * $quantity, 2),
-                'line_total' => round($unitPrice * $quantity, 2),
-            ];
+            return $this->orderLine($product, $quantity);
         })->filter()->values();
     }
 
@@ -582,22 +541,10 @@ class OrderController extends Controller
             return collect();
         }
 
-        $originalPrice = (float) $product->price;
-        $discountPercent = (float) ($product->discount_percent ?? 0);
-        $unitPrice = round($originalPrice * (1 - ($discountPercent / 100)), 2);
-
-        return collect([[
-            'product' => $product,
-            'product_id' => $product->id,
-            'quantity' => $quantity,
-            'original_price' => $originalPrice,
-            'unit_price' => $unitPrice,
-            'line_discount' => round(($originalPrice - $unitPrice) * $quantity, 2),
-            'line_total' => round($unitPrice * $quantity, 2),
-        ]]);
+        return collect([$this->orderLine($product, $quantity)]);
     }
 
-    private function cartOrderLines(Request $request)
+    private function cartOrderLines(Request $request, array $quantities = [])
     {
         $storedCart = $request->session()->get(self::CART_KEY, []);
 
@@ -621,7 +568,7 @@ class OrderController extends Controller
 
         foreach ($selectedIds as $productId) {
             $product = $products->get($productId);
-            $quantity = (int) ($storedCart[(string) $productId]['quantity'] ?? 0);
+            $quantity = (int) ($quantities[$productId] ?? $quantities[(string) $productId] ?? $storedCart[(string) $productId]['quantity'] ?? 0);
 
             if (! $product || $quantity < 1) {
                 abort(422, 'One of the selected products is no longer available.');
@@ -637,7 +584,7 @@ class OrderController extends Controller
         return $lines;
     }
 
-    private function buyNowOrderLines(Request $request)
+    private function buyNowOrderLines(Request $request, array $quantities = [])
     {
         $payload = $request->session()->get(self::BUY_NOW_KEY);
 
@@ -651,7 +598,8 @@ class OrderController extends Controller
             ->lockForUpdate()
             ->first();
 
-        $quantity = (int) ($payload['quantity'] ?? 0);
+        $productId = (int) ($payload['product_id'] ?? 0);
+        $quantity = (int) ($quantities[$productId] ?? $quantities[(string) $productId] ?? $payload['quantity'] ?? 0);
 
         if (! $product || $quantity < 1) {
             abort(422, 'The selected product is no longer available.');
@@ -672,31 +620,105 @@ class OrderController extends Controller
 
         return [
             'product' => $product,
+            'product_id' => $product->id,
             'quantity' => $quantity,
+            'original_price' => $originalPrice,
             'unit_price' => $unitPrice,
+            'line_discount' => round(($originalPrice - $unitPrice) * $quantity, 2),
             'line_total' => round($unitPrice * $quantity, 2),
         ];
     }
 
     private function summary($items): array
     {
-        $shipping = $items->isEmpty() ? 0 : 50;
+        return $this->calculateCheckoutTotals($items);
+    }
 
-        $subtotal = round($items->sum(function (array $item) {
-            return $item['original_price'] * $item['quantity'];
-        }), 2);
+    private function calculateCheckoutTotals($items, string $voucherCode = '', bool $lockVoucher = false): array
+    {
+        $subtotal = round($items->sum(fn (array $item) => (float) $item['original_price'] * (int) $item['quantity']), 2);
+        $productDiscount = round($items->sum(fn (array $item) => (float) $item['line_discount']), 2);
+        $netItems = max(0, round($subtotal - $productDiscount, 2));
+        $shipping = $items->isEmpty() ? 0.0 : 50.0;
+        $voucherSavings = 0.0;
+        $shippingDiscount = 0.0;
+        $voucher = null;
+        $voucherType = null;
 
-        $discount = round($items->sum('line_discount'), 2);
+        if ($voucherCode !== '') {
+            if (Schema::hasTable('vouchers')) {
+                $query = DB::table('vouchers')->where('code', $voucherCode);
+                if ($lockVoucher) {
+                    $query->lockForUpdate();
+                }
+                $voucher = $query->first();
+            }
 
-        $total = round($items->sum('line_total') + $shipping, 2);
+            if ($voucher) {
+                if (! $voucher->is_active) {
+                    throw ValidationException::withMessages(['voucher_code' => 'This voucher is currently unavailable.']);
+                }
+                if ($voucher->expires_at && $voucher->expires_at < now()->toDateString()) {
+                    throw ValidationException::withMessages(['voucher_code' => 'This voucher has expired.']);
+                }
+                if ($voucher->usage_limit !== null && (int) $voucher->used_count >= (int) $voucher->usage_limit) {
+                    throw ValidationException::withMessages(['voucher_code' => 'This voucher has already been fully used.']);
+                }
+                if ($netItems < (float) ($voucher->min_spend ?? 0)) {
+                    throw ValidationException::withMessages(['voucher_code' => 'The minimum spend for this voucher has not been met.']);
+                }
+
+                $voucherType = $voucher->type;
+                if ($voucherType === 'percent') {
+                    $voucherSavings = round($netItems * ((float) $voucher->value / 100), 2);
+                } elseif ($voucherType === 'shipping') {
+                    $shippingDiscount = $shipping;
+                } else {
+                    throw ValidationException::withMessages(['voucher_code' => 'This voucher is invalid.']);
+                }
+            } elseif (in_array($voucherCode, ['LUMORA10', 'LUMORA20', 'FREESHIP'], true)) {
+                $voucherType = $voucherCode === 'FREESHIP' ? 'shipping' : 'percent';
+                $voucherSavings = $voucherType === 'percent'
+                    ? round($netItems * ($voucherCode === 'LUMORA20' ? 0.20 : 0.10), 2)
+                    : 0.0;
+                $shippingDiscount = $voucherType === 'shipping' ? $shipping : 0.0;
+            } else {
+                throw ValidationException::withMessages(['voucher_code' => 'This voucher code is invalid.']);
+            }
+        }
+
+        $discount = round($productDiscount + $voucherSavings, 2);
 
         return [
             'item_count' => (int) $items->sum('quantity'),
             'subtotal' => $subtotal,
+            'product_discount' => $productDiscount,
+            'voucher_savings' => $voucherSavings,
             'discount' => $discount,
             'shipping' => $shipping,
-            'total' => $total,
+            'shipping_discount' => $shippingDiscount,
+            'total_savings' => round($discount + $shippingDiscount, 2),
+            'total' => max(0, round($subtotal + $shipping - $discount - $shippingDiscount, 2)),
+            'voucher_id' => $voucher?->id,
+            'voucher_code' => $voucherCode !== '' ? $voucherCode : null,
+            'voucher_type' => $voucherType,
         ];
+    }
+
+    private function formatPhilippinePhone(?string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (str_starts_with($digits, '63')) {
+            $digits = '0'.substr($digits, 2);
+        } elseif (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+            $digits = '0'.$digits;
+        }
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+            return substr($digits, 0, 4).' '.substr($digits, 4, 3).' '.substr($digits, 7, 4);
+        }
+
+        return trim(chunk_split($digits, 4, ' '));
     }
 
     private function generateOrderNumber(): string
