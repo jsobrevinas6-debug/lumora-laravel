@@ -282,6 +282,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy'])
     ->name('buyer.payment-methods.destroy');
 
+    Route::get('/orders/{order}/track', [BuyerOrderController::class, 'track'])
+    ->name('buyer.orders.track');
+
     Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])
     ->name('buyer.orders.show');
 

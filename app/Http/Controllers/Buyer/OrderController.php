@@ -477,6 +477,18 @@ class OrderController extends Controller
         return view('buyer.order-success', compact('order'));
     }
 
+    public function track(Request $request, Order $order): View
+    {
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
+
+        $order->load([
+            'items.product',
+            'statusHistory' => fn ($query) => $query->latest(),
+        ]);
+
+        return view('buyer.orders.track', compact('order'));
+    }
+
     public function replacePaymentProof(Request $request, Order $order): RedirectResponse
     {
         abort_unless((int) $order->user_id === (int) $request->user()->id, 403);

@@ -409,9 +409,10 @@
                                     <a class="action-outline" href="{{ route('buyer.orders.show', $order) }}" data-card-action>View details</a>
                                 @elseif (in_array($status, ['packed', 'shipped'], true))
                                     @if ($firstItem?->seller)<form method="POST" action="{{ route('buyer.chats.start-seller', $firstItem->seller) }}" data-card-action>@csrf<button class="action-ghost" type="submit">Contact seller</button></form>@endif
-                                    <a class="action-primary" href="{{ route('buyer.orders.show', $order) }}#order-tracking" data-card-action>Track my order</a>
+                                    <a class="action-primary" href="{{ route('buyer.orders.track', $order) }}" data-card-action>Track my order</a>
                                 @elseif ($status === 'delivered')
                                     <a class="action-ghost" href="{{ route('buyer.orders.show', $order) }}" data-card-action>View details</a>
+                                    <a class="action-primary" href="{{ route('buyer.orders.track', $order) }}" data-card-action>Track my order</a>
                                     @if ($firstItem?->product_id)<a class="action-outline" href="{{ route('shop.product', $firstItem->product_id) }}#reviews" data-card-action>Write a review</a>@endif
                                     <form method="POST" action="{{ route('buyer.orders.reorder', $order) }}" data-card-action>@csrf<button class="action-primary" type="submit">Buy again</button></form>
                                     @if ($returnRequestsEnabled)

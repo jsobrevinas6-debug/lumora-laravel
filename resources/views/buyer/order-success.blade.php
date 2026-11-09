@@ -410,7 +410,7 @@
                     </div>
                     <div class="summary-total"><span>Total</span><strong>₱{{ number_format((float) $order->total, 2) }}</strong></div>
                     <div class="action-links">
-                        <a class="action-button primary" href="#order-tracking">
+                        <a class="action-button primary" href="{{ route('buyer.orders.track', $order) }}">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h17M13 5l7 7-7 7"/></svg>
                             Track order
                         </a>
