@@ -12,6 +12,7 @@ use App\Http\Controllers\Seller\ProductController;
 use App\Http\Controllers\Seller\PayoutController;
 use App\Http\Controllers\Seller\OrderController;
 use App\Http\Controllers\Seller\ChatController as SellerChatController;
+use App\Http\Controllers\Seller\ReturnRequestController as SellerReturnRequestController;
 use App\Http\Controllers\Buyer\OrderController as BuyerOrderController;
 use App\Http\Controllers\Buyer\ChatController as BuyerChatController;
 use App\Http\Controllers\Buyer\PaymentMethodController;
@@ -127,6 +128,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 // Seller routes
 Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->group(function () {
     Route::get('/dashboard', [SellerDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/returns-refunds', [SellerReturnRequestController::class, 'index'])->name('returns.index');
+    Route::get('/returns-refunds/{returnRequest}/evidence/{evidence}', [SellerReturnRequestController::class, 'evidence'])->name('returns.evidence');
+    Route::post('/returns-refunds/{returnRequest}/approve', [SellerReturnRequestController::class, 'approve'])->name('returns.approve');
+    Route::post('/returns-refunds/{returnRequest}/deny', [SellerReturnRequestController::class, 'deny'])->name('returns.deny');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');

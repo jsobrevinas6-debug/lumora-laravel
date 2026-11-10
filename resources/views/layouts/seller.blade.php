@@ -158,6 +158,7 @@
         <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><span>Orders</span></span>
         <span class="nav-badge" id="sidebarOrdersBadge" style="display:none;"></span>
     </a>
+    <a href="{{ route('seller.returns.index') }}" class="nav-link {{ request()->routeIs('seller.returns.*') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg></span><span>Return / Refund</span></span></a>
     <a href="{{ route('seller.chats.index') }}" class="nav-link {{ request()->routeIs('seller.chats.*') ? 'active' : '' }}">
         <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg></span><span>Chats</span></span>
         @if ($sellerUnreadChatCount > 0)

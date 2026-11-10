@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ReturnRequest extends Model
 {
-    protected $fillable = ['buyer_id', 'reason', 'details', 'status'];
+    protected $fillable = ['buyer_id', 'reason', 'details', 'status', 'admin_note', 'reviewed_at'];
 
     public function order(): BelongsTo
     {
