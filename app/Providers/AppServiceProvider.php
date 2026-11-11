@@ -25,11 +25,28 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer('layouts.seller', function ($view) {
             $view->with('sellerUnreadChatCount', $this->unreadChatCount('seller_id'));
+            $view->with('sellerPendingReturnsCount', $this->sellerPendingReturnsCount());
         });
 
         View::composer('profile.partials.account-sidebar', function ($view) {
             $view->with('buyerUnreadChatCount', $this->unreadChatCount('buyer_id'));
         });
+    }
+
+    private function sellerPendingReturnsCount(): int
+    {
+        if (! Auth::check() || ! Schema::hasTable('return_requests') || ! Schema::hasTable('order_items')) {
+            return 0;
+        }
+
+        try {
+            return \App\Models\ReturnRequest::query()
+                ->where('status', 'pending')
+                ->whereHas('order.items', fn ($query) => $query->where('seller_id', Auth::id()))
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function unreadChatCount(string $conversationColumn): int

@@ -18,39 +18,102 @@ class OrderController extends Controller
         $sellerId = Auth::id();
         $hasVoucherCols = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_code');
         $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
+        $hasReturnTable = \Illuminate\Support\Facades\Schema::hasTable('return_requests');
 
-        $orders = DB::table('order_items as oi')
+        $query = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('users as u', 'u.id', '=', 'o.user_id')
-            ->where(function ($query) use ($sellerId) {
-                $query->where('oi.seller_id', $sellerId)
+            ->join('users as u', 'u.id', '=', 'o.user_id');
+
+        if ($hasReturnTable) {
+            $query->leftJoin('return_requests as rr', 'rr.order_id', '=', 'o.id');
+        }
+
+        $selectCols = [
+            'o.id as order_id',
+            'o.order_number',
+            'o.status',
+            'o.created_at as order_date',
+            'u.name as buyer_name',
+            DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
+            DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
+            DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
+            DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
+            DB::raw($hasVoucherCols ? 'o.shipping_discount' : '0 as shipping_discount'),
+            DB::raw('SUM(oi.price * oi.quantity) as seller_subtotal'),
+            DB::raw('SUM(CASE WHEN oi.seen_at IS NULL THEN 1 ELSE 0 END) as unseen_count'),
+            DB::raw('SUM(CASE WHEN oi.packed_at IS NULL THEN 1 ELSE 0 END) as unpacked_count'),
+        ];
+
+        if ($hasReturnTable) {
+            $selectCols[] = 'rr.id as return_request_id';
+            $selectCols[] = 'rr.status as return_request_status';
+            $selectCols[] = 'rr.reason as return_request_reason';
+            $selectCols[] = 'rr.created_at as return_request_date';
+        } else {
+            $selectCols[] = DB::raw('NULL as return_request_id');
+            $selectCols[] = DB::raw('NULL as return_request_status');
+            $selectCols[] = DB::raw('NULL as return_request_reason');
+            $selectCols[] = DB::raw('NULL as return_request_date');
+        }
+
+        $groupByCols = array_merge(
+            ['o.id', 'o.order_number', 'o.status', 'o.created_at', 'u.name'],
+            $hasPaymentMethod ? ['o.payment_method'] : [],
+            $hasVoucherCols ? ['o.voucher_code', 'o.voucher_type', 'o.voucher_discount', 'o.shipping_discount'] : [],
+            $hasReturnTable ? ['rr.id', 'rr.status', 'rr.reason', 'rr.created_at'] : []
+        );
+
+        $allOrders = $query
+            ->where(function ($q) use ($sellerId) {
+                $q->where('oi.seller_id', $sellerId)
                     ->orWhere('p.seller_id', $sellerId);
             })
-            ->select(
-                'o.id as order_id',
-                'o.order_number',
-                'o.status',
-                'o.created_at as order_date',
-                'u.name as buyer_name',
-                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
-                DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
-                DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
-                DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
-                DB::raw($hasVoucherCols ? 'o.shipping_discount' : '0 as shipping_discount'),
-                DB::raw('SUM(oi.price * oi.quantity) as seller_subtotal'),
-                DB::raw('SUM(CASE WHEN oi.seen_at IS NULL THEN 1 ELSE 0 END) as unseen_count'),
-                DB::raw('SUM(CASE WHEN oi.packed_at IS NULL THEN 1 ELSE 0 END) as unpacked_count')
-            )
-            ->groupBy(...array_merge(
-                ['o.id', 'o.order_number', 'o.status', 'o.created_at', 'u.name'],
-                $hasPaymentMethod ? ['o.payment_method'] : [],
-                $hasVoucherCols ? ['o.voucher_code', 'o.voucher_type', 'o.voucher_discount', 'o.shipping_discount'] : []
-            ))
+            ->select($selectCols)
+            ->groupBy(...$groupByCols)
             ->orderByDesc('o.created_at')
             ->get();
 
-        return view('seller.orders', compact('orders'));
+        $tabCounts = [
+            'all' => $allOrders->count(),
+            'pending' => $allOrders->whereIn('status', ['pending', 'processing'])->count(),
+            'packed' => $allOrders->where('status', 'packed')->count(),
+            'shipped' => $allOrders->whereIn('status', ['shipped', 'out_for_delivery'])->count(),
+            'delivered' => $allOrders->where('status', 'delivered')->whereNull('return_request_id')->count(),
+            'returns' => $allOrders->filter(fn ($o) => $o->return_request_id !== null || $o->status === 'returned')->count(),
+        ];
+
+        $currentStatus = request()->query('status', 'all');
+        $search = strtolower(trim((string) request()->query('search', '')));
+
+        $orders = $allOrders->filter(function ($o) use ($currentStatus, $search) {
+            if ($currentStatus === 'pending' && ! in_array($o->status, ['pending', 'processing'], true)) {
+                return false;
+            }
+            if ($currentStatus === 'packed' && $o->status !== 'packed') {
+                return false;
+            }
+            if ($currentStatus === 'shipped' && ! in_array($o->status, ['shipped', 'out_for_delivery'], true)) {
+                return false;
+            }
+            if ($currentStatus === 'delivered' && ($o->status !== 'delivered' || $o->return_request_id !== null)) {
+                return false;
+            }
+            if ($currentStatus === 'returns' && $o->return_request_id === null && $o->status !== 'returned') {
+                return false;
+            }
+
+            if ($search !== '') {
+                $haystack = strtolower(($o->order_number ?? '') . ' ' . ($o->buyer_name ?? '') . ' #' . $o->order_id);
+                if (! str_contains($haystack, $search)) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values();
+
+        return view('seller.orders', compact('orders', 'tabCounts', 'currentStatus', 'search'));
     }
 
     public function show($orderId)
@@ -120,7 +183,15 @@ class OrderController extends Controller
                 'oi.updated_at' => now(),
             ]);
 
-        return view('seller.order-detail', compact('order', 'items'));
+        $returnRequest = null;
+        if (\Illuminate\Support\Facades\Schema::hasTable('return_requests')) {
+            $returnRequest = \App\Models\ReturnRequest::query()
+                ->where('order_id', $orderId)
+                ->with(['evidence', 'logisticsNotification', 'buyer'])
+                ->first();
+        }
+
+        return view('seller.order-detail', compact('order', 'items', 'returnRequest'));
     }
 
     public function markPacked(int $id): RedirectResponse
@@ -347,8 +418,40 @@ class OrderController extends Controller
             ->whereNull('read_at')
             ->count();
 
+        $pendingReturnsCount = 0;
+        $returnRequests = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('return_requests')) {
+            $pendingReturns = \App\Models\ReturnRequest::query()
+                ->where('status', 'pending')
+                ->whereHas('order.items', fn ($q) => $q->where('seller_id', $sellerId))
+                ->with(['order', 'buyer'])
+                ->latest()
+                ->take(5)
+                ->get();
+
+            $pendingReturnsCount = \App\Models\ReturnRequest::query()
+                ->where('status', 'pending')
+                ->whereHas('order.items', fn ($q) => $q->where('seller_id', $sellerId))
+                ->count();
+
+            $returnRequests = $pendingReturns->map(function ($rr) {
+                return [
+                    'id' => $rr->id,
+                    'order_id' => $rr->order_id,
+                    'order_number' => $rr->order?->order_number ?? '#' . $rr->order_id,
+                    'buyer_name' => $rr->buyer?->name ?? 'Customer',
+                    'reason' => ucwords(str_replace('_', ' ', $rr->reason)),
+                    'created_at' => $rr->created_at,
+                    'url' => route('seller.returns.index', ['search' => $rr->order?->order_number]),
+                ];
+            })->values();
+        }
+
         return response()->json([
-            'count' => $count + $payoutNotificationCount + $productApprovalNotificationCount,
+            'count' => $count + $payoutNotificationCount + $productApprovalNotificationCount + $pendingReturnsCount,
+            'orders_count' => $count,
+            'returns_count' => $pendingReturnsCount,
+            'returns' => $returnRequests,
             'orders' => $recent,
             'payouts' => $unreadPayoutNotifications->map(function ($notification) {
                 $data = json_decode($notification->data, true) ?: [];

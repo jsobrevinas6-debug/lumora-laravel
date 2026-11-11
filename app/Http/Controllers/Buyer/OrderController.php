@@ -175,6 +175,12 @@ class OrderController extends Controller
                     'mime_type' => $file->getMimeType(),
                 ]);
             }
+
+            $order->recordStatusUpdate('return_requested', 'Buyer submitted a return/refund request (' . ucwords(str_replace('_', ' ', $validated['reason'])) . '). Awaiting seller review.', event: [
+                'tracking_status' => 'return_requested',
+                'tracking_label' => 'Return Requested',
+                'changed_by' => $request->user()->id,
+            ]);
         });
 
         return redirect()->route('buyer.orders.index')->with('success', 'Your return/refund request has been submitted for review.');

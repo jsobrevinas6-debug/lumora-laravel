@@ -158,7 +158,14 @@
         <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><span>Orders</span></span>
         <span class="nav-badge" id="sidebarOrdersBadge" style="display:none;"></span>
     </a>
-    <a href="{{ route('seller.returns.index') }}" class="nav-link {{ request()->routeIs('seller.returns.*') ? 'active' : '' }}"><span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg></span><span>Return / Refund</span></span></a>
+    <a href="{{ route('seller.returns.index') }}" class="nav-link {{ request()->routeIs('seller.returns.*') ? 'active' : '' }}">
+        <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg></span><span>Return / Refund</span></span>
+        @if (($sellerPendingReturnsCount ?? 0) > 0)
+            <span class="nav-badge" id="sidebarReturnsBadge">{{ $sellerPendingReturnsCount }}</span>
+        @else
+            <span class="nav-badge" id="sidebarReturnsBadge" style="display:none;"></span>
+        @endif
+    </a>
     <a href="{{ route('seller.chats.index') }}" class="nav-link {{ request()->routeIs('seller.chats.*') ? 'active' : '' }}">
         <span class="nav-content"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/></svg></span><span>Chats</span></span>
         @if ($sellerUnreadChatCount > 0)
@@ -223,22 +230,41 @@ function loadOrderNotifications() {
         .then(res => res.json())
         .then(data => {
             const bellBadge = document.getElementById('bellBadge');
-            const sidebarBadge = document.getElementById('sidebarOrdersBadge');
+            const sidebarOrdersBadge = document.getElementById('sidebarOrdersBadge');
+            const sidebarReturnsBadge = document.getElementById('sidebarReturnsBadge');
             const list = document.getElementById('bellDropdownList');
 
             if (data.count > 0) {
                 bellBadge.textContent = data.count;
                 bellBadge.style.display = 'flex';
-                sidebarBadge.textContent = data.count;
-                sidebarBadge.style.display = 'inline-block';
             } else {
                 bellBadge.style.display = 'none';
-                sidebarBadge.style.display = 'none';
             }
 
+            const ordersCount = data.orders_count ?? (data.orders ? data.orders.length : 0);
+            if (sidebarOrdersBadge) {
+                if (ordersCount > 0) {
+                    sidebarOrdersBadge.textContent = ordersCount;
+                    sidebarOrdersBadge.style.display = 'inline-block';
+                } else {
+                    sidebarOrdersBadge.style.display = 'none';
+                }
+            }
+
+            const returnsCount = data.returns_count ?? 0;
+            if (sidebarReturnsBadge) {
+                if (returnsCount > 0) {
+                    sidebarReturnsBadge.textContent = returnsCount;
+                    sidebarReturnsBadge.style.display = 'inline-block';
+                } else {
+                    sidebarReturnsBadge.style.display = 'none';
+                }
+            }
+
+            const returnNotifications = data.returns || [];
             const payoutNotifications = data.payouts || [];
             const productApprovalNotifications = data.product_approvals || [];
-            if (data.orders.length === 0 && payoutNotifications.length === 0 && productApprovalNotifications.length === 0) {
+            if (data.orders.length === 0 && payoutNotifications.length === 0 && productApprovalNotifications.length === 0 && returnNotifications.length === 0) {
                 list.innerHTML = '<div class="bell-dropdown-empty">No new notifications.</div>';
                 return;
             }
@@ -248,6 +274,14 @@ function loadOrderNotifications() {
                 element.textContent = value ?? '';
                 return element.innerHTML;
             };
+
+            const returnItems = returnNotifications.map(item => `
+                <a href="${item.url || '/seller/returns-refunds'}" class="bell-dropdown-item" style="border-left:3px solid var(--coral);background:#fff9f7;">
+                    <div class="order-id" style="color:var(--coral);">⚠️ Return Request: ${escapeHtml(item.order_number)}</div>
+                    <div class="order-meta"><strong>${escapeHtml(item.buyer_name)}</strong> &middot; ${escapeHtml(item.reason)}</div>
+                    <div class="order-meta" style="font-size:11px;color:var(--coral);font-weight:600;">Action required: Review return</div>
+                </a>
+            `).join('');
 
             const payoutItems = payoutNotifications.map(notification => `
                 <a href="{{ route('seller.payouts.index') }}" class="bell-dropdown-item" data-payout-notification="${escapeHtml(notification.id)}">
@@ -273,7 +307,7 @@ function loadOrderNotifications() {
                 </a>
             `).join('');
 
-            list.innerHTML = productApprovalItems + payoutItems + orderItems;
+            list.innerHTML = returnItems + productApprovalItems + payoutItems + orderItems;
         })
         .catch(() => {});
 }

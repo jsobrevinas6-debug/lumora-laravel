@@ -11,15 +11,42 @@ use Illuminate\Support\Facades\Storage;
 
 class ReturnRequestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $requests = ReturnRequest::query()
-            ->whereHas('order.items', fn ($query) => $query->where('seller_id', auth()->id()))
-            ->with(['order.items.product', 'buyer', 'evidence', 'logisticsNotification'])
-            ->latest()
-            ->paginate(20);
+        $sellerId = auth()->id();
+        $status = $request->query('status', 'all');
+        $search = trim((string) $request->query('search', ''));
 
-        return view('seller.returns', compact('requests'));
+        $baseQuery = ReturnRequest::query()
+            ->whereHas('order.items', fn ($query) => $query->where('seller_id', $sellerId));
+
+        $tabCounts = [
+            'all' => (clone $baseQuery)->count(),
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'approved' => (clone $baseQuery)->where('status', 'approved')->count(),
+            'denied' => (clone $baseQuery)->where('status', 'denied')->count(),
+        ];
+
+        $requestsQuery = (clone $baseQuery)
+            ->with(['order.items.product', 'buyer', 'evidence', 'logisticsNotification'])
+            ->latest();
+
+        if (in_array($status, ['pending', 'approved', 'denied'], true)) {
+            $requestsQuery->where('status', $status);
+        }
+
+        if ($search !== '') {
+            $requestsQuery->where(function ($q) use ($search) {
+                $q->whereHas('order', fn ($oq) => $oq->where('order_number', 'like', "%{$search}%"))
+                  ->orWhereHas('buyer', fn ($bq) => $bq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+                  ->orWhere('reason', 'like', "%{$search}%")
+                  ->orWhere('details', 'like', "%{$search}%");
+            });
+        }
+
+        $requests = $requestsQuery->paginate(20)->withQueryString();
+
+        return view('seller.returns', compact('requests', 'tabCounts', 'status', 'search'));
     }
 
     public function evidence(ReturnRequest $returnRequest, int $evidence)
@@ -43,7 +70,7 @@ class ReturnRequestController extends Controller
     {
         $this->review($returnRequest, 'approved');
 
-        return redirect()->route('seller.returns.index')->with('success', 'Return approved and queued for Lumora Logistics.');
+        return back()->with('success', 'Return approved and queued for Lumora Logistics return pickup.');
     }
 
     public function deny(Request $request, ReturnRequest $returnRequest)
@@ -51,7 +78,7 @@ class ReturnRequestController extends Controller
         $validated = $request->validate(['seller_note' => ['required', 'string', 'max:1000']]);
         $this->review($returnRequest, 'denied', $validated['seller_note']);
 
-        return redirect()->route('seller.returns.index')->with('success', 'Return/refund request denied.');
+        return back()->with('success', 'Return/refund request has been denied.');
     }
 
     private function review(ReturnRequest $returnRequest, string $status, ?string $note = null): void
@@ -64,10 +91,28 @@ class ReturnRequestController extends Controller
             $lockedRequest->update(['status' => $status, 'admin_note' => $note, 'reviewed_at' => now()]);
 
             if ($status === 'approved') {
-                $lockedRequest->logisticsNotification()->create(['status' => 'pending']);
+                $lockedRequest->logisticsNotification()->firstOrCreate(['status' => 'pending']);
+
+                // Synchronize order lifecycle to 'returned' so tracking & status histories update
+                $lockedRequest->order->updateStatus('returned', 'Return request approved by seller. Queued for return pickup by Lumora Logistics.', event: [
+                    'tracking_status' => 'return_approved',
+                    'tracking_label' => 'Return Approved',
+                    'changed_by' => auth()->id(),
+                ]);
+            } else {
+                // Record the denial in order history without changing base lifecycle
+                $lockedRequest->order->recordStatusUpdate('return_denied', 'Return request was reviewed and denied by seller' . ($note ? ': ' . $note : '.'), event: [
+                    'tracking_status' => 'return_denied',
+                    'tracking_label' => 'Return Denied',
+                    'changed_by' => auth()->id(),
+                ]);
             }
 
-            $lockedRequest->buyer->notify(new ReturnRequestStatusNotification($lockedRequest, $status, $note));
+            try {
+                $lockedRequest->buyer->notify(new ReturnRequestStatusNotification($lockedRequest, $status, $note));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Buyer return status notification failed: ' . $e->getMessage());
+            }
         });
     }
 
