@@ -156,12 +156,14 @@
         .hero-arrow.prev{left:24px}.hero-arrow.next{right:24px}
         .hero-footer{position:absolute;z-index:3;right:0;bottom:29px;left:0;display:flex;align-items:center;justify-content:center;gap:14px}
         .hero-counter{position:absolute;left:max(48px,calc((100% - 1180px)/2));color:var(--plum);font-size:14px;font-weight:600}
-        .hero-counter span{color:var(--muted);font-weight:400}.hero-dots{display:flex;align-items:center;gap:10px}
-        .hero-dot{position:relative;width:10px;height:10px;padding:0;border:0;border-radius:999px;background:transparent;transition:transform 300ms ease-in-out}
-        .hero-dot::before{content:'';position:absolute;top:50%;left:50%;width:10px;height:10px;border-radius:999px;background:rgba(61,27,61,.25);transform:translate3d(-50%,-50%,0) scaleX(1);transition:transform 300ms ease-in-out,background 300ms ease-in-out;will-change:transform}
-        .hero-dot.active::before{background:var(--rose);transform:translate3d(-50%,-50%,0) scaleX(3)}.hero-autoplay{color:var(--muted);font-size:10px;letter-spacing:1.4px}
+        .hero-counter span{color:var(--muted);font-weight:400}.hero-dots{display:flex;align-items:center;gap:8px}
+        .hero-dot{position:relative;width:18px;height:18px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer}
+        .hero-dot::before{content:'';position:absolute;top:50%;left:50%;width:9px;height:9px;border-radius:50%;background:rgba(61,27,61,.32);transform:translate3d(-50%,-50%,0);transition:width 200ms ease-in-out,height 200ms ease-in-out,background 200ms ease-in-out}
+        .hero-dot:hover::before{background:var(--plum-light)}
+        .hero-dot.active::before{width:11px;height:11px;background:var(--rose)}
+        .hero-dot:focus-visible{outline:2px solid var(--plum);outline-offset:2px}
         @media(max-width:900px){.hero-carousel{height:520px}.hero-content{width:calc(100% - 80px)}.hero-slide::before{background-image:linear-gradient(90deg,rgba(255,253,251,.97),rgba(255,253,251,.60) 65%,rgba(255,253,251,.10)),var(--hero-image)}.hero-counter{left:40px}}
-        @media(max-width:600px){.hero-carousel{height:570px;margin-top:20px}.hero-slide{align-items:flex-start;padding-top:82px}.hero-slide::before{background-image:linear-gradient(180deg,rgba(255,253,251,.95),rgba(255,253,251,.80) 50%,rgba(255,253,251,.16)),var(--hero-image);background-position:62% center}.hero-content{width:calc(100% - 48px);padding:0 0 70px}.hero-title{max-width:330px;font-size:47px}.hero-description{max-width:300px;font-size:14px}.hero-arrow{width:38px;height:38px;font-size:22px}.hero-arrow.prev{left:12px}.hero-arrow.next{right:12px}.hero-counter{left:24px}.hero-footer{bottom:24px}.hero-autoplay{display:none}}
+        @media(max-width:600px){.hero-carousel{height:570px;margin-top:20px}.hero-slide{align-items:flex-start;padding-top:82px}.hero-slide::before{background-image:linear-gradient(180deg,rgba(255,253,251,.95),rgba(255,253,251,.80) 50%,rgba(255,253,251,.16)),var(--hero-image);background-position:62% center}.hero-content{width:calc(100% - 48px);padding:0 0 70px}.hero-title{max-width:330px;font-size:47px}.hero-description{max-width:300px;font-size:14px}.hero-arrow{width:38px;height:38px;font-size:22px}.hero-arrow.prev{left:12px}.hero-arrow.next{right:12px}.hero-counter{left:24px}.hero-footer{bottom:24px}}
         @media(prefers-reduced-motion:reduce){.hero-slide,.hero-slide::before,.hero-eyebrow,.hero-title,.hero-description,.hero-cta,.hero-arrow,.hero-dot,.hero-dot::before{transition:none!important}.hero-slide,.hero-slide::before,.hero-eyebrow,.hero-title,.hero-description,.hero-cta{transform:none!important}.hero-slide.is-active,.hero-slide.is-active::before,.hero-slide.is-active .hero-eyebrow,.hero-slide.is-active .hero-title,.hero-slide.is-active .hero-description,.hero-slide.is-active .hero-cta{opacity:1!important}}
 
         /* ---------- section heading ---------- */
@@ -836,7 +838,6 @@
                     <button class="hero-dot{{ $index === 0 ? ' active' : '' }}" type="button" data-carousel-dot="{{ $index }}" role="tab" aria-label="Go to slide {{ $index + 1 }}" aria-selected="{{ $index === 0 ? 'true' : 'false' }}"></button>
                 @endforeach
             </div>
-            <span class="hero-autoplay">AUTOPLAY</span>
         </div>
     </section>
 
