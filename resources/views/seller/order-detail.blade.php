@@ -358,10 +358,20 @@
                     </div>
                 </div>
             @elseif ($returnRequest->status === 'approved')
-                <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px 16px;font-size:13px;color:#065F46;display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:18px;">✓</span>
+                @php
+                    $courierName = !empty($order->courier ?? null)
+                        ? $order->courier
+                        : \Illuminate\Support\Facades\DB::table('order_status_histories')
+                            ->where('order_id', $order->id)
+                            ->whereNotNull('courier_name')
+                            ->where('courier_name', '!=', '')
+                            ->latest('id')
+                            ->value('courier_name');
+                @endphp
+                <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:14px 16px;font-size:13px;color:#065F46;display:flex;align-items:flex-start;gap:12px;">
+                    <span style="font-size:20px;line-height:1;">✓</span>
                     <div>
-                        <strong>Return Approved.</strong> Order marked as returned and queued for Lumora Logistics return pickup. The customer has been notified.
+                        <strong>Return Approved & Dispatched.</strong> Order marked as returned and automatically assigned to delivering courier {{ $courierName ? "({$courierName})" : '' }} for reverse logistics pickup.
                     </div>
                 </div>
             @elseif ($returnRequest->status === 'denied')

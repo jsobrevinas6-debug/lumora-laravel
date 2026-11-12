@@ -650,7 +650,21 @@
 
                             <!-- Logistics Status -->
                             <td>
-                                @if ($returnRequest->logisticsNotification)
+                                @php
+                                    $courierName = $returnRequest->order->statusHistories?->whereNotNull('courier_name')->first()?->courier_name
+                                        ?: ($returnRequest->order->courier ?: null);
+                                @endphp
+                                @if ($returnRequest->status === 'approved')
+                                    <span class="status-pill status-paid" style="font-size:11.5px;padding:3px 8px;background:#ECFDF5;color:#065F46;">
+                                        ✓ Pickup Dispatched
+                                    </span>
+                                    @if ($courierName)
+                                        <div style="font-size:11px;color:var(--text-dark);margin-top:3px;font-weight:600;">
+                                            🛵 {{ $courierName }}
+                                        </div>
+                                        <div style="font-size:10.5px;color:var(--text-muted);">Assigned courier</div>
+                                    @endif
+                                @elseif ($returnRequest->logisticsNotification)
                                     @if ($returnRequest->logisticsNotification->status === 'processed')
                                         <span class="status-pill status-paid" style="font-size:11.5px;padding:3px 8px;">Dispatched</span>
                                     @else

@@ -28,7 +28,7 @@ class ReturnRequestController extends Controller
         ];
 
         $requestsQuery = (clone $baseQuery)
-            ->with(['order.items.product', 'buyer', 'evidence', 'logisticsNotification'])
+            ->with(['order.items.product', 'order.statusHistories', 'buyer', 'evidence', 'logisticsNotification'])
             ->latest();
 
         if (in_array($status, ['pending', 'approved', 'denied'], true)) {
@@ -68,9 +68,10 @@ class ReturnRequestController extends Controller
 
     public function approve(ReturnRequest $returnRequest)
     {
-        $this->review($returnRequest, 'approved');
+        $result = $this->review($returnRequest, 'approved');
+        $courier = $result['courier_name'] ?? 'delivery courier';
 
-        return back()->with('success', 'Return approved and queued for Lumora Logistics return pickup.');
+        return back()->with('success', "Return approved! Lumora Logistics notified with items list and automatically assigned to {$courier} for return pickup.");
     }
 
     public function deny(Request $request, ReturnRequest $returnRequest)
@@ -81,14 +82,16 @@ class ReturnRequestController extends Controller
         return back()->with('success', 'Return/refund request has been denied.');
     }
 
-    private function review(ReturnRequest $returnRequest, string $status, ?string $note = null): void
+    private function review(ReturnRequest $returnRequest, string $status, ?string $note = null): array
     {
         $this->authorizeSeller($returnRequest);
 
-        DB::transaction(function () use ($returnRequest, $status, $note) {
+        return DB::transaction(function () use ($returnRequest, $status, $note) {
             $lockedRequest = ReturnRequest::query()->lockForUpdate()->findOrFail($returnRequest->id);
             abort_unless($lockedRequest->status === 'pending', 409, 'This request has already been reviewed.');
             $lockedRequest->update(['status' => $status, 'admin_note' => $note, 'reviewed_at' => now()]);
+
+            $dispatchResult = [];
 
             if ($status === 'approved') {
                 $lockedRequest->logisticsNotification()->firstOrCreate(['status' => 'pending']);
@@ -99,6 +102,9 @@ class ReturnRequestController extends Controller
                     'tracking_label' => 'Return Approved',
                     'changed_by' => auth()->id(),
                 ]);
+
+                // Dispatch full return package to Lumora Logistics and automatically assign to delivering rider
+                $dispatchResult = \App\Services\LogisticsReturnService::dispatchReturnToLogistics($lockedRequest, $note);
             } else {
                 // Record the denial in order history without changing base lifecycle
                 $lockedRequest->order->recordStatusUpdate('return_denied', 'Return request was reviewed and denied by seller' . ($note ? ': ' . $note : '.'), event: [
@@ -113,6 +119,8 @@ class ReturnRequestController extends Controller
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Buyer return status notification failed: ' . $e->getMessage());
             }
+
+            return $dispatchResult;
         });
     }
 

@@ -857,7 +857,7 @@ class DashboardController extends Controller
     public function returnRequests()
     {
         $requests = ReturnRequest::query()
-            ->with(['order.items.product', 'order.seller', 'buyer', 'evidence', 'logisticsNotification'])
+            ->with(['order.items.product', 'order.statusHistories', 'order.seller', 'buyer', 'evidence', 'logisticsNotification'])
             ->latest()
             ->paginate(20);
 
