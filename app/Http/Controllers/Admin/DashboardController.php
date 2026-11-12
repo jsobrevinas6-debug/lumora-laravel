@@ -867,16 +867,32 @@ class DashboardController extends Controller
     public function returnEvidence(ReturnRequest $returnRequest, $evidence)
     {
         $file = $returnRequest->evidence()->findOrFail($evidence);
-        $path = ltrim(str_replace('\\', '/', (string) $file->file_path), '/');
-        abort_unless(str_starts_with($path, 'return_request_evidence/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
-        $disk = Storage::disk('local');
-        abort_unless($disk->exists($path), 404);
+        $rawPath = ltrim(str_replace('\\', '/', (string) $file->file_path), '/');
+        $path = preg_replace('#^(public/|storage/)#', '', $rawPath);
+        abort_unless(! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
+
+        $disk = null;
+        if (Storage::disk('public')->exists($path)) {
+            $disk = Storage::disk('public');
+        } elseif (Storage::disk('local')->exists($path)) {
+            $disk = Storage::disk('local');
+        } elseif (Storage::disk('public')->exists('public/' . $path)) {
+            $disk = Storage::disk('public');
+            $path = 'public/' . $path;
+        } elseif (Storage::disk('local')->exists('return_request_evidence/' . basename($path))) {
+            $disk = Storage::disk('local');
+            $path = 'return_request_evidence/' . basename($path);
+        }
+
+        abort_unless($disk !== null, 404);
+
+        $mimeType = $file->mime_type ?: (str_ends_with(strtolower($path), '.mp4') ? 'video/mp4' : 'image/jpeg');
 
         return response()->file($disk->path($path), [
-            'Content-Type' => $file->mime_type,
+            'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="'.basename($path).'"',
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
+            'Cache-Control' => 'private, max-age=3600',
         ]);
     }
 
