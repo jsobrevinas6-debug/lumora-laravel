@@ -88,10 +88,11 @@
         .btn-ghost{ background:transparent; color:var(--plum); }
         .account{ display:flex; align-items:center; gap:10px; }
         .avatar{
-            width:36px; height:36px; border-radius:50%; background:var(--plum);
+            position:relative; overflow:hidden; width:36px; height:36px; flex:0 0 36px; border-radius:50%; background:var(--plum);
             color:#fff; display:flex; align-items:center; justify-content:center;
             font-size:13px; font-weight:600;
         }
+        .avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover}
         .account-name{ font-size:13px; font-weight:600; color:var(--ink); }
         .logout-form button{
             background:none; border:none; color:var(--muted); font-size:12px;
@@ -728,7 +729,7 @@
                     @endphp
                     <div class="account-menu-wrap" id="accountMenuWrap">
                         <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-controls="accountDropdown">
-                            <div class="avatar">{{ strtoupper(substr($authUser->name,0,1)) }}</div>
+                            <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
                             <div>
                                 <div class="account-name">{{ $authUser->name }}</div>
                                 <div class="account-mode">Shopping as Buyer <span class="buyer-badge">Buyer</span></div>
@@ -738,7 +739,7 @@
 
                         <div class="account-dropdown" id="accountDropdown" role="menu">
                             <div class="account-dropdown-head">
-                                <div class="avatar">{{ strtoupper(substr($authUser->name,0,1)) }}</div>
+                                <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
                                 <div>
                                     <div class="account-dropdown-name">{{ $authUser->name }}</div>
                                     <div class="account-mode">Currently shopping as <span class="buyer-badge">Buyer</span></div>

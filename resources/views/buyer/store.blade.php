@@ -28,7 +28,8 @@
         .nav-badge { position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; display:grid; place-items:center; padding:0 4px; border-radius:999px; background:var(--rose); color:white; font-size:10px; font-weight:800; }
         .account-menu-wrap { position:relative; }
         .account-trigger { height:44px; display:flex; align-items:center; gap:10px; padding:0 10px 0 6px; border:1px solid var(--line); border-radius:999px; background:var(--paper); color:var(--text); cursor:pointer; }
-        .account-avatar { width:32px; height:32px; display:grid; place-items:center; border-radius:50%; background:var(--plum); color:white; font-size:12px; font-weight:800; }
+        .account-avatar { position:relative; width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:var(--plum); color:white; font-size:12px; font-weight:800; }
+        .account-avatar img { position:absolute; inset:0; width:100%; height:100%; border-radius:inherit; object-fit:cover; }
         .account-name { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:13px; font-weight:700; }
         .account-dropdown { position:absolute; top:calc(100% + 10px); right:0; width:220px; display:none; padding:10px; border:1px solid var(--line); border-radius:14px; background:var(--paper); box-shadow:0 18px 38px rgba(59,30,52,.12); }
         .account-dropdown.open { display:block; }
@@ -251,7 +252,7 @@
                 @auth
                     <div class="account-menu-wrap">
                         <button type="button" class="account-trigger" data-account-trigger aria-expanded="false">
-                            <span class="account-avatar">{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}</span>
+                            <span class="account-avatar">@if (Auth::user()->avatar)<img src="{{ Auth::user()->avatar }}" alt="">@else{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}@endif</span>
                             <span class="account-name">{{ Auth::user()->name }}</span>
                         </button>
                         <div class="account-dropdown" data-account-dropdown>
