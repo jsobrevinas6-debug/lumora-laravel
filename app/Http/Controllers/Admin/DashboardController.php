@@ -49,9 +49,9 @@ class DashboardController extends Controller
             ->limit($filters['per_page'])
             ->get();
 
-        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
-        $orders->each(function (Order $order) use ($proofDisk) {
-            $order->setAttribute('payment_proof_available', (bool) $order->payment_proof_path && $proofDisk->exists($order->payment_proof_path));
+        $orders->each(function (Order $order) {
+            $proofLocation = $this->paymentProofLocation($order);
+            $order->setAttribute('payment_proof_available', $proofLocation !== null);
         });
 
         $orders = new LengthAwarePaginator($orders, $total, $filters['per_page'], $page, [
@@ -179,8 +179,7 @@ class DashboardController extends Controller
         abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
         abort_unless($order->payment_status === 'pending' && $order->status === 'pending', 422, 'This order is no longer awaiting payment review.');
         abort_unless(
-            $order->payment_proof_path
-            && Storage::disk(config('filesystems.payment_proof_disk'))->exists($order->payment_proof_path)
+            $this->paymentProofLocation($order) !== null
             && preg_match('/^\d{6}$/', (string) $order->payment_reference_last6),
             422,
             'A stored receipt and six digit reference number are required for approval.'
@@ -199,11 +198,12 @@ class DashboardController extends Controller
     public function eWalletPaymentProof(Order $order)
     {
         abort_unless(in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true), 404);
-        $proofDisk = Storage::disk(config('filesystems.payment_proof_disk'));
-        abort_unless($order->payment_proof_path && $proofDisk->exists($order->payment_proof_path), 404);
+        $proofLocation = $this->paymentProofLocation($order);
+        abort_unless($proofLocation !== null, 404);
+        [$proofDisk, $proofPath] = $proofLocation;
 
         return $proofDisk->response(
-            $order->payment_proof_path,
+            $proofPath,
             null,
             ['Cache-Control' => 'private, no-store'],
             'inline'
@@ -225,6 +225,34 @@ class DashboardController extends Controller
         });
 
         return redirect()->route('admin.e-wallet-payments')->with('flash_success', 'Payment rejected and order '.$order->order_number.' cancelled.');
+    }
+
+    /**
+     * Locate receipts saved before the application switched to its dedicated
+     * payment proof disk. Older orders may still point to the same relative
+     * path on the default local disk.
+     */
+    private function paymentProofLocation(Order $order): ?array
+    {
+        if (! $order->payment_proof_path) {
+            return null;
+        }
+
+        $diskNames = array_unique(array_filter([
+            config('filesystems.payment_proof_disk'),
+            config('filesystems.default'),
+            'local',
+            'public',
+        ]));
+
+        foreach ($diskNames as $diskName) {
+            $disk = Storage::disk($diskName);
+            if ($disk->exists($order->payment_proof_path)) {
+                return [$disk, $order->payment_proof_path];
+            }
+        }
+
+        return null;
     }
 
     public function users()
