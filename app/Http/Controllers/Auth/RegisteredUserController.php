@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -48,6 +49,7 @@ class RegisteredUserController extends Controller
             'seller_terms_accepted' => ['accepted_if:signup_type,seller'],
             'marketing_opt_in' => ['sometimes', 'boolean'],
             'signup_type' => ['in:buyer,seller'],
+            'buyer_id_document' => ['required_if:signup_type,buyer', 'required_without:signup_type', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ...SellerApplicationFields::registrationRules(),
         ];
 
@@ -71,6 +73,10 @@ class RegisteredUserController extends Controller
             'id_document.max' => 'Valid ID file size must not exceed 5MB.',
             'business_permit.mimes' => 'Business Permit must be a JPG, PNG, or PDF file only.',
             'business_permit.max' => 'Business Permit file size must not exceed 5MB.',
+            'buyer_id_document.required_if' => 'Upload at least one valid government-issued ID to create a buyer account.',
+            'buyer_id_document.required_without' => 'Upload at least one valid government-issued ID to create a buyer account.',
+            'buyer_id_document.mimes' => 'Buyer ID must be a JPG, PNG, or PDF file only.',
+            'buyer_id_document.max' => 'Buyer ID file size must not exceed 5MB.',
         ]);
 
         $age = \Carbon\Carbon::parse($validated['date_of_birth'])->age;
@@ -116,6 +122,14 @@ class RegisteredUserController extends Controller
             'seller_terms_accepted_at' => $signupType === 'seller' ? now() : null,
             'marketing_opt_in' => $request->boolean('marketing_opt_in'),
         ];
+
+        if ($signupType === 'buyer') {
+            $buyerIdPath = $request->file('buyer_id_document')?->store('buyer_identity_documents', 'local');
+            if (! $buyerIdPath) {
+                return back()->withErrors(['buyer_id_document' => 'The ID could not be saved. Please upload it again.'])->withInput();
+            }
+            $userAttributes['buyer_id_document'] = $buyerIdPath;
+        }
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'postal_code')) {
             $userAttributes['postal_code'] = $validated['postal_code'] ?? null;

@@ -36,6 +36,9 @@
                             <p><strong>Email:</strong> {{ $u->email }} {{ $u->email_verified ? '(verified)' : '(not verified)' }}</p>
                             <p><strong>Contact:</strong> {{ $u->contact_number ?? '—' }}</p>
                             <p><strong>Date of Birth:</strong> {{ $u->date_of_birth ? \Carbon\Carbon::parse($u->date_of_birth)->format('M d, Y') : '—' }}</p>
+                            @if($u->role === 'buyer' && $u->buyer_id_document)
+                                <p><strong>Buyer ID:</strong> <a href="{{ route('admin.users.identity-document', $u) }}" target="_blank" rel="noopener">View uploaded ID</a></p>
+                            @endif
                             @if($u->role === 'seller')
                                 <p><strong>Shop Name:</strong> {{ $u->shop_name ?? '—' }}</p>
                                 <p><strong>Shop Description:</strong> {{ $u->shop_description ?? '—' }}</p>

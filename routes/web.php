@@ -82,6 +82,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/applications/{id}/reject', [DashboardController::class, 'rejectSellerApplication'])->name('applications.reject');
     Route::post('/applications/{id}/archive', [DashboardController::class, 'archiveSellerApplication'])->name('applications.archive');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');
+    Route::get('/users/{user}/identity-document', [DashboardController::class, 'buyerIdentityDocument'])->name('users.identity-document');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');
     Route::get('/product-approval', [DashboardController::class, 'productApproval'])->name('product-approval');
     Route::post('/product-approval/{id}/approve', [DashboardController::class, 'approveProduct'])->name('product-approval.approve');

@@ -262,6 +262,16 @@ class DashboardController extends Controller
         return view('admin.users', compact('users'));
     }
 
+    public function buyerIdentityDocument(User $user)
+    {
+        abort_unless($user->role === 'buyer' && $user->buyer_id_document, 404);
+
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($user->buyer_id_document), 404);
+
+        return $disk->response($user->buyer_id_document, null, ['Cache-Control' => 'private, no-store']);
+    }
+
     private const SELLER_APPLICATION_REJECTION_REASONS = [
         'Invalid business documents',
         'Incomplete application',

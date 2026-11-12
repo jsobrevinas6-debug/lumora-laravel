@@ -51,6 +51,7 @@ class User extends Authenticatable
         'terms_version',
         'seller_terms_accepted_at',
         'marketing_opt_in',
+        'buyer_id_document',
     ];
 
     /**

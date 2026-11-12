@@ -216,6 +216,13 @@
                 'streetGridClass' => 'row-3-equal',
             ])
 
+            <div class="form-group" id="buyerIdDocumentGroup" @if (old('signup_type') === 'seller') hidden @endif>
+                <label for="buyer_id_document">Valid government-issued ID <span aria-hidden="true">*</span></label>
+                <input id="buyer_id_document" type="file" name="buyer_id_document" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" @if (old('signup_type') !== 'seller') required @endif @if (old('signup_type') === 'seller') disabled @endif aria-describedby="buyerIdDocumentHint buyerIdDocumentError">
+                <small id="buyerIdDocumentHint">Upload at least one valid ID (JPG, PNG, or PDF; max 5 MB). Your document is stored privately for account verification.</small>
+                @error('buyer_id_document')<span class="field-error" id="buyerIdDocumentError">{{ $message }}</span>@enderror
+            </div>
+
             <div class="section-label">Account</div>
             <div class="row-2">
                 <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8"></div>
@@ -242,6 +249,7 @@
                     <ul>
                         <li>Name &amp; birthday: create your account and confirm your age.</li>
                         <li>Email &amp; phone: verify you and send order updates.</li>
+                        <li>Government-issued ID: verify buyer accounts; only administrators can access the uploaded file.</li>
                         <li>Address: deliver orders and calculate shipping.</li>
                         <li>Password: stored securely and never shared.</li>
                     </ul>
@@ -515,6 +523,11 @@ document.getElementById('sellerTermsAccepted').addEventListener('change', functi
 document.getElementById('registerForm').addEventListener('submit', function(e) {
     const type = e.submitter?.value === 'seller' ? 'seller' : 'buyer';
     document.getElementById('sellerTermsRow').hidden = type !== 'seller';
+    const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
+    const buyerIdInput = document.getElementById('buyer_id_document');
+    buyerIdGroup.hidden = type === 'seller';
+    buyerIdInput.required = type === 'buyer';
+    buyerIdInput.disabled = type === 'seller';
     if (!validateSignupFields(type)) {
         e.preventDefault();
         return;
@@ -528,6 +541,11 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 });
 
 function openSellerModal() {
+    const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
+    const buyerIdInput = document.getElementById('buyer_id_document');
+    buyerIdGroup.hidden = true;
+    buyerIdInput.required = false;
+    buyerIdInput.disabled = true;
     document.getElementById('sellerTermsRow').hidden = false;
     if (!validateSignupFields('seller')) return;
     document.getElementById('sellerModalOverlay').style.display = 'flex';
@@ -538,6 +556,11 @@ function openSellerModal() {
 }
 function closeSellerModal() {
     document.getElementById('sellerModalOverlay').style.display = 'none';
+    const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
+    const buyerIdInput = document.getElementById('buyer_id_document');
+    buyerIdGroup.hidden = false;
+    buyerIdInput.required = true;
+    buyerIdInput.disabled = false;
     document.getElementById('business_name').required = false;
     document.getElementById('category').required = false;
     document.getElementById('id_document').required = false;
