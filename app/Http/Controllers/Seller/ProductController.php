@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Models\ProductApprovalLog;
 
 class ProductController extends Controller
 {
@@ -88,6 +89,7 @@ class ProductController extends Controller
             ? $variantRows->sum(fn ($v) => (int) ($v['stock'] ?? 0))
             : (int) ($request->stock ?? 0);
 
+        $requiresApproval = (bool) config('marketplace.require_product_approval', true);
         $insertData = [
             'seller_id' => Auth::id(),
             'name' => $validated['name'],
@@ -99,9 +101,10 @@ class ProductController extends Controller
             'stock' => $totalStock,
             'variant_type' => $hasVariants ? ($validated['variant_type'] ?? null) : null,
             'image' => $imagePath,
-            'status' => 'inactive',
-            'approval_status' => 'pending',
+            'status' => $requiresApproval ? 'inactive' : 'active',
+            'approval_status' => $requiresApproval ? 'pending' : 'approved',
             'approval_submitted_at' => now(),
+            'submitted_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -112,14 +115,16 @@ class ProductController extends Controller
 
         $productId = DB::table('products')->insertGetId($insertData);
 
+        ProductApprovalLog::create(['product_id' => $productId, 'action' => $requiresApproval ? 'submitted' : 'auto_approved', 'note' => null, 'created_at' => now()]);
+
         $this->insertVariants($productId, $variantRows);
 
-        $approvalMessage = 'Wait for admin approval, Thank You!';
+        $approvalMessage = $requiresApproval ? 'Product submitted for review.' : 'Product added and published.';
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'message' => $approvalMessage]);
         }
 
-        return back()->with('approval_submitted', $approvalMessage);
+        return back()->with($requiresApproval ? 'approval_submitted' : 'success', $approvalMessage);
     }
 
     public function update(Request $request, $id)
@@ -149,15 +154,7 @@ class ProductController extends Controller
             'variant_type' => $hasVariants ? ($validated['variant_type'] ?? null) : null,
             'updated_at' => now(),
         ];
-        $wasRejected = ($product->approval_status ?? null) === 'rejected';
-        if ($wasRejected) {
-            $data['approval_status'] = 'pending';
-            $data['status'] = 'inactive';
-            $data['approval_submitted_at'] = now();
-            $data['rejected_at'] = null;
-            $data['rejection_reason'] = null;
-            $data['rejection_note'] = null;
-        }
+        $wasApproved = ($product->approval_status ?? null) === 'approved';
 
         $existingImages = [];
         if (property_exists($product, 'images') && !empty($product->images)) {
@@ -218,11 +215,39 @@ class ProductController extends Controller
             }
         }
 
+        $listingChanged = false;
+        foreach (['name', 'description', 'category'] as $field) {
+            if (($product->{$field} ?? null) != ($data[$field] ?? null)) $listingChanged = true;
+        }
+        if ($slotsModified) $listingChanged = true;
+        $requiresApproval = (bool) config('marketplace.require_product_approval', true);
+        $resubmitted = false;
+        if (! $requiresApproval) {
+            $data['approval_status'] = 'approved';
+            $data['status'] = 'active';
+        } elseif ($wasApproved && $listingChanged) {
+            $data['approval_status'] = 'pending';
+            $data['status'] = 'inactive';
+            $data['submitted_at'] = $data['approval_submitted_at'] = now();
+            $data['approval_note'] = null;
+            $resubmitted = true;
+        } elseif (in_array(($product->approval_status ?? null), ['changes_requested', 'rejected'], true)) {
+            $data['approval_status'] = 'pending';
+            $data['status'] = 'inactive';
+            $data['submitted_at'] = $data['approval_submitted_at'] = now();
+            $data['approval_note'] = null;
+            $data['rejected_at'] = null;
+            $data['rejection_reason'] = null;
+            $data['rejection_note'] = null;
+            $resubmitted = true;
+        }
+
         DB::table('products')->where('id', $id)->update($data);
+        if ($resubmitted) ProductApprovalLog::create(['product_id' => $id, 'action' => 'resubmitted', 'note' => null, 'created_at' => now()]);
         DB::table('product_variants')->where('product_id', $id)->delete();
         $this->insertVariants($id, $variantRows);
 
-        $message = $wasRejected ? 'Product updated and resubmitted for approval.' : 'Product updated.';
+        $message = $resubmitted ? 'Product updated and resubmitted for review.' : 'Product updated.';
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'message' => $message]);
         }

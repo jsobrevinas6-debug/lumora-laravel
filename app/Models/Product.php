@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,7 @@ class Product extends Model
 
     public const PLACEHOLDER_IMAGE_PATH = 'images/product-placeholder.png';
     public const PUBLIC_PRODUCT_IMAGE_DIRECTORY = 'products';
+    public const APPROVAL_STATUSES = ['pending', 'approved', 'changes_requested', 'rejected'];
 
     protected $fillable = [
         'seller_id',
@@ -31,6 +33,7 @@ class Product extends Model
         'image',
         'images',
         'status',
+        'approval_status', 'approval_note', 'approval_reviewed_by', 'approval_reviewed_at', 'submitted_at',
         'category',
     ];
 
@@ -239,6 +242,28 @@ class Product extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');
+    }
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('approval_status', 'approved')->where('status', 'active');
+    }
+
+    /** Listing content changes require another review; price and inventory edits remain live. */
+    public function needsApprovalFor(array $attributes): bool
+    {
+        foreach (['name', 'description', 'category', 'image', 'images'] as $field) {
+            if (array_key_exists($field, $attributes) && $attributes[$field] != $this->getAttribute($field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function approvalLogs(): HasMany
+    {
+        return $this->hasMany(ProductApprovalLog::class)->latest();
     }
 
     public function reviews(): HasMany

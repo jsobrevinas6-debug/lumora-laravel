@@ -17,13 +17,19 @@ class ShopController extends Controller
 {
     public function show(int $id): View
     {
-        $product = Product::query()
+        $productQuery = Product::query()
             ->with(['seller.approvedSellerApplication', 'seller.sellerApplication'])
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')
-            ->where('products.id', $id)
-            ->where('products.status', 'active')
-            ->first();
+            ->where('products.id', $id);
+        $viewer = auth()->user();
+        $canPreview = $viewer && ($viewer->role === 'admin' || ($viewer->role === 'seller' && (int) $viewer->id === (int) Product::whereKey($id)->value('seller_id')));
+        if ($canPreview) {
+            $productQuery->where(function ($query) { $query->where('approval_status', '!=', 'approved')->orWhere('status', 'active'); });
+        } else {
+            $productQuery->approved();
+        }
+        $product = $productQuery->first();
 
         abort_if(!$product, 404);
 
@@ -55,10 +61,9 @@ class ShopController extends Controller
                 ->first();
         }
 
-        $relatedProducts = Product::query()
+        $relatedProducts = Product::approved()
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')
-            ->where('status', 'active')
             ->where('category', $product->category)
             ->where('id', '!=', $product->id)
             ->orderByDesc('created_at')
@@ -68,7 +73,7 @@ class ShopController extends Controller
         $shopProfile = $this->sellerShopProfile($product->seller);
 
         $moreFromSeller = $product->seller
-            ? $product->seller->products()
+            ? $product->seller->products()->where('approval_status', 'approved')
                 ->withAvg('reviews', 'rating')
                 ->withCount('reviews')
                 ->where('status', 'active')
@@ -118,7 +123,7 @@ class ShopController extends Controller
         $sort = $validated['sort'] ?? 'newest';
         $viewMode = $validated['view'] ?? 'grid';
 
-        $baseProducts = Product::query()
+        $baseProducts = Product::approved()
             ->where('seller_id', $seller->id)
             ->where('status', 'active');
 
@@ -176,7 +181,7 @@ class ShopController extends Controller
         $reviewsBase = ProductReview::query()
             ->whereHas('product', function ($query) use ($seller) {
                 $query->where('seller_id', $seller->id)
-                    ->where('status', 'active');
+                    ->where('status', 'active')->where('approval_status', 'approved');
             });
 
         $ratingBreakdown = (clone $reviewsBase)
@@ -243,7 +248,7 @@ class ShopController extends Controller
 
         $sort = $validated['sort'] ?? 'newest';
         $search = trim((string) ($validated['q'] ?? ''));
-        $baseQuery = Product::query()->where('status', 'active');
+        $baseQuery = Product::approved();
 
         if ($search !== '') {
             $baseQuery->where(function ($query) use ($search) {
@@ -366,14 +371,14 @@ class ShopController extends Controller
         $shopName = $seller->shop_name
             ?: ($approvedApplication?->business_name ?: ($latestApplication?->business_name ?: $seller->name));
 
-        $activeProducts = $seller->products()->where('status', 'active');
+        $activeProducts = $seller->products()->approved();
         $activeProductCount = (clone $activeProducts)->count();
         $soldCount = (int) (clone $activeProducts)->sum('sales_count');
 
         $reviews = ProductReview::query()
             ->join('products', 'product_reviews.product_id', '=', 'products.id')
             ->where('products.seller_id', $seller->id)
-            ->where('products.status', 'active');
+            ->where('products.status', 'active')->where('products.approval_status', 'approved');
 
         $reviewCount = (clone $reviews)->count('product_reviews.id');
         $ratingAverage = $reviewCount > 0

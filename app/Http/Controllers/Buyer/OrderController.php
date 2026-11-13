@@ -513,7 +513,7 @@ class OrderController extends Controller
 
         $products = Product::query()
             ->whereIn('id', $selectedIds)
-            ->where('status', 'active')
+            ->approved()
             ->get()
             ->keyBy('id');
 
@@ -538,7 +538,7 @@ class OrderController extends Controller
         }
 
         $product = Product::query()
-            ->where('status', 'active')
+            ->approved()
             ->find((int) ($payload['product_id'] ?? 0));
 
         $quantity = (int) ($payload['quantity'] ?? 0);
@@ -565,7 +565,7 @@ class OrderController extends Controller
 
         $products = Product::query()
             ->whereIn('id', $selectedIds)
-            ->where('status', 'active')
+            ->approved()
             ->lockForUpdate()
             ->get()
             ->keyBy('id');
@@ -599,7 +599,7 @@ class OrderController extends Controller
         }
 
         $product = Product::query()
-            ->where('status', 'active')
+            ->approved()
             ->whereKey((int) ($payload['product_id'] ?? 0))
             ->lockForUpdate()
             ->first();

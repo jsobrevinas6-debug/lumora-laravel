@@ -53,7 +53,7 @@ class OrderController extends Controller
 
             $products = Product::query()
                 ->whereIn('id', $productIds)
-                ->where('status', 'active')
+                ->approved()
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');

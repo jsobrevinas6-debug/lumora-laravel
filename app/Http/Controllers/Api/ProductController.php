@@ -74,7 +74,7 @@ class ProductController extends Controller
 
     private function baseQuery(): Builder
     {
-        return Product::query()
+        return Product::approved()
             ->with('seller')
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')

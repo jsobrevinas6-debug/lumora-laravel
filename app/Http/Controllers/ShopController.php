@@ -9,7 +9,7 @@ class ShopController extends Controller
 {
     public function index()
     {
-    $productsByCategory = Product::all()->groupBy('category');
+    $productsByCategory = Product::approved()->get()->groupBy('category');
 
     return view('buyer.shop', compact('productsByCategory'));
     }

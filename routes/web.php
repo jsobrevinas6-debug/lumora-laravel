@@ -91,8 +91,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/users/{user}/identity-document', [DashboardController::class, 'buyerIdentityDocument'])->name('users.identity-document');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');
     Route::get('/product-approval', [DashboardController::class, 'productApproval'])->name('product-approval');
+    Route::get('/product-approval/{id}/history', [DashboardController::class, 'productApprovalHistory'])->name('product-approval.history');
     Route::post('/product-approval/{id}/approve', [DashboardController::class, 'approveProduct'])->name('product-approval.approve');
     Route::post('/product-approval/{id}/reject', [DashboardController::class, 'rejectProduct'])->name('product-approval.reject');
+    Route::post('/product-approval/{id}/request-changes', [DashboardController::class, 'requestProductChanges'])->name('product-approval.request-changes');
+    Route::post('/product-approval/{id}/send-back', [DashboardController::class, 'sendProductBack'])->name('product-approval.send-back');
     Route::post('/product-approval/bulk', [DashboardController::class, 'bulkProductApproval'])->name('product-approval.bulk');
     Route::get('/users/{id}/{action}', [DashboardController::class, 'handleUserStatus'])->name('users.action');
 

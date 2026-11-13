@@ -4,9 +4,11 @@
 
 @section('content')
     @if (session('approval_submitted'))
-        <script>
-            window.addEventListener('DOMContentLoaded', () => alert(@json(session('approval_submitted'))));
-        </script>
+        <div role="status" style="background:#fff8ef;border:1px solid #e8c9a4;color:#4a1233;padding:18px 20px;border-radius:16px;margin-bottom:18px;">
+            <strong>{{ session('approval_submitted') }}</strong>
+            <ol style="display:flex;gap:24px;flex-wrap:wrap;margin:14px 0;padding-left:20px"><li>Product submitted</li><li>Admin review, usually within 24 hours</li><li>Approved: live in the store and ready for orders</li></ol>
+            <a href="#" onclick="openAddModal();return false;">Add another product</a> · <a href="{{ route('seller.products.index') }}">View my products</a>
+        </div>
     @endif
     @if (session('success'))
         <div class="alert-success">{{ session('success') }}</div>
@@ -68,9 +70,13 @@
                 <div class="product-body">
                     <div class="product-name">{{ $product->name }}</div>
                     @if (($product->approval_status ?? null) === 'pending')
-                        <div style="font-size:.72rem;color:#8B5D12;font-weight:600;margin-bottom:4px;">Awaiting admin approval</div>
+                        <div style="font-size:.72rem;color:#8B5D12;font-weight:600;margin-bottom:4px;">Pending review</div>
+                    @elseif (($product->approval_status ?? null) === 'changes_requested')
+                        <div style="font-size:.72rem;color:#B85C3B;font-weight:600;margin-bottom:4px;">Needs changes · {{ $product->approval_note }}</div>
                     @elseif (($product->approval_status ?? null) === 'rejected')
-                        <div style="font-size:.72rem;color:#B85C3B;font-weight:600;margin-bottom:4px;">Rejected · edit to resubmit</div>
+                        <div style="font-size:.72rem;color:#B85C3B;font-weight:600;margin-bottom:4px;">Rejected · {{ $product->approval_note ?: $product->rejection_note }} · edit to resubmit</div>
+                    @elseif (($product->approval_status ?? null) === 'approved')
+                        <div style="font-size:.72rem;color:#276749;font-weight:600;margin-bottom:4px;">Live</div>
                     @endif
                     @if ($product->category)
                         <div style="font-size:.75rem;color:#8B7A80;margin-bottom:4px;">{{ $product->category }}</div>
@@ -210,6 +216,7 @@
     <div id="editProductModal" style="display:none; position:fixed; inset:0; background:rgba(43,28,34,.5); align-items:center; justify-content:center; z-index:50; padding:16px;">
         <div style="background:#fff; border-radius:18px; padding:28px; width:460px; max-width:95%; max-height:90vh; overflow-y:auto;">
             <h2 style="font-size:18px; font-weight:800; margin-bottom:18px;">Edit Product</h2>
+            <p style="background:#fff8ef;color:#704b25;padding:10px 12px;border-radius:10px;font-size:12px;">Changing the title, description, category, or photos sends a live product back for approval. Price and stock changes stay live.</p>
             <form id="editProductForm" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
                 @csrf
                 @method('PATCH')

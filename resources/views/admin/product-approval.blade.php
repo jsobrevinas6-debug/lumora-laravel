@@ -1,6 +1,7 @@
 <x-admin-layout title="Product Approval">
     <style>
         .approval-page { --approval-ink:#2B1C22; --approval-muted:#66565C; --approval-maroon:#5B1A33; --approval-green:#1E6B4A; --approval-red:#9B2315; color:var(--approval-ink); }
+        .approval-page .sr-only { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
         .approval-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
         .approval-tile,.approval-card { background:#fff; border:1px solid var(--border); border-radius:24px; box-shadow:0 4px 18px rgba(91,26,53,.04); }
         .approval-tile { padding:18px 20px; min-height:112px; }
@@ -97,22 +98,25 @@
         .approval-dialog h2 { margin-bottom:8px; }
         .approval-dialog .approval-dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
         .approval-retry { padding:16px; border:1px solid #E7B9B2; border-radius:14px; background:#FFF8F6; color:#6B2119; }
-        @media (max-width:1200px) { .approval-layout { grid-template-columns:minmax(0,1fr) 320px; } .approval-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:1200px) { .approval-layout { grid-template-columns:minmax(0,1fr); } .approval-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } .approval-panel { position:static; max-height:none; } }
         @media (max-width:900px) { .approval-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .approval-layout { grid-template-columns:1fr; } .approval-panel { position:static; max-height:none; } }
         @media (max-width:600px) { .approval-summary { gap:8px; } .approval-tile { padding:14px; min-height:98px; } .approval-tile-value { font-size:1.35rem; } .approval-card { padding:14px; border-radius:20px; } .approval-toolbar { grid-template-columns:1fr; } .approval-bulk-count { flex-basis:100%; } .approval-pagination-info { flex-basis:100%; } }
     </style>
 
     <div class="approval-page">
+        <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:0 0 20px;flex-wrap:wrap;">
+            <p style="margin:0;color:#66565C;max-width:760px;">Every product a seller adds lands here first. Approve it to put it live in the store, ask the seller for changes, or reject it.</p>
+        </header>
         <div id="approvalSummarySkeleton" class="approval-summary" aria-hidden="true"><article class="approval-tile"><span class="approval-skeleton"></span><span class="approval-skeleton" style="height:28px;margin-top:12px;"></span></article><article class="approval-tile"><span class="approval-skeleton"></span><span class="approval-skeleton" style="height:28px;margin-top:12px;"></span></article><article class="approval-tile"><span class="approval-skeleton"></span><span class="approval-skeleton" style="height:28px;margin-top:12px;"></span></article><article class="approval-tile"><span class="approval-skeleton"></span><span class="approval-skeleton" style="height:28px;margin-top:12px;"></span></article></div>
         <section id="approvalSummaryContent" class="approval-summary" aria-label="Product review summary">
-            <article class="approval-tile"><div class="approval-tile-label">Pending review</div><strong class="approval-tile-value">{{ number_format($pendingCount) }}</strong></article>
-            <article class="approval-tile overdue"><div class="approval-tile-label">Waiting over 48 hours</div><strong class="approval-tile-value">{{ number_format($overdueCount) }}</strong></article>
-            <article class="approval-tile"><div class="approval-tile-label">Approved today</div><strong class="approval-tile-value">{{ number_format($approvedTodayCount) }}</strong></article>
-            <article class="approval-tile"><div class="approval-tile-label">Average review time · 7 days</div><strong class="approval-tile-value">{{ $averageReviewHours === null ? '—' : $averageReviewHours.'h' }}</strong></article>
+            <article class="approval-tile"><div class="approval-tile-label">Pending review · oldest waiting {{ $oldestPending ? \Carbon\Carbon::parse($oldestPending)->diffForHumans(null, true) : '—' }}</div><strong class="approval-tile-value">{{ number_format($pendingCount) }}</strong></article>
+            <article class="approval-tile"><div class="approval-tile-label">Live products</div><strong class="approval-tile-value">{{ number_format($liveCount) }}</strong></article>
+            <article class="approval-tile"><div class="approval-tile-label">Changes requested</div><strong class="approval-tile-value">{{ number_format($changesRequestedCount) }}</strong></article>
+            <article class="approval-tile"><div class="approval-tile-label">Rejected · last 30 days</div><strong class="approval-tile-value">{{ number_format($rejectedRecentCount) }}</strong></article>
         </section>
 
         <nav class="approval-tabs" aria-label="Product approval status">
-            @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $tab => $label)
+            @foreach (['all' => 'All', 'pending' => 'Pending', 'changes_requested' => 'Changes requested', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $tab => $label)
                 <a class="approval-tab {{ $status === $tab ? 'active' : '' }}" href="{{ route('admin.product-approval', array_merge(request()->except('page', 'review'), ['status' => $tab])) }}" @if ($status === $tab) aria-current="page" @endif>
                     {{ $label }} <span class="approval-count">{{ number_format((int) ($tabCounts[$tab] ?? 0)) }}</span>
                 </a>
@@ -165,14 +169,13 @@
                     <div class="approval-bulk" id="approvalBulk" aria-live="polite">
                         <span class="approval-bulk-count" id="selectedCount">0 products selected</span>
                         <button class="approval-button bulk-light" type="button" data-bulk-action="approved">Approve selected</button>
-                        <button class="approval-button bulk-light" type="button" data-bulk-action="rejected">Reject selected</button>
                         <button class="approval-button bulk-ghost" type="button" id="clearSelection">Clear</button>
                     </div>
                     <div class="approval-table-wrap">
                         <table class="approval-table">
                             <thead><tr>
-                                <th scope="col"><input class="approval-check" id="selectPage" type="checkbox" aria-label="Select all products on this page" @disabled($status !== 'pending')></th>
-                                <th scope="col">Product</th><th scope="col">Seller</th><th scope="col">Category</th><th scope="col" class="approval-price">Price</th><th scope="col">Stock</th><th scope="col">Submitted</th><th scope="col">Actions</th>
+                                <th scope="col"><input class="approval-check" id="selectPage" type="checkbox" aria-label="Select pending products on this page" @disabled(!in_array($status, ['pending', 'all'], true))></th>
+                                <th scope="col">Product</th><th scope="col">Seller</th><th scope="col">Category</th><th scope="col" class="approval-price">Price</th><th scope="col">Stock</th><th scope="col">Status</th><th scope="col">Submitted</th><th scope="col">Actions</th>
                             </tr></thead>
                             <tbody>
                             @forelse ($products as $product)
@@ -184,7 +187,7 @@
                                     if ($imageUrls === []) $imageUrls = [\App\Models\Product::placeholderImageUrl()];
                                     $sellerVerified = !empty($product->approved_application_id);
                                     $sellerNew = \Carbon\Carbon::parse($product->seller_created_at)->greaterThanOrEqualTo(now()->subDays(30));
-                                    $submittedAt = $product->approval_submitted_at ?: $product->created_at;
+                                    $submittedAt = $product->submitted_at ?: $product->approval_submitted_at ?: $product->created_at;
                                     $waitingSeconds = max(0, \Carbon\Carbon::parse($submittedAt)->diffInSeconds(now()));
                                     $waitingDays = intdiv($waitingSeconds, 86400);
                                     $waitingHours = intdiv($waitingSeconds % 86400, 3600);
@@ -193,23 +196,24 @@
                                     $priceInRange = $categoryAverage > 0 && (float) $product->price >= $categoryAverage * .3 && (float) $product->price <= $categoryAverage * 3;
                                 @endphp
                                 <tr data-product-row tabindex="0" data-product-id="{{ $product->id }}">
-                                    <td><input class="approval-check row-check" type="checkbox" value="{{ $product->id }}" aria-label="Select {{ $product->name }}" @disabled($status !== 'pending')></td>
-                                    <td><div class="approval-product"><img class="approval-thumb" src="{{ $imageUrls[0] }}" alt=""><span><span class="approval-name">{{ $product->name }}</span><span class="approval-sub">SKU: {{ $product->sku ?? 'Not provided' }}</span></span></div></td>
-                                    <td>{{ $product->seller_name }}<br><span class="approval-chip {{ $sellerVerified ? 'verified' : 'new' }}">{{ $sellerVerified ? 'Verified' : ($sellerNew ? 'New seller' : 'Unverified') }}</span></td>
-                                    <td>{{ \App\Support\CategoryCatalog::label((string) $product->category) }}</td>
+                                    <td><input class="approval-check row-check" type="checkbox" value="{{ $product->id }}" aria-label="Select {{ $product->name }}" @disabled($product->approval_status !== 'pending')></td>
+                                    <td><div class="approval-product">@if ($rawImages !== [])<img class="approval-thumb" src="{{ $imageUrls[0] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="approval-thumb" style="display:none;place-items:center;color:#8b777c;font-size:10px;">No photo</span>@else<div class="approval-thumb" style="display:grid;place-items:center;color:#8b777c;font-size:10px;">No photo</div>@endif<span><span class="approval-name">{{ $product->name }}</span>@if (count($rawImages) < 1 || (float) $product->price <= 0 || mb_strlen(trim((string) $product->description)) < 30 || blank($product->category) || ! $sellerVerified || (int) ($product->duplicate_count ?? 0) > 0)<span class="approval-chip low" style="margin-left:5px;">Needs a closer look</span>@endif<span class="approval-sub">SKU: {{ $product->sku ?? '—' }}</span></span></div></td>
+                                    <td>{{ $product->seller_name ?: 'Unknown seller' }}<br><span class="approval-chip {{ $sellerVerified ? 'verified' : 'new' }}">{{ $sellerVerified ? 'Verified' : ($sellerNew ? 'New seller' : 'Unverified') }}</span></td>
+                                    <td>{{ $product->category ? \App\Support\CategoryCatalog::label((string) $product->category) : 'Uncategorized' }}</td>
                                     <td class="approval-price">₱{{ number_format((float) $product->price, 2) }}</td>
                                     <td>{{ (int) $product->stock }} @if ((int) $product->stock < $lowStockThreshold)<br><span class="approval-chip low">Low</span>@endif</td>
-                                    <td>{{ \Carbon\Carbon::parse($submittedAt)->format('M j, Y g:i A') }}<br><span class="approval-chip {{ $isOverdue ? 'overdue' : 'normal' }}">Waiting {{ $waitingDays ? $waitingDays.'d ' : '' }}{{ $waitingHours }}h</span></td>
+                                    <td><span class="approval-chip {{ $product->approval_status === 'approved' ? 'verified' : ($product->approval_status === 'rejected' ? 'overdue' : 'low') }}">{{ ucfirst(str_replace('_', ' ', $product->approval_status ?: 'approved')) }}</span></td>
+                                    <td>{{ \Carbon\Carbon::parse($submittedAt)->format('M j, Y g:i A') }}<br><span class="approval-chip {{ $isOverdue ? 'overdue' : 'normal' }}">{{ \Carbon\Carbon::parse($submittedAt)->diffForHumans() }}</span></td>
                                     <td><div class="approval-actions">
-                                        <button class="approval-button primary" type="button" data-review data-name="{{ $product->name }}" data-sku="{{ $product->sku ?? '' }}" data-category="{{ \App\Support\CategoryCatalog::label((string) $product->category) }}" data-price="{{ (float) $product->price }}" data-stock="{{ (int) $product->stock }}" data-seller="{{ $product->seller_name }}" data-verified="{{ $sellerVerified ? '1' : '0' }}" data-description="{{ $product->description ?? '' }}" data-images="{{ json_encode($imageUrls) }}" data-has-photos="{{ count($rawImages) ? '1' : '0' }}" data-price-range="{{ $priceInRange ? '1' : '0' }}" data-seller-products="{{ (int) ($product->seller_product_count ?? 0) }}" data-seller-approved="{{ (int) ($product->seller_approved_count ?? 0) }}" data-seller-rejected="{{ (int) ($product->seller_rejected_count ?? 0) }}">Review</button>
-                                        @if ($status === 'pending')
+                                        <button class="approval-button primary" type="button" data-review data-id="{{ $product->id }}" data-status="{{ $product->approval_status }}" data-reviewed-at="{{ $product->approval_reviewed_at }}" data-name="{{ $product->name }}" data-sku="{{ $product->sku ?? '' }}" data-category="{{ \App\Support\CategoryCatalog::label((string) $product->category) }}" data-has-category="{{ filled($product->category) ? '1' : '0' }}" data-price="{{ (float) $product->price }}" data-stock="{{ (int) $product->stock }}" data-seller="{{ $product->seller_name ?: 'Unknown seller' }}" data-verified="{{ $sellerVerified ? '1' : '0' }}" data-description="{{ $product->description ?? '' }}" data-images="{{ json_encode($imageUrls) }}" data-has-photos="{{ count($rawImages) ? '1' : '0' }}" data-photo-count="{{ count($rawImages) }}" data-duplicates="{{ (int) ($product->duplicate_count ?? 0) }}" data-price-range="{{ $priceInRange ? '1' : '0' }}" data-seller-products="{{ (int) ($product->seller_product_count ?? 0) }}" data-seller-approved="{{ (int) ($product->seller_approved_count ?? 0) }}" data-seller-rejected="{{ (int) ($product->seller_rejected_count ?? 0) }}" data-note="{{ $product->approval_note ?: $product->rejection_note }}">Review</button>
+                                        @if ($product->approval_status === 'pending')
                                             <form method="POST" action="{{ route('admin.product-approval.approve', $product->id) }}" data-approve-form>@csrf<button class="approval-icon-button approve-icon" type="submit" aria-label="Approve {{ $product->name }}" title="Approve product"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
                                             <button class="approval-icon-button reject-icon" type="button" data-reject-review aria-label="Reject {{ $product->name }}" title="Reject product">✕</button>
                                         @endif
                                     </div></td>
                                 </tr>
                             @empty
-                                <tr><td colspan="8" style="text-align:center;color:#66565C;padding:24px;">No {{ $status }} products match these filters.</td></tr>
+                                <tr><td colspan="9" style="text-align:center;color:#66565C;padding:24px;">No {{ $status }} products match these filters.</td></tr>
                             @endforelse
                             </tbody>
                         </table>
@@ -228,7 +232,7 @@
                 @endif
             </section>
 
-            <aside class="approval-card approval-panel" id="reviewPanel" hidden aria-label="Product review panel" aria-live="polite">
+            <aside class="approval-card approval-panel" id="reviewPanel" aria-label="Product review panel" aria-live="polite">
                 <button type="button" id="closeReviewPanel" class="approval-button" style="margin-left:auto;display:flex;">Close review</button>
                 <div id="reviewContent"><p class="approval-panel-empty">Choose a product and select Review to see its details and checks.</p></div>
             </aside>
@@ -288,20 +292,26 @@
                 content.innerHTML = `<div class="approval-photo-area"><img class="approval-photos-main" src="${escapeHtml(images[0])}" alt="Product photo for ${productName}" id="reviewMainPhoto"><div class="approval-thumbs">${images.map((src,index) => `<button type="button" class="${index === 0 ? 'active' : ''}" data-photo="${escapeHtml(src)}" aria-label="Show product photo ${index + 1}"><img src="${escapeHtml(src)}" alt=""></button>`).join('')}</div></div>
                     <h2 class="approval-detail-title">${productName}</h2><p class="approval-panel-empty">SKU: ${escapeHtml(d.sku || 'Not provided')}</p>
                     <div class="approval-facts"><div class="approval-fact"><span>Category</span><strong>${escapeHtml(d.category)}</strong></div><div class="approval-fact"><span>Price</span><strong>${money(d.price)}</strong></div><div class="approval-fact"><span>Stock</span><strong>${escapeHtml(d.stock)}</strong></div><div class="approval-fact"><span>Seller</span><strong>${escapeHtml(d.seller)}</strong></div></div>
-                    <h3>Quick checks</h3><ul class="approval-checks"><li><span class="${hasPhotos ? 'pass' : 'warn'}">${hasPhotos ? '✓' : '!'}</span>${hasPhotos ? 'Product photos uploaded' : 'Product photos are missing'}</li><li><span class="${priceInRange ? 'pass' : 'warn'}">${priceInRange ? '✓' : '!'}</span>${priceInRange ? 'Price is within the usual category range' : 'Price is outside the usual range or category data is limited'}</li><li><span class="${verified ? 'pass' : 'warn'}">${verified ? '✓' : '!'}</span>Seller ${verified ? 'is verified' : 'is not verified'}; ${escapeHtml(d.sellerApproved)} approved / ${escapeHtml(d.sellerRejected)} rejected (${escapeHtml(d.sellerProducts)} total)</li><li><span class="warn">!</span>${d.sku ? 'Shipping weight is not provided' : 'SKU and shipping weight are not provided'}</li></ul>
+                    <h3>Quick checks</h3><ul class="approval-checks"><li><span class="${hasPhotos ? 'pass' : 'warn'}">${hasPhotos ? '✓' : '!'}</span>${hasPhotos ? 'At least one photo uploaded' : 'Product photos are missing'}</li><li><span class="${Number(d.photoCount || 0) >= 3 ? 'pass' : 'warn'}">${Number(d.photoCount || 0) >= 3 ? '✓' : '!'}</span>${Number(d.photoCount || 0) >= 3 ? '3 or more photos uploaded' : '3 or more photos recommended'}</li><li><span class="${Number(d.price) > 0 ? 'pass' : 'warn'}">${Number(d.price) > 0 ? '✓' : '!'}</span>${Number(d.price) > 0 ? 'Price is set' : 'Price is missing or zero'}</li><li><span class="${(d.description || '').trim().length >= 30 ? 'pass' : 'warn'}">${(d.description || '').trim().length >= 30 ? '✓' : '!'}</span>Description has ${(d.description || '').trim().length} characters (30 recommended)</li><li><span class="${d.category ? 'pass' : 'warn'}">${d.category ? '✓' : '!'}</span>${d.category ? 'Category selected' : 'Category is missing'}</li><li><span class="${verified ? 'pass' : 'warn'}">${verified ? '✓' : '!'}</span>Seller ${verified ? 'is approved' : 'approval could not be verified'}; ${escapeHtml(d.sellerApproved)} approved / ${escapeHtml(d.sellerRejected)} rejected (${escapeHtml(d.sellerProducts)} total)</li><li><span class="${Number(d.duplicates || 0) ? 'warn' : 'pass'}">${Number(d.duplicates || 0) ? '!' : '✓'}</span>${Number(d.duplicates || 0) ? 'Possible duplicate from this seller' : 'No exact duplicate name or SKU found'}</li></ul>
+                    <p class="approval-retry">Warnings help guide review but never block approval. Admin makes the final decision.</p>
                     <h3>Description</h3><p class="approval-description">${escapeHtml(d.description || 'No description provided.')}</p>
-                    ${document.querySelector('[data-reject-review]') ? `<label for="reviewRejectReason">Reason if rejecting</label><select class="approval-control" id="reviewRejectReason"><option value="">Choose a reason</option><option>Photos unclear or missing</option><option>Price looks incorrect</option><option>Description incomplete</option><option>Prohibited item</option><option>Other</option></select><label for="reviewRejectNote">Note to seller (optional)</label><textarea class="approval-control" id="reviewRejectNote" rows="3" placeholder="Add a helpful note"></textarea><div class="approval-panel-actions"><button class="approval-button reject" type="button" id="reviewRejectButton">Reject</button><button class="approval-button approve" type="button" id="reviewApproveButton">Approve and publish</button></div>` : ''}`;
+                    ${d.status === 'pending' ? `<label for="reviewRejectNote">Note to the seller (required for rejection or changes)</label><textarea class="approval-control" id="reviewRejectNote" rows="3" placeholder="Explain what needs attention"></textarea><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${['Photos are blurry or missing','Misleading title or description','Prohibited or counterfeit item','Wrong category','Price looks incorrect'].map((reason) => `<button class="approval-chip low" type="button" data-quick-note="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`).join('')}</div><div class="approval-panel-actions"><button class="approval-button reject" type="button" id="reviewRejectButton">Reject</button><button class="approval-button" type="button" id="reviewChangesButton">Request changes</button><button class="approval-button approve" type="button" id="reviewApproveButton">Approve and publish</button></div>` : `<div class="approval-retry"><strong>${escapeHtml(d.status.replace('_',' '))}</strong><p>${escapeHtml(d.note || 'No review note recorded.')}</p></div>${d.status === 'approved' ? `<form method="POST" action="/admin/product-approval/${escapeHtml(d.id)}/send-back"><input type="hidden" name="_token" value="${escapeHtml(document.querySelector('meta[name="csrf-token"]')?.content || '')}"><label>Send back as</label><select class="approval-control" name="status"><option value="pending">Pending review</option><option value="changes_requested">Changes requested</option></select><label>Note to seller (required)</label><textarea class="approval-control" name="note" required minlength="3"></textarea><button class="approval-button reject" type="submit">Send back for review</button></form>` : ''}`}`;
                 panel.hidden = false;
                 panel.dataset.productId = d.id || button.closest('tr')?.dataset.productId || '';
+                content.insertAdjacentHTML('beforeend', '<h3>Approval history</h3><div id="approvalHistory" class="approval-panel-empty">Loading history…</div>');
+                fetch(`/admin/product-approval/${panel.dataset.productId}/history`, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'}).then((response) => response.ok ? response.json() : Promise.reject()).then((result) => {
+                    const history = document.getElementById('approvalHistory');
+                    if (!history) return;
+                    history.innerHTML = (result.history || []).map((entry) => `<p><strong>${escapeHtml(entry.action)}</strong> · ${escapeHtml(entry.admin)}<br><small>${escapeHtml(entry.created_at)}</small>${entry.note ? `<br>${escapeHtml(entry.note)}` : ''}</p>`).join('') || 'No review history yet.';
+                }).catch(() => { const history = document.getElementById('approvalHistory'); if (history) history.textContent = 'Review history could not be loaded.'; });
                 panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-                if (focusReason) setTimeout(() => document.getElementById('reviewRejectReason')?.focus(), 50);
+                if (focusReason) setTimeout(() => document.getElementById('reviewRejectNote')?.focus(), 50);
                 content.querySelectorAll('[data-photo]').forEach((thumb) => thumb.addEventListener('click', () => { document.getElementById('reviewMainPhoto').src = thumb.dataset.photo; content.querySelectorAll('[data-photo]').forEach((item) => item.classList.toggle('active', item === thumb)); }));
+                content.querySelectorAll('[data-quick-note]').forEach((quick) => quick.addEventListener('click', () => { const note = document.getElementById('reviewRejectNote'); note.value = note.value ? `${note.value.trim()} ${quick.dataset.quickNote}` : quick.dataset.quickNote; note.focus(); }));
                 document.getElementById('reviewApproveButton')?.addEventListener('click', () => postDecision(`/admin/product-approval/${panel.dataset.productId}/approve`, {confirmText:'Approve and publish this product?'}));
-                document.getElementById('reviewRejectButton')?.addEventListener('click', () => {
-                    const reason = document.getElementById('reviewRejectReason').value;
-                    if (!reason) { document.getElementById('reviewRejectReason').focus(); showToast('Choose a rejection reason first.'); return; }
-                    if (confirm('Reject this product and notify the seller?')) postDecision(`/admin/product-approval/${panel.dataset.productId}/reject`, {reason,note:document.getElementById('reviewRejectNote').value,confirmText:null});
-                });
+                const reviewNote = () => document.getElementById('reviewRejectNote')?.value.trim() || '';
+                document.getElementById('reviewRejectButton')?.addEventListener('click', () => { if (reviewNote().length < 3) { showToast('Add a note of at least 3 characters.'); document.getElementById('reviewRejectNote')?.focus(); return; } postDecision(`/admin/product-approval/${panel.dataset.productId}/reject`, {note:reviewNote()}); });
+                document.getElementById('reviewChangesButton')?.addEventListener('click', () => { if (reviewNote().length < 3) { showToast('Add a note of at least 3 characters.'); document.getElementById('reviewRejectNote')?.focus(); return; } postDecision(`/admin/product-approval/${panel.dataset.productId}/request-changes`, {note:reviewNote()}); });
             };
             const postDecision = async (url, {action, ids, reason, note, confirmText} = {}) => {
                 if (confirmText && !confirm(confirmText)) return;

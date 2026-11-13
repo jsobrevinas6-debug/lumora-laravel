@@ -249,8 +249,8 @@
                                 $product = $item['product'];
                                 $discountLabel = rtrim(rtrim(number_format($item['discount_percent'], 1), '0'), '.');
                             @endphp
-                            <article class="cart-item" data-item data-product-id="{{ $item['product_id'] }}" data-price="{{ $item['unit_price'] }}" data-original-price="{{ $item['original_price'] }}" data-stock="{{ $product->stock }}">
-                                <input class="item-check" type="checkbox" value="{{ $item['product_id'] }}" {{ $selectedIds->contains($item['product_id']) ? 'checked' : '' }} aria-label="Select {{ $product->name }}">
+                            <article class="cart-item" data-item data-product-id="{{ $item['product_id'] }}" data-price="{{ $item['unit_price'] }}" data-original-price="{{ $item['original_price'] }}" data-stock="{{ $product->stock }}" data-available="{{ ($item['available'] ?? false) ? 'true' : 'false' }}">
+                                <input class="item-check" type="checkbox" value="{{ $item['product_id'] }}" {{ $selectedIds->contains($item['product_id']) ? 'checked' : '' }} @disabled(!($item['available'] ?? false)) aria-label="Select {{ $product->name }}">
 
                                 <img class="item-image" src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">
 
@@ -258,7 +258,7 @@
                                     <div class="seller">Lumora seller</div>
                                     <h3 class="item-name">{{ $product->name }}</h3>
                                     <div class="variant">{{ $product->category ?? 'Curated beauty essential' }}</div>
-                                    <div class="stock">In Stock ({{ $product->stock }} available)</div>
+                                    <div class="stock">{{ ($item['available'] ?? false) ? 'In Stock ('.$product->stock.' available)' : 'Unavailable · this product is no longer approved for sale' }}</div>
                                 </div>
 
                                 <div class="item-price">

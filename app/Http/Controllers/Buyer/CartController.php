@@ -21,6 +21,10 @@ class CartController extends Controller
             ->map(fn ($id) => (int) $id)
             ->values();
 
+        $availableIds = $cart->filter(fn (array $item) => $item['available'] ?? false)->pluck('product_id');
+        $selectedIds = $selectedIds->intersect($availableIds)->values();
+        $request->session()->put(self::SELECTED_KEY, $selectedIds->all());
+
         $selectedItems = $cart->filter(fn (array $item) => $selectedIds->contains($item['product_id']));
         $summary = $this->summary($selectedItems);
         $cartPaymentOption = $request->session()->get('cart_payment_option', 'cod');
@@ -47,7 +51,7 @@ class CartController extends Controller
 
     public function add(Request $request, Product $product): JsonResponse|RedirectResponse
     {
-        abort_unless($product->status === 'active', 404);
+        abort_unless($product->status === 'active' && $product->approval_status === 'approved', 404);
 
         $validated = $request->validate([
             'quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
@@ -87,7 +91,7 @@ class CartController extends Controller
         ]);
 
         $quantity = (int) $validated['quantity'];
-        abort_if($product->status !== 'active' || $quantity > (int) $product->stock, 422, 'The requested quantity is not available.');
+        abort_if($product->status !== 'active' || $product->approval_status !== 'approved' || $quantity > (int) $product->stock, 422, 'This product is unavailable or no longer approved for sale.');
 
         $cart = $request->session()->get(self::CART_KEY, []);
         $cart[(string) $product->id] = ['quantity' => $quantity];
@@ -136,6 +140,10 @@ class CartController extends Controller
         $selectedIds = collect($request->session()->get(self::SELECTED_KEY, []))->map(fn ($id) => (int) $id);
         $selectedItems = $cart->filter(fn (array $item) => $selectedIds->contains($item['product_id']));
 
+        $unavailableCount = $selectedItems->filter(fn (array $item) => ! ($item['available'] ?? false))->count();
+        if ($unavailableCount > 0) {
+            return redirect()->route('buyer.cart')->with('error', 'Remove unavailable products from your selection before checkout.');
+        }
         if ($selectedItems->isEmpty()) {
             return redirect()->route('buyer.cart')->with('error', 'Select at least one product before checkout.');
         }
@@ -155,7 +163,6 @@ class CartController extends Controller
 
         $products = Product::query()
             ->whereIn('id', array_keys($stored))
-            ->where('status', 'active')
             ->get()
             ->keyBy('id');
 
@@ -178,6 +185,7 @@ class CartController extends Controller
             $items->push([
                 'product_id' => (int) $product->id,
                 'product' => $product,
+                'available' => $product->status === 'active' && $product->approval_status === 'approved',
                 'quantity' => $quantity,
                 'original_price' => $originalPrice,
                 'discount_percent' => $discountPercent,

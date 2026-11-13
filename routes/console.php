@@ -57,6 +57,34 @@ Artisan::command('products:check-images', function () {
     $this->line('-----------------------------------------');
 })->purpose('Report product image paths, disk existence, and generated URLs without changing data');
 
+Artisan::command('products:set-approval {status : pending, approved, changes_requested, or rejected} {--seller= : Seller user ID} {--category= : Product category} {--ids= : Comma-separated product IDs}', function () {
+    $status = (string) $this->argument('status');
+    if (! in_array($status, Product::APPROVAL_STATUSES, true)) {
+        $this->error('Status must be one of: '.implode(', ', Product::APPROVAL_STATUSES));
+        return self::FAILURE;
+    }
+    $query = Product::query();
+    if ($this->option('seller')) $query->where('seller_id', $this->option('seller'));
+    if ($this->option('category')) $query->where('category', $this->option('category'));
+    if ($this->option('ids')) $query->whereIn('id', array_filter(array_map('intval', explode(',', $this->option('ids')))));
+    $products = $query->get();
+    $this->info($products->count().' product(s) will change to '.$status.'.');
+    if (! $this->confirm('Continue?')) return self::SUCCESS;
+    foreach ($products as $product) {
+        $old = $product->approval_status;
+        $product->forceFill([
+            'approval_status' => $status,
+            'submitted_at' => $status === 'pending' ? now() : $product->submitted_at,
+            'approval_submitted_at' => $status === 'pending' ? now() : $product->approval_submitted_at,
+            'status' => $product->status === 'archived' ? 'archived' : ($status === 'approved' ? 'active' : 'inactive'),
+        ])->save();
+        \App\Models\ProductApprovalLog::create(['product_id' => $product->id, 'action' => 'command_'.$status, 'note' => "Changed from {$old} to {$status} by products:set-approval", 'created_at' => now()]);
+        $this->line("#{$product->id}: {$old} -> {$status}");
+    }
+    $this->info('Updated '.$products->count().' product(s).');
+    return self::SUCCESS;
+})->purpose('Change approval status for existing products after confirmation');
+
 Artisan::command('products:migrate-images-to-public', function () {
     $targetDirectory = public_path(Product::PUBLIC_PRODUCT_IMAGE_DIRECTORY);
 

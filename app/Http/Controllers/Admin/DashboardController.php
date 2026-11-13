@@ -671,7 +671,7 @@ class DashboardController extends Controller
         }
         $averageReviewHours = $reviewDurationCount === 0 ? null : round(($reviewDurationTotal / $reviewDurationCount) / 3600, 1);
 
-        $status = in_array($request->query('status'), ['pending', 'approved', 'rejected'], true)
+        $status = in_array($request->query('status'), ['all', 'pending', 'changes_requested', 'approved', 'rejected'], true)
             ? $request->query('status')
             : 'pending';
         $searchInput = $request->query('q', '');
@@ -682,7 +682,7 @@ class DashboardController extends Controller
             'seller_type' => in_array($request->query('seller_type'), ['new', 'verified'], true) ? $request->query('seller_type') : 'all',
             'sort' => in_array($request->query('sort'), ['newest', 'price'], true) ? $request->query('sort') : 'oldest',
         ];
-        $pageSize = 5;
+        $pageSize = 12;
         $skuExists = Schema::hasColumn('products', 'sku');
         $imagesExist = Schema::hasColumn('products', 'images');
         $history = DB::table('products')
@@ -697,11 +697,11 @@ class DashboardController extends Controller
             ->where('status', 'approved')
             ->groupBy('user_id');
         $query = DB::table('products as p')
-            ->join('users as u', 'u.id', '=', 'p.seller_id')
+            ->leftJoin('users as u', 'u.id', '=', 'p.seller_id')
             ->leftJoinSub($verifiedApplications, 'verified_applications', fn ($join) => $join->on('verified_applications.user_id', '=', 'u.id'))
             ->leftJoinSub($history, 'seller_history', fn ($join) => $join->on('seller_history.seller_id', '=', 'u.id'))
             ->leftJoinSub(DB::table('products')->select('category')->selectRaw('AVG(price) as category_average_price')->groupBy('category'), 'category_prices', fn ($join) => $join->on('category_prices.category', '=', 'p.category'))
-            ->where('p.approval_status', $status);
+            ->when($status !== 'all', fn ($q) => $q->where('p.approval_status', $status));
 
         if ($filters['category'] !== '') {
             $query->where('p.category', $filters['category']);
@@ -723,10 +723,11 @@ class DashboardController extends Controller
 
         $columns = [
             'p.id', 'p.name', 'p.category', 'p.description', 'p.price', 'p.stock', 'p.image', 'p.created_at',
-            'p.approval_status', 'p.approval_submitted_at', 'p.approved_at', 'p.rejected_at', 'p.rejection_reason', 'p.rejection_note',
+            'p.approval_status', 'p.approval_submitted_at', 'p.submitted_at', 'p.approved_at', 'p.rejected_at', 'p.rejection_reason', 'p.rejection_note', 'p.approval_note', 'p.approval_reviewed_at', 'p.approval_reviewed_by',
             'u.id as seller_id', 'u.name as seller_name', 'u.created_at as seller_created_at',
             'verified_applications.approved_application_id', 'seller_history.seller_product_count',
             'seller_history.seller_approved_count', 'seller_history.seller_rejected_count', 'category_prices.category_average_price',
+            DB::raw('(SELECT COUNT(*) FROM products duplicate_product WHERE duplicate_product.seller_id = p.seller_id AND duplicate_product.id <> p.id AND (LOWER(duplicate_product.name) = LOWER(p.name)'.($skuExists ? ' OR (p.sku IS NOT NULL AND p.sku <> "" AND duplicate_product.sku = p.sku)' : '').')) as duplicate_count'),
         ];
         if ($skuExists) $columns[] = 'p.sku';
         if ($imagesExist) $columns[] = 'p.images';
@@ -740,17 +741,22 @@ class DashboardController extends Controller
 
         $products = $query->paginate($pageSize)->withQueryString();
         $categories = DB::table('products')->whereNotNull('category')->where('category', '!=', '')->distinct()->orderBy('category')->pluck('category');
-        $tabCounts = DB::table('products')->select('approval_status')->selectRaw('COUNT(*) as aggregate')->whereIn('approval_status', ['pending', 'approved', 'rejected'])->groupBy('approval_status')->pluck('aggregate', 'approval_status');
+        $tabCounts = DB::table('products')->select('approval_status')->selectRaw('COUNT(*) as aggregate')->groupBy('approval_status')->pluck('aggregate', 'approval_status');
+        $tabCounts['all'] = DB::table('products')->count();
+        $oldestPending = DB::table('products')->where('approval_status', 'pending')->min('approval_submitted_at');
+        $liveCount = DB::table('products')->where('approval_status', 'approved')->where('status', 'active')->count();
+        $changesRequestedCount = (int) ($tabCounts['changes_requested'] ?? 0);
+        $rejectedRecentCount = DB::table('products')->where('approval_status', 'rejected')->where('rejected_at', '>=', now()->subDays(30))->count();
 
         $lowStockThreshold = self::PRODUCT_LOW_STOCK_THRESHOLD;
         $overdueThresholdHours = self::PRODUCT_OVERDUE_HOURS;
 
-        return view('admin.product-approval', compact('products', 'status', 'filters', 'categories', 'tabCounts', 'pendingCount', 'overdueCount', 'approvedTodayCount', 'averageReviewHours', 'skuExists', 'lowStockThreshold', 'overdueThresholdHours'));
+        return view('admin.product-approval', compact('products', 'status', 'filters', 'categories', 'tabCounts', 'pendingCount', 'overdueCount', 'approvedTodayCount', 'averageReviewHours', 'skuExists', 'lowStockThreshold', 'overdueThresholdHours', 'oldestPending', 'liveCount', 'changesRequestedCount', 'rejectedRecentCount'));
     }
 
     public function approveProduct(Request $request, $id)
     {
-        $product = $this->applyProductApproval((int) $id, 'approved');
+        $this->applyProductApproval((int) $id, 'approved');
         $message = 'Product approved and published.';
 
         return $request->expectsJson()
@@ -761,10 +767,10 @@ class DashboardController extends Controller
     public function rejectProduct(Request $request, $id)
     {
         $validated = $request->validate([
-            'reason' => ['required', Rule::in($this->productRejectionReasons())],
-            'note' => ['nullable', 'string', 'max:2000'],
+            'note' => ['required', 'string', 'min:3', 'max:2000'],
+            'reason' => ['nullable', 'string', 'max:80'],
         ]);
-        $this->applyProductApproval((int) $id, 'rejected', $validated['reason'], $validated['note'] ?? null);
+        $this->applyProductApproval((int) $id, 'rejected', $validated['reason'] ?? null, $validated['note']);
         $message = 'Product rejected and the seller was notified.';
 
         return $request->expectsJson()
@@ -772,21 +778,47 @@ class DashboardController extends Controller
             : redirect()->route('admin.product-approval')->with('flash_success', $message);
     }
 
+    public function requestProductChanges(Request $request, $id)
+    {
+        $validated = $request->validate(['note' => ['required', 'string', 'min:3', 'max:2000']]);
+        $this->applyProductApproval((int) $id, 'changes_requested', null, $validated['note']);
+        return redirect()->route('admin.product-approval', ['status' => 'changes_requested'])->with('flash_success', 'Changes requested and the seller was notified.');
+    }
+
+    public function productApprovalHistory($id)
+    {
+        $logs = \App\Models\ProductApprovalLog::query()->with('admin:id,name')->where('product_id', $id)->latest('created_at')->get();
+        return response()->json(['history' => $logs->map(fn ($log) => [
+            'action' => str_replace('_', ' ', $log->action), 'note' => $log->note,
+            'admin' => $log->admin?->name ?? 'System', 'created_at' => $log->created_at?->format('M j, Y g:i A'),
+        ])]);
+    }
+
+    public function sendProductBack(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'note' => ['required', 'string', 'min:3', 'max:2000'],
+            'status' => ['required', Rule::in(['pending', 'changes_requested'])],
+        ]);
+        $product = DB::table('products')->where('id', $id)->where('approval_status', 'approved')->first();
+        abort_unless($product, 409, 'Only a live approved product can be sent back.');
+        $this->applyProductApprovalFromLive((int) $id, $validated['status'], $validated['note']);
+        return redirect()->route('admin.product-approval', ['status' => $validated['status']])->with('flash_success', 'Product sent back for review and the seller was notified.');
+    }
+
     public function bulkProductApproval(Request $request)
     {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['approved', 'rejected'])],
+            'action' => ['required', Rule::in(['approved'])],
             'ids' => ['required', 'array', 'min:1', 'max:100'],
             'ids.*' => ['required', 'integer', 'distinct'],
-            'reason' => ['required_if:action,rejected', Rule::in($this->productRejectionReasons())],
-            'note' => ['nullable', 'string', 'max:2000'],
         ]);
         $changed = [];
         foreach ($validated['ids'] as $id) {
-            $product = $this->applyProductApproval((int) $id, $validated['action'], $validated['reason'] ?? null, $validated['note'] ?? null, false);
+            $product = $this->applyProductApproval((int) $id, 'approved', null, null, false);
             if ($product) $changed[] = (int) $id;
         }
-        $message = count($changed).' product'.(count($changed) === 1 ? '' : 's').' '.($validated['action'] === 'approved' ? 'approved and published.' : 'rejected; sellers were notified.');
+        $message = count($changed).' product'.(count($changed) === 1 ? '' : 's').' approved and published.';
 
         return $request->expectsJson()
             ? response()->json(['success' => true, 'message' => $message, 'ids' => $changed])
@@ -814,13 +846,31 @@ class DashboardController extends Controller
                 'rejected_at' => $decision === 'rejected' ? $now : null,
                 'rejection_reason' => $decision === 'rejected' ? $reason : null,
                 'rejection_note' => $decision === 'rejected' ? $note : null,
+                'approval_note' => $decision === 'approved' ? null : $note,
+                'approval_reviewed_by' => auth()->id(),
+                'approval_reviewed_at' => $now,
                 'updated_at' => $now,
             ];
             DB::table('products')->where('id', $id)->update($changes);
-            if ($decision === 'rejected') {
-                User::find($product->seller_id)?->notify(new ProductApprovalRejectedNotification((int) $id, $product->name, (string) $reason, $note));
-            }
+            \App\Models\ProductApprovalLog::create(['product_id' => $id, 'admin_id' => auth()->id(), 'action' => $decision, 'note' => $note ?: $reason, 'created_at' => $now]);
+            User::find($product->seller_id)?->notify(new ProductApprovalRejectedNotification((int) $id, $product->name, (string) ($reason ?: $decision), $note, $decision));
             return $product;
+        });
+    }
+
+    private function applyProductApprovalFromLive(int $id, string $decision, string $note): void
+    {
+        DB::transaction(function () use ($id, $decision, $note) {
+            $product = DB::table('products')->where('id', $id)->where('approval_status', 'approved')->lockForUpdate()->first();
+            abort_unless($product, 409, 'This product is no longer live.');
+            $now = now();
+            DB::table('products')->where('id', $id)->update([
+                'approval_status' => $decision, 'status' => 'inactive', 'approval_note' => $note,
+                'approval_reviewed_by' => auth()->id(), 'approval_reviewed_at' => $now,
+                'approval_submitted_at' => $now, 'submitted_at' => $now, 'updated_at' => $now,
+            ]);
+            \App\Models\ProductApprovalLog::create(['product_id' => $id, 'admin_id' => auth()->id(), 'action' => 'sent_back_'.$decision, 'note' => $note, 'created_at' => $now]);
+            User::find($product->seller_id)?->notify(new ProductApprovalRejectedNotification($id, $product->name, $decision, $note, $decision));
         });
     }
 
