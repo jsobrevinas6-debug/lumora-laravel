@@ -36,14 +36,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/otp/send', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1');
     Route::post('/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'buyer.approved'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
     });
 });
 
 // Authenticated buyer endpoints
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'buyer.approved'])->group(function () {
     Route::get('/user', fn (Request $request) => $request->user());
 
     Route::post('/orders', [OrderController::class, 'store']);

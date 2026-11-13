@@ -216,11 +216,27 @@
                 'streetGridClass' => 'row-3-equal',
             ])
 
-            <div class="form-group" id="buyerIdDocumentGroup" @if (old('signup_type') === 'seller') hidden @endif>
-                <label for="buyer_id_document">Valid government-issued ID <span aria-hidden="true">*</span></label>
-                <input id="buyer_id_document" type="file" name="buyer_id_document" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" @if (old('signup_type') !== 'seller') required @endif @if (old('signup_type') === 'seller') disabled @endif aria-describedby="buyerIdDocumentHint buyerIdDocumentError">
-                <small id="buyerIdDocumentHint">Upload at least one valid ID (JPG, PNG, or PDF; max 5 MB). Your document is stored privately for account verification.</small>
-                @error('buyer_id_document')<span class="field-error" id="buyerIdDocumentError">{{ $message }}</span>@enderror
+            <div class="row-2" id="buyerIdDocumentGroup" @if (old('signup_type') === 'seller') hidden @endif>
+                <div class="form-group">
+                    <label for="id_type">ID type @if($buyerIdRequired)<span aria-hidden="true">*</span>@endif</label>
+                    <select id="id_type" name="id_type" data-required="{{ $buyerIdRequired ? '1' : '0' }}" @required($buyerIdRequired && old('signup_type') !== 'seller') @if (old('signup_type') === 'seller') disabled @endif>
+                        <option value="">Choose your ID type</option>
+                        @foreach ([
+                            'Philippine National ID (PhilSys)', "Driver's License", 'Passport', 'UMID', 'Postal ID', "Voter's ID", 'PRC ID', 'Other',
+                        ] as $idType)
+                            <option value="{{ $idType }}" @selected(old('id_type') === $idType)>{{ $idType }}</option>
+                        @endforeach
+                    </select>
+                    @error('id_type')<span class="field-error" role="alert">{{ $message }}</span>@enderror
+                </div>
+                <div class="form-group">
+                    <label for="buyer_id_document">Upload your ID @if($buyerIdRequired)<span aria-hidden="true">*</span>@endif</label>
+                    <input id="buyer_id_document" type="file" name="buyer_id_document" data-required="{{ $buyerIdRequired ? '1' : '0' }}" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" @required($buyerIdRequired && old('signup_type') !== 'seller') @if (old('signup_type') === 'seller') disabled @endif aria-describedby="buyerIdDocumentHint buyerIdDocumentError">
+                    <small id="buyerIdDocumentHint">JPG, PNG, or PDF, up to 5 MB. Your ID is stored securely and only used by Lumora admins to verify your account. It is never shown to sellers or other users. @if ($errors->has('buyer_id_document')) Please re-attach your file after correcting the other fields.@endif</small>
+                    <div id="buyerIdFilePreview" class="verify-note" aria-live="polite"></div>
+                    <button id="removeBuyerIdFile" type="button" class="verify-btn" hidden>Remove</button>
+                    @error('buyer_id_document')<span class="field-error" id="buyerIdDocumentError" role="alert">{{ $message }}</span>@enderror
+                </div>
             </div>
 
             <div class="section-label">Account</div>
@@ -249,7 +265,7 @@
                     <ul>
                         <li>Name &amp; birthday: create your account and confirm your age.</li>
                         <li>Email &amp; phone: verify you and send order updates.</li>
-                        <li>Government-issued ID: verify buyer accounts; only administrators can access the uploaded file.</li>
+                        <li>Government ID: to verify your identity before approving your account. Only Lumora admins can access the uploaded file.</li>
                         <li>Address: deliver orders and calculate shipping.</li>
                         <li>Password: stored securely and never shared.</li>
                     </ul>
@@ -525,9 +541,12 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     document.getElementById('sellerTermsRow').hidden = type !== 'seller';
     const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
     const buyerIdInput = document.getElementById('buyer_id_document');
+    const idTypeInput = document.getElementById('id_type');
     buyerIdGroup.hidden = type === 'seller';
-    buyerIdInput.required = type === 'buyer';
+    buyerIdInput.required = type === 'buyer' && buyerIdInput.dataset.required === '1';
     buyerIdInput.disabled = type === 'seller';
+    idTypeInput.disabled = type === 'seller';
+    idTypeInput.required = type === 'buyer' && idTypeInput.dataset.required === '1';
     if (!validateSignupFields(type)) {
         e.preventDefault();
         return;
@@ -540,12 +559,30 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     }
 });
 
+const buyerIdInput = document.getElementById('buyer_id_document');
+const buyerIdPreview = document.getElementById('buyerIdFilePreview');
+const removeBuyerIdFile = document.getElementById('removeBuyerIdFile');
+buyerIdInput?.addEventListener('change', () => {
+    const file = buyerIdInput.files?.[0];
+    if (!file) return;
+    buyerIdPreview.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    removeBuyerIdFile.hidden = false;
+});
+removeBuyerIdFile?.addEventListener('click', () => {
+    buyerIdInput.value = '';
+    buyerIdPreview.textContent = '';
+    removeBuyerIdFile.hidden = true;
+});
+
 function openSellerModal() {
     const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
     const buyerIdInput = document.getElementById('buyer_id_document');
     buyerIdGroup.hidden = true;
     buyerIdInput.required = false;
     buyerIdInput.disabled = true;
+    const idTypeInput = document.getElementById('id_type');
+    idTypeInput.required = false;
+    idTypeInput.disabled = true;
     document.getElementById('sellerTermsRow').hidden = false;
     if (!validateSignupFields('seller')) return;
     document.getElementById('sellerModalOverlay').style.display = 'flex';
@@ -559,8 +596,11 @@ function closeSellerModal() {
     const buyerIdGroup = document.getElementById('buyerIdDocumentGroup');
     const buyerIdInput = document.getElementById('buyer_id_document');
     buyerIdGroup.hidden = false;
-    buyerIdInput.required = true;
+    buyerIdInput.required = buyerIdInput.dataset.required === '1';
     buyerIdInput.disabled = false;
+    const idTypeInput = document.getElementById('id_type');
+    idTypeInput.required = idTypeInput.dataset.required === '1';
+    idTypeInput.disabled = false;
     document.getElementById('business_name').required = false;
     document.getElementById('category').required = false;
     document.getElementById('id_document').required = false;

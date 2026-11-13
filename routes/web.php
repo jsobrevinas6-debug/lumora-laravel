@@ -25,6 +25,8 @@ use App\Http\Controllers\Buyer\ShopController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ShopController::class, 'index'])->name('home');
+Route::get('/registration/pending', fn (\Illuminate\Http\Request $request) => view('auth.registration-pending', ['email' => $request->session()->get('registration_pending_email', '')]))
+    ->middleware('guest')->name('registration.pending');
 
 Route::view('/legal/user-agreement', 'legal.user-agreement')->name('legal.user-agreement');
 Route::view('/legal/privacy-notice', 'legal.privacy-notice')->name('legal.privacy-notice');
@@ -67,7 +69,7 @@ Route::get('/dashboard', function () {
         'seller' => redirect()->route('seller.dashboard'),
         default => redirect()->route('shop.index'),
     };
-})->middleware('auth')->name('dashboard');
+})->middleware(['auth', 'buyer.approved'])->name('dashboard');
 
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -78,6 +80,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/e-wallet-payments/{order}/approve', [DashboardController::class, 'approveEWalletPayment'])->name('e-wallet-payments.approve');
     Route::post('/e-wallet-payments/{order}/reject', [DashboardController::class, 'rejectEWalletPayment'])->name('e-wallet-payments.reject');
     Route::get('/applications/{id}/documents/{document}', [DashboardController::class, 'sellerApplicationDocument'])->name('applications.documents');
+    Route::get('/applications/{type}/{id}/id', [DashboardController::class, 'applicationIdentityDocument'])->whereIn('type', ['buyer', 'seller'])->withoutMiddleware('auth')->name('applications.id');
+    Route::post('/applications/{type}/{id}/approve', [DashboardController::class, 'approveApplication'])->whereIn('type', ['buyer', 'seller'])->name('applications.review.approve');
+    Route::post('/applications/{type}/{id}/reject', [DashboardController::class, 'rejectApplication'])->whereIn('type', ['buyer', 'seller'])->name('applications.review.reject');
+    Route::post('/applications/{type}/{id}/archive', [DashboardController::class, 'archiveApplication'])->whereIn('type', ['buyer', 'seller'])->name('applications.review.archive');
     Route::post('/applications/{id}/approve', [DashboardController::class, 'approveSellerApplication'])->name('applications.approve');
     Route::post('/applications/{id}/reject', [DashboardController::class, 'rejectSellerApplication'])->name('applications.reject');
     Route::post('/applications/{id}/archive', [DashboardController::class, 'archiveSellerApplication'])->name('applications.archive');
@@ -182,7 +188,7 @@ Route::patch('/cart/{product}', [CartController::class, 'update'])->name('buyer.
 Route::delete('/cart/{product}', [CartController::class, 'remove'])->name('buyer.cart.remove');
 
 Route::match(['GET', 'POST'], '/cart/checkout', [BuyerOrderController::class, 'create'])
-    ->middleware('auth')
+    ->middleware(['auth', 'buyer.approved'])
     ->name('buyer.cart.checkout');
 
 Route::post('/cart/add/{product}', [CartController::class, 'add'])
@@ -190,7 +196,7 @@ Route::post('/cart/add/{product}', [CartController::class, 'add'])
 
 
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'buyer.approved'])->group(function () {
     // This route intentionally stays outside the seller. group so its name is switchToSeller.
     // AccountModeController performs the seller-role check.
     Route::post('/switch-to-seller', [AccountModeController::class, 'switchToSeller'])

@@ -131,6 +131,17 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        $user = Auth::user();
+        if ($user?->role === 'buyer' && config('marketplace.require_buyer_approval', true)
+            && $user->approval_status !== 'approved') {
+            Auth::logout();
+            $message = $user->approval_status === 'rejected'
+                ? 'Your application was not approved. Reason: '.($user->approval_rejection_reason ?: 'not provided').'. Contact support or sign up again with correct details.'
+                : "Your account is still awaiting admin approval. We'll email you once it's approved.";
+
+            throw ValidationException::withMessages(['email' => $message]);
+        }
     }
 
     /**

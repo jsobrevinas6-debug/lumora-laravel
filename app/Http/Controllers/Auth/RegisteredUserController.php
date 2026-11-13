@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -23,12 +24,19 @@ class RegisteredUserController extends Controller
 
         return view('auth.register', [
             'google' => null,
+            'buyerApprovalRequired' => config('marketplace.require_buyer_approval', true),
+            'buyerIdRequired' => config('marketplace.require_buyer_approval', true) && config('marketplace.require_buyer_id', true),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $request->session()->forget('google_onboarding');
+
+        $signupType = $request->input('signup_type', 'buyer');
+        $buyerApprovalRequired = config('marketplace.require_buyer_approval', true);
+        $buyerIdRequired = $signupType === 'buyer' && $buyerApprovalRequired && config('marketplace.require_buyer_id', true);
+        $idTypes = ['Philippine National ID (PhilSys)', "Driver's License", 'Passport', 'UMID', 'Postal ID', "Voter's ID", 'PRC ID', 'Other'];
 
         $rules = [
             'first_name' => ['required', 'string', 'min:2', 'max:50', 'not_regex:/\d/', 'regex:/^[A-Za-zñÑ\s]+$/u'],
@@ -48,8 +56,9 @@ class RegisteredUserController extends Controller
             'terms_accepted' => ['accepted'],
             'seller_terms_accepted' => ['accepted_if:signup_type,seller'],
             'marketing_opt_in' => ['sometimes', 'boolean'],
-            'signup_type' => ['in:buyer,seller'],
-            'buyer_id_document' => ['required_if:signup_type,buyer', 'required_without:signup_type', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'signup_type' => ['required', 'in:buyer,seller'],
+            'id_type' => [$buyerIdRequired ? 'required' : 'nullable', Rule::in($idTypes)],
+            'buyer_id_document' => [$buyerIdRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ...SellerApplicationFields::registrationRules(),
         ];
 
@@ -75,6 +84,7 @@ class RegisteredUserController extends Controller
             'business_permit.max' => 'Business Permit file size must not exceed 5MB.',
             'buyer_id_document.required_if' => 'Upload at least one valid government-issued ID to create a buyer account.',
             'buyer_id_document.required_without' => 'Upload at least one valid government-issued ID to create a buyer account.',
+            'buyer_id_document.required' => 'Upload at least one valid government-issued ID to create a buyer account.',
             'buyer_id_document.mimes' => 'Buyer ID must be a JPG, PNG, or PDF file only.',
             'buyer_id_document.max' => 'Buyer ID file size must not exceed 5MB.',
         ]);
@@ -95,7 +105,6 @@ class RegisteredUserController extends Controller
             return back()->withErrors(['email' => 'Please verify your email before signing up.'])->withInput();
         }
 
-        $signupType = $request->signup_type ?? 'buyer';
         $email = $validated['email'];
 
         $userAttributes = [
@@ -113,7 +122,8 @@ class RegisteredUserController extends Controller
             'street' => $validated['street'] ?? null,
             'house_number' => $validated['house_number'] ?? null,
             'email' => $email,
-            'email_verified' => 0,
+            'email_verified' => 1,
+            'email_verified_at' => now(),
             'password' => Hash::make($validated['password']),
             'role' => 'buyer',
             'status' => 'active',
@@ -121,14 +131,17 @@ class RegisteredUserController extends Controller
             'terms_version' => config('legal.terms_version'),
             'seller_terms_accepted_at' => $signupType === 'seller' ? now() : null,
             'marketing_opt_in' => $request->boolean('marketing_opt_in'),
+            'approval_status' => $signupType === 'buyer' && $buyerApprovalRequired ? 'pending' : 'approved',
+            'id_type' => $signupType === 'buyer' ? ($validated['id_type'] ?? null) : null,
         ];
 
-        if ($signupType === 'buyer') {
+        if ($signupType === 'buyer' && $buyerIdRequired) {
             $buyerIdPath = $request->file('buyer_id_document')?->store('buyer_identity_documents', 'local');
             if (! $buyerIdPath) {
                 return back()->withErrors(['buyer_id_document' => 'The ID could not be saved. Please upload it again.'])->withInput();
             }
             $userAttributes['buyer_id_document'] = $buyerIdPath;
+            $userAttributes['id_file_path'] = $buyerIdPath;
         }
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'postal_code')) {
@@ -142,19 +155,22 @@ class RegisteredUserController extends Controller
 
             session()->flash('flash_success', 'Account created! Your seller application is pending admin approval.');
         } else {
-            session()->flash('flash_success', 'Account created! You can now log in.');
+            session()->flash('flash_success', 'Account created!');
         }
 
         event(new Registered($user));
 
         DB::table('email_verification_codes')->where('email', $request->email)->delete();
 
-        Auth::login($user);
-
         if ($signupType === 'seller') {
+            Auth::login($user);
             return redirect()->route('seller.pending');
         }
 
-        return redirect()->route('dashboard');
+        if ($buyerApprovalRequired) {
+            return redirect()->route('registration.pending')->with('registration_pending_email', $user->email);
+        }
+
+        return redirect()->route('login')->with('status', 'Your account is ready. Please log in.');
     }
 }

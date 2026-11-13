@@ -63,6 +63,8 @@
             .topbar { gap:10px; flex-wrap:wrap; margin-bottom:20px; }
             .topbar h1 { font-size:23px; }
         }
+        .applications-nav-link { font-size:12px; line-height:1.35; }
+        .applications-nav-link > span:first-child { max-width:155px; }
     </style>
 </head>
 <body>
@@ -70,7 +72,11 @@
     <x-logo class="mb-9 max-[680px]:origin-center max-[680px]:scale-[0.45]" />
     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
     <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">Users</a>
-    <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications') ? 'active' : '' }}">Applications</a>
+    @php
+        $pendingApplicationBadge = \Illuminate\Support\Facades\DB::table('seller_applications')->where('status', 'pending')->count()
+            + \Illuminate\Support\Facades\DB::table('users')->where('role', 'buyer')->where('approval_status', 'pending')->whereNull('approval_archived_at')->count();
+    @endphp
+    <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications*') ? 'active' : '' }}"><span>Seller / Buyer Applications</span>@if($pendingApplicationBadge)<span class="admin-ewallet-count" aria-label="{{ $pendingApplicationBadge }} applications awaiting review">{{ $pendingApplicationBadge }}</span>@endif</a>
     @php $pendingProductApprovalCount = \Illuminate\Support\Facades\DB::table('products')->where('approval_status', 'pending')->count(); @endphp
     <a href="{{ route('admin.product-approval') }}" class="nav-link {{ request()->routeIs('admin.product-approval*') ? 'active' : '' }}">
         <span>Product Approval</span>
@@ -111,7 +117,7 @@
         <span class="admin-pill">Admin &mdash; {{ Auth::user()->name }}</span>
     </div>
 
-    @if (session('flash_success'))
+    @if (session('flash_success') && !request()->routeIs('admin.applications'))
         <div class="success-box">{{ session('flash_success') }}</div>
     @endif
 

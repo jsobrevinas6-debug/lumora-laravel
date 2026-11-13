@@ -52,6 +52,13 @@ class User extends Authenticatable
         'seller_terms_accepted_at',
         'marketing_opt_in',
         'buyer_id_document',
+        'approval_status',
+        'approval_reviewed_by',
+        'approval_reviewed_at',
+        'approval_rejection_reason',
+        'id_type',
+        'id_file_path',
+        'approval_archived_at',
     ];
 
     /**
@@ -76,6 +83,8 @@ class User extends Authenticatable
             'terms_accepted_at' => 'datetime',
             'seller_terms_accepted_at' => 'datetime',
             'marketing_opt_in' => 'boolean',
+            'approval_reviewed_at' => 'datetime',
+            'approval_archived_at' => 'datetime',
             'date_of_birth' => 'date',
             'password' => 'hashed',
         ];

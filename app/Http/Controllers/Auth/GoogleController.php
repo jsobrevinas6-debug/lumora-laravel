@@ -82,6 +82,14 @@ class GoogleController extends Controller
                     ->withErrors(['email' => 'This email is already linked to another Google account.']);
             }
 
+            if ($user->role === 'buyer' && config('marketplace.require_buyer_approval', true) && $user->approval_status !== 'approved') {
+                $message = $user->approval_status === 'rejected'
+                    ? 'Your application was not approved. Reason: '.($user->approval_rejection_reason ?: 'not provided').'. Contact support or sign up again with correct details.'
+                    : "Your account is still awaiting admin approval. We'll email you once it's approved.";
+
+                return redirect()->route('login')->withErrors(['email' => $message]);
+            }
+
             $user->google_id ??= $googleId;
             $user->provider ??= 'google';
             $user->avatar ??= $googleUser->getAvatar();
@@ -93,6 +101,12 @@ class GoogleController extends Controller
             $request->session()->regenerate();
 
             return redirect()->intended(route('shop.index'));
+        }
+
+        if (config('marketplace.require_buyer_approval', true)) {
+            return redirect()->route('register')->withErrors([
+                'email' => 'To create a buyer account, use Sign Up so you can submit the required government ID for review.',
+            ]);
         }
 
         $fullName = trim((string) ($googleUser->getName() ?: $googleUser->getNickname() ?: 'Lumora Buyer'));
@@ -111,6 +125,7 @@ class GoogleController extends Controller
             'password' => Hash::make(Str::random(40)),
             'role' => 'buyer',
             'status' => 'active',
+            'approval_status' => 'approved',
         ]);
 
         event(new Registered($user));
