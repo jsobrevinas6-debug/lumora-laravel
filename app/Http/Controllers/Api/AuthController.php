@@ -96,8 +96,10 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8'],
             'device_name' => ['nullable', 'string', 'max:100'],
-            'id_type' => [config('marketplace.require_buyer_approval', true) && config('marketplace.require_buyer_id', true) ? 'required' : 'nullable', Rule::in(['Philippine National ID (PhilSys)', "Driver's License", 'Passport', 'UMID', 'Postal ID', "Voter's ID", 'PRC ID', 'Other'])],
-            'buyer_id_document' => [config('marketplace.require_buyer_approval', true) && config('marketplace.require_buyer_id', true) ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'id_type' => ['nullable', 'string', 'max:100'],
+            'valid_id_type' => ['nullable', 'string', 'max:100'],
+            'buyer_id_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'valid_id_photo' => ['nullable', 'string'],
         ]);
 
         $email = strtolower(trim($validated['email']));
@@ -152,13 +154,32 @@ class AuthController extends Controller
             'role' => 'buyer',
             'status' => 'active',
             'approval_status' => config('marketplace.require_buyer_approval', true) ? 'pending' : 'approved',
-            'id_type' => $validated['id_type'] ?? null,
+            'id_type' => $validated['id_type'] ?? ($validated['valid_id_type'] ?? null),
         ];
 
         if (config('marketplace.require_buyer_approval', true) && config('marketplace.require_buyer_id', true)) {
-            $idPath = $request->file('buyer_id_document')?->store('buyer_identity_documents', 'local');
+            $idFile = $request->file('buyer_id_document');
+            $idPath = null;
+            if ($idFile) {
+                $idPath = $idFile->store('buyer_identity_documents', 'local');
+            } elseif ($request->filled('valid_id_photo') && str_starts_with($request->string('valid_id_photo'), 'data:image')) {
+                // Decode base64/dataURI uploaded from mobile app
+                try {
+                    $dataUri = (string) $request->input('valid_id_photo');
+                    $base64 = substr($dataUri, strpos($dataUri, ',') + 1);
+                    $decoded = base64_decode($base64);
+                    if ($decoded !== false) {
+                        $filename = 'buyer_identity_documents/'.Str::uuid().'.jpg';
+                        \Illuminate\Support\Facades\Storage::disk('local')->put($filename, $decoded);
+                        $idPath = $filename;
+                    }
+                } catch (\Throwable) {
+                    $idPath = null;
+                }
+            }
+
             if (! $idPath) {
-                return response()->json(['message' => 'Upload a JPG, PNG, or PDF identity document under 5 MB.'], 422);
+                return response()->json(['message' => 'Upload a valid JPG, PNG, or PDF identity document under 5 MB.'], 422);
             }
             $userAttributes['buyer_id_document'] = $idPath;
             $userAttributes['id_file_path'] = $idPath;
