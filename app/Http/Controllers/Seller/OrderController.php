@@ -122,27 +122,29 @@ class OrderController extends Controller
         $hasVoucherCols = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_code');
         $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
 
+        $orderColumns = [
+            'o.id',
+            'o.order_number',
+            'o.created_at',
+            'o.status',
+            'u.name as buyer_name',
+            DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
+            DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
+            DB::raw($hasVoucherCols && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_type') ? 'o.voucher_type' : 'NULL as voucher_type'),
+            DB::raw($hasVoucherCols && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_discount') ? 'o.voucher_discount' : '0 as voucher_discount'),
+            DB::raw($hasVoucherCols && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'shipping_discount') ? 'o.shipping_discount' : '0 as shipping_discount'),
+        ];
+
+        foreach (['contact_number', 'province', 'municipality', 'barangay', 'street', 'house_number'] as $addressColumn) {
+            $orderColumns[] = \Illuminate\Support\Facades\Schema::hasColumn('users', $addressColumn)
+                ? 'u.'.$addressColumn
+                : DB::raw('NULL as '.$addressColumn);
+        }
+
         $order = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
             ->where('o.id', $orderId)
-            ->select(
-                'o.id',
-                'o.order_number',
-                'o.created_at',
-                'o.status',
-                'u.name as buyer_name',
-                'u.contact_number',
-                'u.province',
-                'u.municipality',
-                'u.barangay',
-                'u.street',
-                'u.house_number',
-                DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
-                DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
-                DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
-                DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
-                DB::raw($hasVoucherCols ? 'o.shipping_discount' : '0 as shipping_discount')
-            )
+            ->select($orderColumns)
             ->first();
 
         abort_unless($order, 404);
@@ -185,10 +187,28 @@ class OrderController extends Controller
 
         $returnRequest = null;
         if (\Illuminate\Support\Facades\Schema::hasTable('return_requests')) {
+            $returnRelations = ['buyer'];
+            $hasReturnEvidenceTable = \Illuminate\Support\Facades\Schema::hasTable('return_request_evidence');
+            $hasLogisticsNotificationsTable = \Illuminate\Support\Facades\Schema::hasTable('logistics_return_notifications');
+
+            if ($hasReturnEvidenceTable) {
+                $returnRelations[] = 'evidence';
+            }
+            if ($hasLogisticsNotificationsTable) {
+                $returnRelations[] = 'logisticsNotification';
+            }
+
             $returnRequest = \App\Models\ReturnRequest::query()
                 ->where('order_id', $orderId)
-                ->with(['evidence', 'logisticsNotification', 'buyer'])
+                ->with($returnRelations)
                 ->first();
+
+            if ($returnRequest && ! $hasReturnEvidenceTable) {
+                $returnRequest->setRelation('evidence', collect());
+            }
+            if ($returnRequest && ! $hasLogisticsNotificationsTable) {
+                $returnRequest->setRelation('logisticsNotification', null);
+            }
         }
 
         return view('seller.order-detail', compact('order', 'items', 'returnRequest'));

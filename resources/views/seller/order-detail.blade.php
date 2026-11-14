@@ -361,12 +361,14 @@
                 @php
                     $courierName = !empty($order->courier ?? null)
                         ? $order->courier
-                        : \Illuminate\Support\Facades\DB::table('order_status_histories')
+                        : (\Illuminate\Support\Facades\Schema::hasTable('order_status_histories')
+                            ? \Illuminate\Support\Facades\DB::table('order_status_histories')
                             ->where('order_id', $order->id)
                             ->whereNotNull('courier_name')
                             ->where('courier_name', '!=', '')
                             ->latest('id')
-                            ->value('courier_name');
+                            ->value('courier_name')
+                            : null);
                 @endphp
                 <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:14px 16px;font-size:13px;color:#065F46;display:flex;align-items:flex-start;gap:12px;">
                     <span style="font-size:20px;line-height:1;">✓</span>
