@@ -46,7 +46,7 @@ class ParcelShipmentSyncService
                 'rider_received', 'in_transit' => 'in_transit',
                 'out_for_delivery' => 'out_for_delivery',
                 'delivered' => 'delivered',
-                'exception', 'failed' => 'exception',
+                'returned', 'exception', 'failed' => 'exception',
                 'cancelled' => 'cancelled',
                 default => null,
             };
@@ -132,16 +132,20 @@ class ParcelShipmentSyncService
         $parcelStatus = $parcel->status;
         $branchName = $parcel->branch ?: 'Main';
         $riderName = $parcel->rider?->user?->name;
+        $riderPhone = $parcel->rider?->phone;
+        $vehicleType = $parcel->metadata['linehaul_truck'] ?? $parcel->rider?->vehicle_type;
+        $areaName = $parcel->area?->name;
+        $parcelNumber = $parcel->parcel_number;
         $trackingEvent = $parcel->shipment?->trackingEvents()->latest('occurred_at')->first();
         $trackingLabel = $trackingEvent?->label ?: ShipmentStatusService::label($parcelStatus);
         $trackingLocation = $trackingEvent?->location ?: implode(', ', array_filter([$parcel->city, $parcel->province]));
         $trackingDescription = $trackingEvent?->description ?: ShipmentStatusService::description($parcelStatus);
 
-        if ($waybillCode && in_array($parcelStatus, ['received', 'scanned', 'sorted', 'assigned', 'rider_received', 'in_transit', 'out_for_delivery', 'delivered', 'exception', 'failed', 'cancelled'], true)) {
-            app()->terminating(function () use ($waybillCode, $parcelStatus, $branchName, $riderName, $trackingLabel, $trackingLocation, $trackingDescription) {
+        if ($waybillCode && in_array($parcelStatus, ['received', 'scanned', 'sorted', 'assigned', 'rider_received', 'in_transit', 'out_for_delivery', 'delivered', 'returned', 'exception', 'failed', 'cancelled'], true)) {
+            app()->terminating(function () use ($waybillCode, $parcelStatus, $branchName, $riderName, $riderPhone, $vehicleType, $areaName, $parcelNumber, $trackingLabel, $trackingLocation, $trackingDescription) {
                 $ecommerceBaseUrl = rtrim((string) env('LUMORA_ECOMMERCE_URL', 'https://lumora.party'), '/');
                 try {
-                    \Illuminate\Support\Facades\Http::timeout(3)
+                    \Illuminate\Support\Facades\Http::timeout(4)
                         ->acceptJson()
                         ->post("{$ecommerceBaseUrl}/api/logistics/waybill/" . urlencode((string) $waybillCode) . '/status', [
                             'status' => $parcelStatus,
@@ -149,6 +153,10 @@ class ParcelShipmentSyncService
                             'location' => $trackingLocation,
                             'hub' => $branchName . ' Hub',
                             'rider_name' => $riderName,
+                            'rider_phone' => $riderPhone,
+                            'vehicle_type' => $vehicleType,
+                            'area_name' => $areaName,
+                            'parcel_number' => $parcelNumber,
                             'note' => $trackingDescription,
                         ]);
                 } catch (\Throwable $e) {

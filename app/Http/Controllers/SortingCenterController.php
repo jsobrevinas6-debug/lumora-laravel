@@ -376,8 +376,9 @@ class SortingCenterController extends Controller
             }
         });
 
+        app(\App\Services\ParcelShipmentSyncService::class)->sync($parcel->fresh());
+
         if ($autoRider) {
-            app(\App\Services\ParcelShipmentSyncService::class)->sync($parcel->fresh());
             return back()->with('success', "Parcel {$parcel->parcel_number} sorted to {$area?->name} and automatically assigned to {$autoRider->user->name}!");
         }
 
