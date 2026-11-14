@@ -10,110 +10,35 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $sellerId = Auth::id();
-        $hasVoucherCols = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_code');
-        $hasPaymentMethod = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'payment_method');
-        $hasReturnTable = \Illuminate\Support\Facades\Schema::hasTable('return_requests');
-
-        $query = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('users as u', 'u.id', '=', 'o.user_id');
-
-        if ($hasReturnTable) {
-            $query->leftJoin('return_requests as rr', 'rr.order_id', '=', 'o.id');
-        }
-
-        $selectCols = [
-            'o.id as order_id',
-            'o.order_number',
-            'o.status',
-            'o.created_at as order_date',
-            'u.name as buyer_name',
-            DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
-            DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
-            DB::raw($hasVoucherCols ? 'o.voucher_type' : 'NULL as voucher_type'),
-            DB::raw($hasVoucherCols ? 'o.voucher_discount' : '0 as voucher_discount'),
-            DB::raw($hasVoucherCols ? 'o.shipping_discount' : '0 as shipping_discount'),
-            DB::raw('SUM(oi.price * oi.quantity) as seller_subtotal'),
-            DB::raw('SUM(CASE WHEN oi.seen_at IS NULL THEN 1 ELSE 0 END) as unseen_count'),
-            DB::raw('SUM(CASE WHEN oi.packed_at IS NULL THEN 1 ELSE 0 END) as unpacked_count'),
-        ];
-
-        if ($hasReturnTable) {
-            $selectCols[] = 'rr.id as return_request_id';
-            $selectCols[] = 'rr.status as return_request_status';
-            $selectCols[] = 'rr.reason as return_request_reason';
-            $selectCols[] = 'rr.created_at as return_request_date';
-        } else {
-            $selectCols[] = DB::raw('NULL as return_request_id');
-            $selectCols[] = DB::raw('NULL as return_request_status');
-            $selectCols[] = DB::raw('NULL as return_request_reason');
-            $selectCols[] = DB::raw('NULL as return_request_date');
-        }
-
-        $groupByCols = array_merge(
-            ['o.id', 'o.order_number', 'o.status', 'o.created_at', 'u.name'],
-            $hasPaymentMethod ? ['o.payment_method'] : [],
-            $hasVoucherCols ? ['o.voucher_code', 'o.voucher_type', 'o.voucher_discount', 'o.shipping_discount'] : [],
-            $hasReturnTable ? ['rr.id', 'rr.status', 'rr.reason', 'rr.created_at'] : []
-        );
-
-        $allOrders = $query
-            ->where(function ($q) use ($sellerId) {
-                $q->where('oi.seller_id', $sellerId)
-                    ->orWhere('p.seller_id', $sellerId);
-            })
-            ->select($selectCols)
-            ->groupBy(...$groupByCols)
-            ->orderByDesc('o.created_at')
-            ->get();
-
-        $tabCounts = [
-            'all' => $allOrders->count(),
-            'pending' => $allOrders->whereIn('status', ['pending', 'processing'])->count(),
-            'packed' => $allOrders->where('status', 'packed')->count(),
-            'shipped' => $allOrders->whereIn('status', ['shipped', 'out_for_delivery'])->count(),
-            'delivered' => $allOrders->where('status', 'delivered')->whereNull('return_request_id')->count(),
-            'returns' => $allOrders->filter(fn ($o) => $o->return_request_id !== null || $o->status === 'returned')->count(),
-        ];
-
-        $currentStatus = request()->query('status', 'all');
-        $search = strtolower(trim((string) request()->query('search', '')));
-
-        $orders = $allOrders->filter(function ($o) use ($currentStatus, $search) {
-            if ($currentStatus === 'pending' && ! in_array($o->status, ['pending', 'processing'], true)) {
-                return false;
-            }
-            if ($currentStatus === 'packed' && $o->status !== 'packed') {
-                return false;
-            }
-            if ($currentStatus === 'shipped' && ! in_array($o->status, ['shipped', 'out_for_delivery'], true)) {
-                return false;
-            }
-            if ($currentStatus === 'delivered' && ($o->status !== 'delivered' || $o->return_request_id !== null)) {
-                return false;
-            }
-            if ($currentStatus === 'returns' && $o->return_request_id === null && $o->status !== 'returned') {
-                return false;
-            }
-
-            if ($search !== '') {
-                $haystack = strtolower(($o->order_number ?? '') . ' ' . ($o->buyer_name ?? '') . ' #' . $o->order_id);
-                if (! str_contains($haystack, $search)) {
-                    return false;
-                }
-            }
-
-            return true;
-        })->values();
-
-        return view('seller.orders', compact('orders', 'tabCounts', 'currentStatus', 'search'));
+        $base = DB::table('orders as o')->whereExists(function ($q) use ($sellerId) {
+            $q->selectRaw('1')->from('order_items as si')->whereColumn('si.order_id', 'o.id')
+                ->where(function ($x) use ($sellerId) { $x->where('si.seller_id', $sellerId)->orWhereExists(function ($p) use ($sellerId) { $p->selectRaw('1')->from('products')->whereColumn('products.id', 'si.product_id')->where('products.seller_id', $sellerId); }); });
+        });
+        $items = DB::table('order_items as oi')->join('products as p', 'p.id', '=', 'oi.product_id')->where(function ($q) use ($sellerId) { $q->where('oi.seller_id', $sellerId)->orWhere('p.seller_id', $sellerId); });
+        $summary = (clone $items)->selectRaw('oi.order_id, SUM(oi.price * oi.quantity) seller_subtotal, SUM(oi.quantity) item_count, SUM(CASE WHEN oi.packed_at IS NULL THEN oi.quantity ELSE 0 END) unpacked_count, SUM(CASE WHEN oi.seen_at IS NULL THEN 1 ELSE 0 END) unseen_count')->groupBy('oi.order_id');
+        $tabCounts = ['all' => (clone $base)->count(), 'pending' => (clone $base)->whereIn('o.status', ['pending','processing'])->count(), 'packed' => (clone $base)->where('o.status','packed')->count(), 'shipped' => (clone $base)->whereIn('o.status',['shipped','out_for_delivery'])->count(), 'delivered' => (clone $base)->where('o.status','delivered')->count(), 'cancelled' => (clone $base)->where('o.status','cancelled')->count(), 'returns' => (clone $base)->where(function($q){$q->where('o.status','returned')->orWhereExists(function($r){$r->selectRaw('1')->from('return_requests')->whereColumn('return_requests.order_id','o.id');});})->count(), 'refund' => (clone $base)->where('o.payment_status','refunded')->count()];
+        $currentStatus = $request->query('status', 'all');
+        $search = trim((string) $request->query('search', ''));
+        $query = (clone $base)->join('users as u','u.id','=','o.user_id')->leftJoinSub($summary,'s','s.order_id','=','o.id')
+            ->select('o.*','u.name as buyer_name','u.province','u.municipality','u.contact_number',DB::raw('COALESCE(s.seller_subtotal,0) seller_subtotal'),DB::raw('COALESCE(s.item_count,0) item_count'),DB::raw('COALESCE(s.unpacked_count,0) unpacked_count'),DB::raw('COALESCE(s.unseen_count,0) unseen_count'));
+        $statusMap = ['pending'=>['pending','processing'],'packed'=>['packed'],'shipped'=>['shipped','out_for_delivery'],'delivered'=>['delivered'],'cancelled'=>['cancelled'],'returns'=>['returned'],'refund'=>['refunded']];
+        if (isset($statusMap[$currentStatus]) && $currentStatus !== 'returns') $query->whereIn('o.status',$statusMap[$currentStatus]);
+        if ($currentStatus==='returns') $query->where(function($q){$q->where('o.status','returned')->orWhereExists(fn($r)=>$r->selectRaw('1')->from('return_requests')->whereColumn('return_requests.order_id','o.id'));});
+        if ($search!=='') $query->where(function($q)use($search){$q->where('o.order_number','like',"%{$search}%")->orWhere('u.name','like',"%{$search}%")->orWhereExists(function($sub)use($search){$sub->selectRaw('1')->from('order_items as si')->join('products as sp','sp.id','=','si.product_id')->whereColumn('si.order_id','o.id')->where('sp.name','like',"%{$search}%");});});
+        if ($request->filled('date_range')) $query->where('o.created_at','>=',now()->subDays($request->date_range==='30'?30:7));
+        if ($request->filled('payment') && $request->payment!=='all') $query->where('o.payment_method',$request->payment);
+        match($request->query('sort')) {'oldest'=>$query->orderBy('o.created_at'), 'highest'=>$query->orderByDesc('o.total'), default=>$query->orderByDesc('o.created_at')};
+        $orders=$query->paginate(15)->withQueryString();
+        $stats=['new'=>(clone $base)->whereIn('o.status',['pending','processing'])->whereNull('o.seller_viewed_at')->count(),'to_pack'=>(clone $base)->whereIn('o.status',['pending','processing'])->count(),'waiting_payment'=>(clone $base)->whereIn('o.status',['pending','processing'])->whereIn('o.payment_method',['gcash','maya','paymaya'])->where('o.payment_status','!=','paid')->count(),'to_ship'=>(clone $base)->where('o.status','packed')->count(),'week_sales'=>(clone $base)->where('o.created_at','>=',now()->subDays(7))->whereNotIn('o.status',['cancelled'])->sum('o.total')];
+        return view('seller.orders', compact('orders','tabCounts','currentStatus','search','stats'));
     }
 
     public function show($orderId)
@@ -171,6 +96,8 @@ class OrderController extends Controller
             ->get();
 
         abort_if($items->isEmpty(), 404);
+
+        Order::whereKey($orderId)->update(['seller_viewed_at' => now()]);
 
         DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
@@ -230,8 +157,11 @@ class OrderController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (in_array($order->status, ['packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'], true)) {
+            if (! in_array($order->status, ['pending', 'processing'], true)) {
                 return false;
+            }
+            if (in_array(strtolower((string) $order->payment_method), ['gcash', 'maya', 'paymaya'], true) && $order->payment_status !== 'paid') {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(back()->with('error', 'This e-wallet payment must be verified before packing.'));
             }
 
             $now = now();

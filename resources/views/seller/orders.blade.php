@@ -43,6 +43,7 @@
     @endphp
 
     <style>
+        .seller-order-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 20px}.seller-order-stat{background:#fff;border:1px solid #eadfe4;border-radius:16px;padding:17px 19px;box-shadow:0 4px 16px #4a12330a}.seller-order-stat span{display:block;color:#796a72;font-size:12px;font-weight:600}.seller-order-stat strong{display:block;color:#4a1233;font-size:25px;margin-top:5px}.seller-order-stat small{display:block;color:#796a72;margin-top:3px}
         .order-tabs-bar {
             display: flex;
             align-items: center;
@@ -141,20 +142,30 @@
             color: #991B1B;
             border: 1px solid #FECACA;
         }
+        .order-tab-btn:focus-visible,.order-search-input:focus-visible,button:focus-visible{outline:3px solid #c98b6b;outline-offset:2px}
+        @media(max-width:900px){.seller-order-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{overflow-x:auto}}
+        @media(max-width:480px){.seller-order-stats{grid-template-columns:1fr 1fr}.seller-order-stat{padding:13px}.order-search-form{width:100%;flex-wrap:wrap}.order-search-input{width:100%}}
     </style>
+
+    <section class="seller-order-stats" aria-label="Order summary">
+        <div class="seller-order-stat"><span>New orders</span><strong>{{ $stats['new'] }}</strong><small>Not opened yet</small></div>
+        <div class="seller-order-stat"><span>To pack</span><strong>{{ $stats['to_pack'] }}</strong><small>{{ $stats['waiting_payment'] }} waiting for payment</small></div>
+        <div class="seller-order-stat"><span>To ship</span><strong>{{ $stats['to_ship'] }}</strong><small>Packed and ready for courier</small></div>
+        <div class="seller-order-stat"><span>Sales this week</span><strong>₱{{ number_format($stats['week_sales'],2) }}</strong><small>Last 7 days, excluding cancelled</small></div>
+    </section>
 
     <div class="order-tabs-bar">
         <div class="order-tabs">
-            <a href="{{ route('seller.orders.index', ['status' => 'all']) }}" class="order-tab-btn {{ $currentStatus === 'all' ? 'active' : '' }}">
+            <a href="{{ route('seller.orders.index', request()->except('page') + ['status' => 'all']) }}" class="order-tab-btn {{ $currentStatus === 'all' ? 'active' : '' }}">
                 <span>All Orders</span>
                 <span class="order-tab-badge">{{ $tabCounts['all'] ?? 0 }}</span>
             </a>
-            <a href="{{ route('seller.orders.index', ['status' => 'pending']) }}" class="order-tab-btn {{ $currentStatus === 'pending' ? 'active' : '' }}">
-                <span>Pending</span>
+            <a href="{{ route('seller.orders.index', request()->except('page') + ['status' => 'pending']) }}" class="order-tab-btn {{ $currentStatus === 'pending' ? 'active' : '' }}">
+                <span>To pack</span>
                 <span class="order-tab-badge">{{ $tabCounts['pending'] ?? 0 }}</span>
             </a>
-            <a href="{{ route('seller.orders.index', ['status' => 'packed']) }}" class="order-tab-btn {{ $currentStatus === 'packed' ? 'active' : '' }}">
-                <span>Packed</span>
+            <a href="{{ route('seller.orders.index', request()->except('page') + ['status' => 'packed']) }}" class="order-tab-btn {{ $currentStatus === 'packed' ? 'active' : '' }}">
+                <span>To ship</span>
                 <span class="order-tab-badge">{{ $tabCounts['packed'] ?? 0 }}</span>
             </a>
             <a href="{{ route('seller.orders.index', ['status' => 'shipped']) }}" class="order-tab-btn {{ $currentStatus === 'shipped' ? 'active' : '' }}">
@@ -169,11 +180,17 @@
                 <span>Return / Refund</span>
                 <span class="order-tab-badge {{ ($tabCounts['returns'] ?? 0) > 0 ? 'badge-alert' : '' }}">{{ $tabCounts['returns'] ?? 0 }}</span>
             </a>
+            @foreach(['cancelled'=>'Cancelled','refund'=>'Refund'] as $key=>$label)
+                <a href="{{ route('seller.orders.index', request()->except('page') + ['status'=>$key]) }}" class="order-tab-btn {{ $currentStatus===$key?'active':'' }}"><span>{{ $label }}</span><span class="order-tab-badge">{{ $tabCounts[$key]??0 }}</span></a>
+            @endforeach
         </div>
 
         <form method="GET" action="{{ route('seller.orders.index') }}" class="order-search-form">
             <input type="hidden" name="status" value="{{ $currentStatus }}">
             <input type="search" name="search" class="order-search-input" value="{{ $search ?? '' }}" placeholder="Search order #, buyer...">
+            <select name="date_range" aria-label="Date range"><option value="">Any time</option><option value="7" @selected(request('date_range')==='7')>Last 7 days</option><option value="30" @selected(request('date_range')==='30')>Last 30 days</option></select>
+            <select name="payment" aria-label="Payment method"><option value="all">All payments</option><option value="cod" @selected(request('payment')==='cod')>COD</option><option value="gcash" @selected(request('payment')==='gcash')>GCash</option><option value="maya" @selected(request('payment')==='maya')>Maya</option></select>
+            <select name="sort" aria-label="Sort orders"><option value="newest">Newest first</option><option value="oldest" @selected(request('sort')==='oldest')>Oldest first</option><option value="highest" @selected(request('sort')==='highest')>Highest total</option></select>
             @if(!empty($search))
                 <a href="{{ route('seller.orders.index', ['status' => $currentStatus]) }}" style="font-size:12px;color:var(--text-muted);text-decoration:none;">Clear</a>
             @endif
@@ -189,9 +206,7 @@
                     <th>Date</th>
                     <th>Subtotal</th>
                     <th>Payment Method</th>
-                    <th>Voucher</th>
                     <th>Status</th>
-                    <th>Packing</th>
                     <th></th>
                 </tr>
             </thead>
@@ -269,7 +284,7 @@
                         </td>
 
                         <td>
-                            PHP {{ number_format($o->seller_subtotal, 2) }}
+                            ₱{{ number_format($o->total, 2) }}
                         </td>
 
                         <td>
@@ -278,20 +293,6 @@
                             </span>
                         </td>
 
-                        <td>
-                            @if (!empty($o->voucher_code))
-                                <span class="stock-badge" style="background:var(--sage-2);">{{ $o->voucher_code }}</span>
-                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-                                    @if (($o->voucher_type ?? '') === 'shipping' || (float) $o->shipping_discount > 0)
-                                        Free shipping (PHP {{ number_format((float) $o->shipping_discount, 2) }})
-                                    @else
-                                        Discount - PHP {{ number_format((float) $o->voucher_discount, 2) }}
-                                    @endif
-                                </div>
-                            @else
-                                <span style="color:#999;">None</span>
-                            @endif
-                        </td>
 
                         <td>
                             <span class="stock-badge" style="background:{{ $statusColor }};">
@@ -343,7 +344,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" style="text-align:center;color:#999;padding:28px 20px;">
+                        <td colspan="7" style="text-align:center;color:#999;padding:28px 20px;">
                             <div style="font-size:24px;margin-bottom:6px;">📦</div>
                             <div style="font-weight:600;font-size:14px;color:var(--text-dark);">No orders found</div>
                             <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
@@ -359,4 +360,5 @@
             </tbody>
         </table>
     </div>
+    <div style="margin-top:16px">{{ $orders->links() }}</div>
 @endsection
