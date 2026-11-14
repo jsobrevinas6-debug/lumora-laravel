@@ -660,15 +660,15 @@ class OrderController extends Controller
         }
 
         $latestHistory = $o->statusHistories->first();
-        $courierName = $logisticsSync['courier_name']
+        $courierName = ($logisticsSync['courier_name'] ?? null)
             ?: ($latestHistory?->courier_name ?: ($o->courier ?: 'Lumora Express Priority'));
-        $driverName = $logisticsSync['driver_name']
+        $driverName = ($logisticsSync['driver_name'] ?? null)
             ?: ($courierName !== 'Lumora Express Priority' ? $courierName : 'Assigning Courier Rider');
-        $driverPhone = $logisticsSync['driver_phone'] ?: '0917-889-LMR';
-        $vehiclePlate = $logisticsSync['vehicle_plate'] ?: 'LAG-2026-LM';
-        $sortingCenterName = $logisticsSync['sorting_center_name']
+        $driverPhone = ($logisticsSync['driver_phone'] ?? null) ?: '0917-889-LMR';
+        $vehiclePlate = ($logisticsSync['vehicle_plate'] ?? null) ?: 'LAG-2026-LM';
+        $sortingCenterName = ($logisticsSync['sorting_center_name'] ?? null)
             ?: ($user?->municipality ? "{$user->municipality} Hub" : 'Laguna Central Sorting Hub');
-        $trackingNumber = $logisticsSync['tracking_number']
+        $trackingNumber = ($logisticsSync['tracking_number'] ?? null)
             ?: ($o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)));
 
         $historyList = $o->statusHistories->map(function ($h) {
