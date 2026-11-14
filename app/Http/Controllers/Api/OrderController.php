@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -578,6 +579,8 @@ class OrderController extends Controller
 
     private function transformOrder(Order $o): array
     {
+        $logisticsSync = $this->syncOrderWithLogistics($o);
+
         $user = $o->user;
         $addressLines = collect([
             trim(implode(' ', array_filter([$user?->house_number, $user?->street]))),
@@ -587,14 +590,17 @@ class OrderController extends Controller
         ])->filter()->values();
         $address = $addressLines->implode(', ');
 
-        $currentStatus = strtolower((string) $o->status);
+        $currentStatus = strtolower((string) ($logisticsSync['app_status'] ?? $o->status));
         $deliveredHistory = $o->statusHistories->first(fn ($event) => in_array(strtolower((string) ($event->tracking_status ?: $event->status)), ['delivered', 'completed'], true));
         $deliveredDate = $o->delivered_at ?: $deliveredHistory?->created_at;
 
-        $statusHeadline = match ($currentStatus) {
+        $statusHeadline = $logisticsSync['status_headline'] ?? match ($currentStatus) {
             'pending' => 'Your order is being prepared',
             'processing' => 'Your order is being prepared',
             'packed' => 'Order Packed & Ready for Handover',
+            'at_sorting_center' => 'Arrived at Lumora Logistics Hub',
+            'sorted' => 'Sorted by Destination Area',
+            'assigned_to_rider' => 'Assigned to Dedicated Courier',
             'shipped' => 'Your order is on its way',
             'out_for_delivery' => 'Your order is out for delivery',
             'delivered' => 'Delivered'.($deliveredDate ? ' on '.$deliveredDate->timezone('Asia/Manila')->format('M j') : ''),
@@ -603,10 +609,13 @@ class OrderController extends Controller
             default => $o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus)),
         };
 
-        $statusExplanation = match ($currentStatus) {
+        $statusExplanation = $logisticsSync['status_explanation'] ?? match ($currentStatus) {
             'pending' => 'The seller is getting your order ready.',
             'processing' => 'Your order is being prepared for handoff to Lumora Logistics.',
             'packed' => 'Order has been packed by the seller and is ready for handoff to Lumora Logistics.',
+            'at_sorting_center' => 'Parcel has been received and scanned at the Lumora Logistics sorting hub.',
+            'sorted' => 'Parcel has been sorted into its Barangay dispatch channel.',
+            'assigned_to_rider' => 'A dedicated Lumora Logistics rider has been assigned to your parcel.',
             'shipped' => 'Lumora Logistics is moving your parcel toward its destination.',
             'out_for_delivery' => 'Your parcel is with the courier and should arrive soon.',
             'delivered' => 'Your parcel has been delivered to the address on your order.',
@@ -616,8 +625,8 @@ class OrderController extends Controller
         };
 
         $progressRank = match ($currentStatus) {
-            'processing', 'packed' => 1,
-            'shipped' => 2,
+            'processing', 'packed', 'at_sorting_center', 'sorted' => 1,
+            'assigned_to_rider', 'shipped' => 2,
             'out_for_delivery' => 3,
             'delivered' => 4,
             'cancelled', 'returned' => -1,
@@ -625,21 +634,42 @@ class OrderController extends Controller
         };
 
         $addrLower = strtolower($address);
-        $destinationArea = 'Area B (Laguna Central District)';
+        $destinationArea = $user?->barangay && $user?->municipality
+            ? "Brgy. {$user->barangay}, {$user->municipality}"
+            : 'Area B (Laguna Central District)';
         $assignedRider = 'Rider 02';
         if (str_contains($addrLower, 'santa cruz') || str_contains($addrLower, 'sta cruz') || str_contains($addrLower, 'sta. cruz')) {
-            $destinationArea = 'Area A (Santa Cruz, Laguna)';
+            if (! $user?->barangay) {
+                $destinationArea = 'Area A (Santa Cruz, Laguna)';
+            }
             $assignedRider = 'Rider 01';
         } elseif (str_contains($addrLower, 'los banos') || str_contains($addrLower, 'los baños')) {
-            $destinationArea = 'Area C (Los Baños, Laguna)';
+            if (! $user?->barangay) {
+                $destinationArea = 'Area C (Los Baños, Laguna)';
+            }
             $assignedRider = 'Rider 03';
         } elseif (str_contains($addrLower, 'binan') || str_contains($addrLower, 'biñan') || str_contains($addrLower, 'pagsanjan')) {
-            $destinationArea = 'Area B (Biñan, Laguna)';
+            if (! $user?->barangay) {
+                $destinationArea = 'Area B (Biñan, Laguna)';
+            }
             $assignedRider = 'Rider 02';
         }
 
+        if (! empty($logisticsSync['destination_area'])) {
+            $destinationArea = $logisticsSync['destination_area'];
+        }
+
         $latestHistory = $o->statusHistories->first();
-        $courierName = $latestHistory?->courier_name ?: ($o->courier ?: 'Lumora Express Priority');
+        $courierName = $logisticsSync['courier_name']
+            ?: ($latestHistory?->courier_name ?: ($o->courier ?: 'Lumora Express Priority'));
+        $driverName = $logisticsSync['driver_name']
+            ?: ($courierName !== 'Lumora Express Priority' ? $courierName : 'Assigning Courier Rider');
+        $driverPhone = $logisticsSync['driver_phone'] ?: '0917-889-LMR';
+        $vehiclePlate = $logisticsSync['vehicle_plate'] ?: 'LAG-2026-LM';
+        $sortingCenterName = $logisticsSync['sorting_center_name']
+            ?: ($user?->municipality ? "{$user->municipality} Hub" : 'Laguna Central Sorting Hub');
+        $trackingNumber = $logisticsSync['tracking_number']
+            ?: ($o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)));
 
         $historyList = $o->statusHistories->map(function ($h) {
             $eventStatus = strtolower((string) ($h->tracking_status ?: $h->status));
@@ -648,11 +678,11 @@ class OrderController extends Controller
                 'processing' => 'Order processing',
                 'packed' => 'Order packed by seller',
                 'received' => 'Received by Lumora Logistics',
-                'scanned' => 'Scanned at logistics hub',
+                'scanned', 'at_sorting_center' => 'Scanned at logistics hub',
                 'sorted' => 'Sorted at logistics hub',
-                'assigned' => 'Assigned to courier',
+                'assigned', 'assigned_to_rider' => 'Assigned to courier',
                 'rider_received' => 'Received by courier',
-                'in_transit' => 'In Transit',
+                'in_transit', 'shipped' => 'In Transit',
                 'out_for_delivery' => 'Out for delivery',
                 'delivered', 'completed' => 'Delivered',
                 'cancelled' => 'Order cancelled',
@@ -666,8 +696,8 @@ class OrderController extends Controller
                 'notes' => (string) ($h->note ?? ''),
                 'note' => (string) ($h->note ?? ''),
                 'location' => $h->location,
-                'trackingStatus' => $h->tracking_status,
-                'tracking_status' => $h->tracking_status,
+                'trackingStatus' => $h->tracking_status ?: $h->status,
+                'tracking_status' => $h->tracking_status ?: $h->status,
                 'trackingLabel' => $eventLabel,
                 'tracking_label' => $eventLabel,
                 'courierName' => $h->courier_name,
@@ -677,27 +707,42 @@ class OrderController extends Controller
             ];
         })->values();
 
+        if (! empty($logisticsSync['history'])) {
+            $existingSignatures = $historyList->map(fn ($item) => strtolower(trim(($item['tracking_status'] ?? '').'|'.($item['notes'] ?? ''))))->all();
+            $mergedLogisticsHistory = collect($logisticsSync['history'])->filter(function ($item) use ($existingSignatures) {
+                $sig = strtolower(trim(($item['tracking_status'] ?? '').'|'.($item['notes'] ?? '')));
+                return ! in_array($sig, $existingSignatures, true);
+            })->values();
+            $historyList = $mergedLogisticsHistory->concat($historyList)->values();
+        }
+
         if ($historyList->isEmpty() || strtolower((string) ($historyList->first()['status'] ?? '')) !== $currentStatus) {
             $ts = $o->updated_at ?: $o->created_at ?: now();
             $fallbackNote = match ($currentStatus) {
                 'packed' => 'Order marked as packed by seller. Ready for Lumora Logistics handoff.',
+                'at_sorting_center' => "Parcel received and scanned at {$sortingCenterName}.",
+                'sorted' => "Parcel sorted at {$sortingCenterName} into {$destinationArea}.",
+                'assigned_to_rider' => "Parcel assigned to courier {$driverName} at {$sortingCenterName}.",
                 'shipped' => 'Parcel in transit via Lumora Logistics.',
-                'out_for_delivery' => 'Out for delivery with courier rider.',
+                'out_for_delivery' => "Out for delivery with courier {$driverName}.",
                 'delivered' => 'Parcel delivered to recipient.',
                 default => $statusExplanation,
             };
             $fallbackLabel = match ($currentStatus) {
                 'packed' => 'Order packed by seller',
+                'at_sorting_center' => 'Arrived at Sorting Hub',
+                'sorted' => 'Sorted by Destination Area',
+                'assigned_to_rider' => 'Assigned to Courier',
                 'pending' => 'Order placed',
                 default => ucfirst(str_replace('_', ' ', $currentStatus)),
             };
             $historyList->prepend([
-                'status' => $o->status,
+                'status' => $currentStatus,
                 'notes' => $fallbackNote,
                 'note' => $fallbackNote,
-                'location' => null,
-                'trackingStatus' => $o->status,
-                'tracking_status' => $o->status,
+                'location' => $sortingCenterName,
+                'trackingStatus' => $currentStatus,
+                'tracking_status' => $currentStatus,
                 'trackingLabel' => $fallbackLabel,
                 'tracking_label' => $fallbackLabel,
                 'courierName' => $courierName,
@@ -711,13 +756,14 @@ class OrderController extends Controller
             'id' => $o->order_number ?: (string) $o->id,
             'order_id' => (int) $o->id,
             'order_number' => $o->order_number ?: (string) $o->id,
-            'trackingNumber' => $o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)),
-            'tracking_number' => $o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)),
+            'trackingNumber' => $trackingNumber,
+            'tracking_number' => $trackingNumber,
             'createdAt' => $o->created_at?->toIso8601String(),
             'created_at' => $o->created_at?->toIso8601String(),
-            'status' => $o->status,
-            'status_label' => $o->status_label ?? ucfirst(str_replace('_', ' ', $o->status)),
-            'statusLabel' => $o->status_label ?? ucfirst(str_replace('_', ' ', $o->status)),
+            'status' => $currentStatus,
+            'logistics_status' => $logisticsSync['logistics_status'] ?? $currentStatus,
+            'status_label' => $logisticsSync['status_label'] ?? ($o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus))),
+            'statusLabel' => $logisticsSync['status_label'] ?? ($o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus))),
             'status_headline' => $statusHeadline,
             'statusHeadline' => $statusHeadline,
             'status_explanation' => $statusExplanation,
@@ -751,12 +797,12 @@ class OrderController extends Controller
             'payment_reference_last6' => $o->payment_reference_last6,
             'courierName' => $courierName,
             'courier' => $courierName,
-            'driverName' => $courierName !== 'Lumora Express Priority' ? $courierName : 'Assigning Courier Rider',
-            'driverPhone' => '0917-889-LMR',
-            'vehiclePlate' => 'LAG-2026-LM',
-            'sortingCenterName' => 'Laguna Central Sorting Hub',
+            'driverName' => $driverName,
+            'driverPhone' => $driverPhone,
+            'vehiclePlate' => $vehiclePlate,
+            'sortingCenterName' => $sortingCenterName,
             'destinationArea' => $destinationArea,
-            'assignedRiderId' => $assignedRider,
+            'assignedRiderId' => $driverName !== 'Assigning Courier Rider' ? $driverName : $assignedRider,
             'noteToSeller' => $o->notes,
             'voucherCode' => $o->voucher_code,
             'items' => $o->items->map(fn ($it) => [
@@ -772,6 +818,209 @@ class OrderController extends Controller
             ])->values(),
             'statusHistory' => $historyList->values(),
         ];
+    }
+
+    /**
+     * Pulls live parcel tracking state from Lumora Logistics (https://logistics.lumora.party)
+     * and synchronizes the local Order record if Logistics has advanced further.
+     */
+    private function syncOrderWithLogistics(Order $o): array
+    {
+        $logisticsBaseUrl = rtrim((string) config('services.logistics.url', env('LOGISTICS_BASE_URL', 'https://logistics.lumora.party')), '/');
+        if ($logisticsBaseUrl === '') {
+            return [];
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->timeout(2.5)
+                ->get("{$logisticsBaseUrl}/track/{$o->id}", ['format' => 'json']);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $data = $response->json();
+            if (! is_array($data) || empty($data['found'])) {
+                return [];
+            }
+
+            $effectiveStatus = strtolower(trim((string) ($data['effective_status'] ?? '')));
+            $parcelStatus = strtolower(trim((string) ($data['parcel_status'] ?? '')));
+            $scans = is_array($data['scans'] ?? null) ? $data['scans'] : [];
+            $events = is_array($data['events'] ?? null) ? $data['events'] : [];
+            $latestScan = $scans[0] ?? null;
+            $latestScanNote = (string) ($latestScan['notes'] ?? '');
+            $latestScanType = strtolower((string) ($latestScan['type'] ?? ''));
+
+            // Determine granular logistics status
+            $logisticsStage = $parcelStatus ?: $effectiveStatus;
+            if (stripos($latestScanNote, 'Parcel returned') !== false || stripos($latestScanNote, 'returned to') !== false) {
+                $logisticsStage = 'returned';
+            } elseif ($effectiveStatus === 'delivered' || $latestScanType === 'delivery' || stripos($latestScanNote, 'Delivered to recipient') !== false) {
+                $logisticsStage = 'delivered';
+            } elseif ($effectiveStatus === 'out_for_delivery' || $latestScanType === 'out_for_delivery' || stripos($latestScanNote, 'Out for delivery') !== false) {
+                $logisticsStage = 'out_for_delivery';
+            } elseif ($effectiveStatus === 'in_transit' || $latestScanType === 'dispatch' || stripos($latestScanNote, 'Linehaul') !== false || stripos($latestScanNote, 'Picked up by rider') !== false) {
+                $logisticsStage = 'in_transit';
+            } elseif ($parcelStatus === 'assigned' || stripos($latestScanNote, 'assigned to') !== false) {
+                $logisticsStage = 'assigned';
+            } elseif ($parcelStatus === 'sorted' || $latestScanType === 'sorting' || stripos($latestScanNote, 'Parcel sorted') !== false) {
+                $logisticsStage = 'sorted';
+            } elseif (in_array($parcelStatus, ['received', 'scanned'], true) || in_array($latestScanType, ['arrival', 'verify'], true)) {
+                $logisticsStage = 'scanned';
+            }
+
+            $appStatus = match ($logisticsStage) {
+                'received', 'scanned' => 'at_sorting_center',
+                'sorted' => 'sorted',
+                'assigned' => 'assigned_to_rider',
+                'rider_received', 'in_transit', 'shipped' => 'shipped',
+                'out_for_delivery' => 'out_for_delivery',
+                'delivered', 'completed' => 'delivered',
+                'returned' => 'returned',
+                'cancelled' => 'cancelled',
+                default => $o->status,
+            };
+
+            $dbTargetStatus = match ($logisticsStage) {
+                'received', 'scanned', 'sorted', 'assigned', 'packed' => 'packed',
+                'rider_received', 'in_transit', 'shipped' => 'shipped',
+                'out_for_delivery' => 'out_for_delivery',
+                'delivered', 'completed' => 'delivered',
+                'returned' => 'returned',
+                default => $o->status,
+            };
+
+            // Extract hub name & destination area from Logistics response or scan notes
+            $hubName = trim((string) ($data['hub_name'] ?? ''));
+            if ($hubName === '' && ! empty($events[0]['location'])) {
+                $hubName = trim((string) $events[0]['location']);
+            }
+            if ($hubName === '') {
+                foreach ($scans as $scan) {
+                    $note = (string) ($scan['notes'] ?? '');
+                    if (preg_match('/(?:at|in|to)\s+([A-Za-z\s]+Hub)/i', $note, $m)) {
+                        $hubName = trim($m[1]);
+                        break;
+                    }
+                }
+            }
+            if ($hubName === '' && ! empty($latestScan['location'])) {
+                $loc = trim((string) $latestScan['location']);
+                $hubName = stripos($loc, 'hub') !== false ? $loc : "{$loc} Hub";
+            }
+
+            $areaName = trim((string) ($data['area_name'] ?? ''));
+            if ($areaName === '') {
+                foreach ($scans as $scan) {
+                    $note = (string) ($scan['notes'] ?? '');
+                    if (preg_match('/into\s+(Brgy\.[^.]+?)(?:\s+and\s+assigned|\.)/i', $note, $m)) {
+                        $areaName = trim($m[1]);
+                        break;
+                    }
+                }
+            }
+            if ($areaName === '' && ! empty($data['destination'])) {
+                $areaName = trim((string) $data['destination']);
+            }
+
+            $courierName = trim((string) ($data['courier_name'] ?? ''));
+            $courierPhone = trim((string) ($data['courier_phone'] ?? ''));
+            $courierVehicle = trim((string) ($data['linehaul_truck'] ?? ($data['courier_vehicle'] ?? '')));
+            if ($courierVehicle === '') {
+                foreach ($scans as $scan) {
+                    $note = (string) ($scan['notes'] ?? '');
+                    if (preg_match('/([A-Za-z\s]+Linehaul\s+Truck)/i', $note, $m)) {
+                        $courierVehicle = trim($m[1]);
+                        break;
+                    }
+                }
+            }
+
+            $trackingNumber = trim((string) ($data['parcel_number'] ?? ($data['tracking_number'] ?? '')));
+
+            // Sync DB status if Logistics is ahead
+            $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 2, 'shipped' => 3, 'out_for_delivery' => 4, 'delivered' => 5, 'returned' => 6];
+            $currentRank = $statusRank[strtolower((string) $o->status)] ?? 0;
+            $targetRank = $statusRank[$dbTargetStatus] ?? 0;
+
+            if (! in_array($o->status, ['cancelled'], true) && $targetRank > $currentRank) {
+                $syncNote = $latestScanNote !== '' ? $latestScanNote : "Synced from Lumora Logistics ({$logisticsStage})";
+                $o->updateStatus($dbTargetStatus, $syncNote, $hubName ?: null, [
+                    'tracking_status' => $logisticsStage,
+                    'tracking_label' => ucfirst(str_replace('_', ' ', $logisticsStage)),
+                    'courier_name' => $courierName ?: null,
+                ]);
+                if ($courierName !== '' && $o->courier !== $courierName) {
+                    $o->courier = $courierName;
+                    $o->save();
+                }
+                $o->load('statusHistories');
+            }
+
+            // Build history entries from Logistics scans & events
+            $historyEntries = [];
+            foreach ($scans as $scan) {
+                $scanType = strtolower((string) ($scan['type'] ?? 'scanned'));
+                $scanNote = (string) ($scan['notes'] ?? '');
+                $scanLoc = (string) ($scan['location'] ?? ($hubName ?: 'Laguna Hub'));
+                $scanTimeRaw = (string) ($scan['scanned_at'] ?? '');
+
+                $scanStatus = match ($scanType) {
+                    'arrival', 'verify' => 'at_sorting_center',
+                    'sorting' => stripos($scanNote, 'assigned to') !== false ? 'assigned_to_rider' : 'sorted',
+                    'dispatch' => stripos($scanNote, 'returned') !== false ? 'returned' : 'shipped',
+                    'out_for_delivery' => 'out_for_delivery',
+                    'delivery' => 'delivered',
+                    'exception' => 'exception',
+                    default => $appStatus,
+                };
+
+                $scanLabel = match ($scanStatus) {
+                    'at_sorting_center' => 'Scanned at Sorting Hub',
+                    'sorted' => 'Sorted by Barangay Area',
+                    'assigned_to_rider' => 'Assigned to Courier Rider',
+                    'shipped' => 'In Transit / Linehaul Dispatch',
+                    'out_for_delivery' => 'Out for Delivery',
+                    'delivered' => 'Delivered to Recipient',
+                    'returned' => 'Parcel Returned',
+                    'exception' => 'Delivery Exception',
+                    default => ucfirst(str_replace('_', ' ', $scanStatus)),
+                };
+
+                $historyEntries[] = [
+                    'status' => $scanStatus,
+                    'notes' => $scanNote,
+                    'note' => $scanNote,
+                    'location' => stripos($scanLoc, 'hub') !== false ? $scanLoc : "{$scanLoc} Hub",
+                    'trackingStatus' => $scanStatus,
+                    'tracking_status' => $scanStatus,
+                    'trackingLabel' => $scanLabel,
+                    'tracking_label' => $scanLabel,
+                    'courierName' => $courierName ?: 'Lumora Logistics',
+                    'courier_name' => $courierName ?: 'Lumora Logistics',
+                    'created_at' => $o->updated_at?->toIso8601String() ?? now()->toIso8601String(),
+                    'formatted_time' => $scanTimeRaw !== '' ? "{$scanTimeRaw} PHT" : ($o->updated_at?->timezone('Asia/Manila')->format('M j, Y • g:i A').' PHT'),
+                ];
+            }
+
+            return [
+                'app_status' => $appStatus,
+                'logistics_status' => $logisticsStage,
+                'status_label' => (string) ($data['status_label'] ?? ucfirst(str_replace('_', ' ', $appStatus))),
+                'tracking_number' => $trackingNumber ?: null,
+                'sorting_center_name' => $hubName ?: null,
+                'destination_area' => $areaName ?: null,
+                'courier_name' => $courierName ? "Lumora Logistics • {$courierName}" : 'Lumora Logistics',
+                'driver_name' => $courierName ?: null,
+                'driver_phone' => $courierPhone ?: null,
+                'vehicle_plate' => $courierVehicle ?: null,
+                'history' => $historyEntries,
+            ];
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /**
@@ -921,7 +1170,12 @@ class OrderController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'hub' => ['nullable', 'string', 'max:255'],
             'rider_name' => ['nullable', 'string', 'max:120'],
+            'rider_phone' => ['nullable', 'string', 'max:60'],
             'operator' => ['nullable', 'string', 'max:120'],
+            'parcel_number' => ['nullable', 'string', 'max:80'],
+            'tracking_number' => ['nullable', 'string', 'max:80'],
+            'area_name' => ['nullable', 'string', 'max:255'],
+            'vehicle_type' => ['nullable', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -951,6 +1205,7 @@ class OrderController extends Controller
         $mappedStatus = match ($logisticsStatus) {
             'delivered', 'completed' => 'delivered',
             'cancelled' => 'cancelled',
+            'returned', 'returned_to_hub', 'return_picked_up', 'return_pickup_scheduled' => 'returned',
             'exception', 'failed' => $order->status,
             'out_for_delivery' => 'out_for_delivery',
             'received', 'scanned' => 'processing',
@@ -959,13 +1214,26 @@ class OrderController extends Controller
             default => 'shipped',
         };
 
-        $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 2, 'shipped' => 3, 'out_for_delivery' => 4, 'delivered' => 5];
-        $isTerminal = in_array($order->status, ['cancelled', 'returned', 'delivered'], true);
-        $canAdvance = ! $isTerminal && (($statusRank[$mappedStatus] ?? 0) >= ($statusRank[$order->status] ?? 0)
-            || in_array($mappedStatus, ['cancelled'], true));
+        $statusRank = ['pending' => 0, 'processing' => 1, 'packed' => 2, 'shipped' => 3, 'out_for_delivery' => 4, 'delivered' => 5, 'returned' => 6];
+        $isTerminal = in_array($order->status, ['cancelled', 'delivered'], true);
+        $canAdvance = (! $isTerminal && (($statusRank[$mappedStatus] ?? 0) >= ($statusRank[$order->status] ?? 0)
+            || in_array($mappedStatus, ['cancelled', 'returned'], true)))
+            || $mappedStatus === 'returned';
 
         $location = $trackingUpdate['location'] ?? ($trackingUpdate['hub'] ?? null);
         $note = $trackingUpdate['note'] ?? "Updated via Lumora Logistics ({$logisticsStatus})";
+        $courierName = $trackingUpdate['rider_name'] ?? ($trackingUpdate['operator'] ?? null);
+        $parcelNumber = $trackingUpdate['parcel_number'] ?? ($trackingUpdate['tracking_number'] ?? null);
+
+        if (! empty($courierName) && $order->courier !== $courierName) {
+            $order->courier = $courierName;
+            $order->save();
+        }
+        if (! empty($parcelNumber) && Schema::hasColumn('orders', 'tracking_number') && $order->tracking_number !== $parcelNumber) {
+            $order->tracking_number = $parcelNumber;
+            $order->save();
+        }
+
         $sameRecentEvent = $order->statusHistories()
             ->where('tracking_status', $logisticsStatus)
             ->where('location', $location)
@@ -977,7 +1245,7 @@ class OrderController extends Controller
             $order->updateStatus($mappedStatus, $note, $location, [
                 'tracking_status' => $logisticsStatus,
                 'tracking_label' => $trackingUpdate['label'] ?? \Illuminate\Support\Str::headline($logisticsStatus),
-                'courier_name' => $trackingUpdate['rider_name'] ?? ($trackingUpdate['operator'] ?? null),
+                'courier_name' => $courierName,
             ]);
         }
 
