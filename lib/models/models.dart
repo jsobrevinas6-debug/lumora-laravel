@@ -1001,12 +1001,17 @@ class OrderModel {
       case 'packed':
         return 'packed';
       case 'shipped':
+      case 'in_transit':
+      case 'rider_received':
         return 'shipped';
       case 'at_sorting_center':
+      case 'received':
+      case 'scanned':
         return 'at_sorting_center';
       case 'sorted':
         return 'sorted';
       case 'assigned_to_rider':
+      case 'assigned':
         return 'assigned_to_rider';
       case 'to_receive':
       case 'out_for_delivery':

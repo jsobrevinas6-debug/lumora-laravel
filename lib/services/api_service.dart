@@ -19,6 +19,9 @@ class ApiConfig {
   /// For Production: 'https://lumora.party/api'
   static String baseUrl = 'https://lumora.party/api';
 
+  /// Live Lumora Logistics System URL (lumora-logistics branch)
+  static String logisticsBaseUrl = 'https://logistics.lumora.party';
+
   static const Duration timeout = Duration(seconds: 10);
 
   static const String _keyUseLiveApi = 'lumora_use_live_api';
@@ -506,7 +509,7 @@ class ApiService {
     }
   }
 
-  /// 6. Fetch Buyer Orders (Web Parity: Buyer/OrderController@index)
+  /// 6. Fetch Buyer Orders (Web Parity: Buyer/OrderController@index + Lumora Logistics Sync)
   Future<List<OrderModel>> fetchBuyerOrders({String? token}) async {
     try {
       final tok = token ?? await _getToken();
@@ -520,7 +523,8 @@ class ApiService {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final List list = decoded['data'] ?? decoded['orders'] ?? [];
-        return list.map((item) => OrderModel.fromJson(item as Map<String, dynamic>)).toList();
+        final parsed = list.map((item) => OrderModel.fromJson(item as Map<String, dynamic>)).toList();
+        return await enrichOrdersWithLogistics(parsed);
       }
     } catch (e) {
       debugPrint('ApiService.fetchBuyerOrders error: $e');
@@ -528,11 +532,12 @@ class ApiService {
     return [];
   }
 
-  /// 6b. Fetch Live Order Tracking Details (Web Parity: Buyer/OrderController@track)
+  /// 6b. Fetch Live Order Tracking Details (Web Parity: Buyer/OrderController@track + Lumora Logistics Sync)
   Future<OrderModel?> fetchOrderTracking({
     required String orderId,
     String? token,
   }) async {
+    OrderModel? baseOrder;
     try {
       final tok = token ?? await _getToken();
       final response = await http
@@ -546,13 +551,430 @@ class ApiService {
         final decoded = jsonDecode(response.body);
         final data = decoded['data'] ?? decoded['order'];
         if (data is Map<String, dynamic>) {
-          return OrderModel.fromJson(data);
+          baseOrder = OrderModel.fromJson(data);
         }
       }
     } catch (e) {
       debugPrint('ApiService.fetchOrderTracking error: $e');
     }
+
+    if (baseOrder != null) {
+      return await enrichOrderWithLogistics(baseOrder);
+    }
     return null;
+  }
+
+  /// Extracts numeric order ID (e.g. "24" from "LMR-2026-000024") for Logistics barcode lookup
+  static String? _extractNumericOrderId(String rawId) {
+    final trimmed = rawId.trim();
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) return trimmed;
+    final lmrMatch = RegExp(r'^(?:LMR-\d{4}-0*|ORD-0*)(\d+)$', caseSensitive: false).firstMatch(trimmed);
+    if (lmrMatch != null) return lmrMatch.group(1);
+    return null;
+  }
+
+  /// Enriches a list of orders in parallel with live parcel state from https://logistics.lumora.party
+  Future<List<OrderModel>> enrichOrdersWithLogistics(List<OrderModel> orders) async {
+    if (orders.isEmpty) return orders;
+    try {
+      Map<String, Map<String, dynamic>> scannerByBarcode = {};
+      try {
+        final recentResp = await http
+            .get(
+              Uri.parse('${ApiConfig.logisticsBaseUrl}/api/v1/scanner/recent'),
+              headers: {'Accept': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 4));
+        if (recentResp.statusCode == 200) {
+          final decoded = jsonDecode(recentResp.body);
+          final dataList = decoded['data'];
+          if (dataList is List) {
+            for (final item in dataList) {
+              if (item is Map<String, dynamic>) {
+                final bc = (item['barcode'] ?? '').toString().trim();
+                final pNum = (item['parcel_number'] ?? '').toString().trim();
+                if (bc.isNotEmpty && !scannerByBarcode.containsKey(bc)) {
+                  scannerByBarcode[bc] = item;
+                }
+                if (pNum.isNotEmpty && !scannerByBarcode.containsKey(pNum)) {
+                  scannerByBarcode[pNum] = item;
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      final enriched = await Future.wait(
+        orders.map((o) => enrichOrderWithLogistics(o, cachedScannerMap: scannerByBarcode)),
+      );
+      return enriched;
+    } catch (_) {
+      return orders;
+    }
+  }
+
+  /// Queries https://logistics.lumora.party/track/{id}?format=json to sync real-time delivery status,
+  /// sorting hub, barangay area, assigned rider, vehicle unit, and scan timeline.
+  Future<OrderModel> enrichOrderWithLogistics(
+    OrderModel order, {
+    Map<String, Map<String, dynamic>>? cachedScannerMap,
+  }) async {
+    try {
+      final numericId = _extractNumericOrderId(order.id);
+      final lookupCandidates = <String>{
+        if (numericId != null && numericId.isNotEmpty) numericId,
+        if (order.trackingNumber.startsWith('LM-TRK-')) order.trackingNumber,
+        order.id,
+      }.toList();
+
+      Map<String, dynamic>? trackData;
+      for (final candidate in lookupCandidates) {
+        try {
+          final resp = await http
+              .get(
+                Uri.parse('${ApiConfig.logisticsBaseUrl}/track/${Uri.encodeComponent(candidate)}?format=json'),
+                headers: {'Accept': 'application/json'},
+              )
+              .timeout(const Duration(seconds: 4));
+          if (resp.statusCode == 200) {
+            final decoded = jsonDecode(resp.body);
+            if (decoded is Map<String, dynamic> && decoded['found'] == true) {
+              trackData = decoded;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+
+      final scannerEntry = cachedScannerMap != null
+          ? (cachedScannerMap[numericId ?? ''] ??
+              cachedScannerMap[order.trackingNumber] ??
+              cachedScannerMap[order.id])
+          : null;
+
+      if (trackData == null && scannerEntry == null) {
+        return order;
+      }
+
+      final effectiveStatus = (trackData?['effective_status'] ?? '').toString().trim().toLowerCase();
+      final parcelStatus = (trackData?['parcel_status'] ?? scannerEntry?['status'] ?? '').toString().trim().toLowerCase();
+      final scans = (trackData?['scans'] is List) ? (trackData!['scans'] as List) : const [];
+      final events = (trackData?['events'] is List) ? (trackData!['events'] as List) : const [];
+
+      final latestScan = scans.isNotEmpty && scans.first is Map ? (scans.first as Map) : null;
+      final latestScanNote = (latestScan?['notes'] ?? latestScan?['note'] ?? '').toString();
+      final latestScanType = (latestScan?['type'] ?? latestScan?['scan_type'] ?? '').toString().toLowerCase();
+
+      String logisticsStage = parcelStatus.isNotEmpty ? parcelStatus : effectiveStatus;
+      if (latestScanNote.toLowerCase().contains('parcel returned') ||
+          latestScanNote.toLowerCase().contains('returned to')) {
+        logisticsStage = 'returned';
+      } else if (effectiveStatus == 'delivered' ||
+          parcelStatus == 'delivered' ||
+          latestScanType.contains('delivery') && !latestScanType.contains('out_for_delivery') ||
+          latestScanNote.toLowerCase().contains('delivered to recipient')) {
+        logisticsStage = 'delivered';
+      } else if (effectiveStatus == 'out_for_delivery' ||
+          parcelStatus == 'out_for_delivery' ||
+          latestScanType.contains('out_for_delivery') ||
+          latestScanType.contains('out for delivery') ||
+          latestScanNote.toLowerCase().contains('out for delivery')) {
+        logisticsStage = 'out_for_delivery';
+      } else if (effectiveStatus == 'in_transit' ||
+          parcelStatus == 'in_transit' ||
+          parcelStatus == 'rider_received' ||
+          latestScanType.contains('dispatch') ||
+          latestScanNote.toLowerCase().contains('linehaul') ||
+          latestScanNote.toLowerCase().contains('picked up by rider')) {
+        logisticsStage = 'in_transit';
+      } else if (parcelStatus == 'assigned' ||
+          latestScanNote.toLowerCase().contains('assigned to')) {
+        logisticsStage = 'assigned';
+      } else if (parcelStatus == 'sorted' ||
+          latestScanType.contains('sort') ||
+          latestScanNote.toLowerCase().contains('parcel sorted')) {
+        logisticsStage = 'sorted';
+      } else if (parcelStatus == 'received' ||
+          parcelStatus == 'scanned' ||
+          latestScanType.contains('arrival') ||
+          latestScanType.contains('verify') ||
+          latestScanType.contains('scan')) {
+        logisticsStage = 'scanned';
+      }
+
+      String mappedAppStatus = order.status;
+      switch (logisticsStage) {
+        case 'received':
+        case 'scanned':
+          mappedAppStatus = 'at_sorting_center';
+          break;
+        case 'sorted':
+          mappedAppStatus = 'sorted';
+          break;
+        case 'assigned':
+          mappedAppStatus = 'assigned_to_rider';
+          break;
+        case 'rider_received':
+        case 'in_transit':
+        case 'shipped':
+          mappedAppStatus = 'shipped';
+          break;
+        case 'out_for_delivery':
+          mappedAppStatus = 'out_for_delivery';
+          break;
+        case 'delivered':
+        case 'completed':
+          mappedAppStatus = 'delivered';
+          break;
+        case 'returned':
+          mappedAppStatus = 'returned';
+          break;
+      }
+
+      // Extract Hub Name
+      String hubName = (trackData?['hub_name'] ?? '').toString().trim();
+      if (hubName.isEmpty && scannerEntry != null) {
+        final br = (scannerEntry['branch'] ?? '').toString().trim();
+        if (br.isNotEmpty) {
+          hubName = br.toLowerCase().contains('hub') ? br : '$br Hub';
+        }
+      }
+      if (hubName.isEmpty && events.isNotEmpty && events.first is Map) {
+        hubName = ((events.first as Map)['location'] ?? '').toString().trim();
+      }
+      if (hubName.isEmpty) {
+        for (final s in scans) {
+          if (s is Map) {
+            final note = (s['notes'] ?? s['note'] ?? '').toString();
+            final m = RegExp(r'(?:at|in|to)\s+([A-Za-z\s]+Hub)', caseSensitive: false).firstMatch(note);
+            if (m != null && m.group(1) != null) {
+              hubName = m.group(1)!.trim();
+              break;
+            }
+          }
+        }
+      }
+      if (hubName.isEmpty && latestScan != null) {
+        final loc = (latestScan['location'] ?? '').toString().trim();
+        if (loc.isNotEmpty) {
+          hubName = loc.toLowerCase().contains('hub') ? loc : '$loc Hub';
+        }
+      }
+      if (hubName.isEmpty) {
+        hubName = order.sortingCenterName ?? 'Laguna Central Sorting Hub';
+      }
+
+      // Extract Barangay / Destination Area
+      String areaName = (trackData?['area_name'] ?? scannerEntry?['area_name'] ?? '').toString().trim();
+      if (areaName.isEmpty) {
+        for (final s in scans) {
+          if (s is Map) {
+            final note = (s['notes'] ?? s['note'] ?? '').toString();
+            final m = RegExp(r'into\s+(Brgy\.[^.]+?)(?:\s+and\s+assigned|\.)', caseSensitive: false).firstMatch(note);
+            if (m != null && m.group(1) != null) {
+              areaName = m.group(1)!.trim();
+              break;
+            }
+          }
+        }
+      }
+      if (areaName.isEmpty) {
+        final dest = (trackData?['destination'] ?? '').toString().trim();
+        if (dest.isNotEmpty) areaName = dest;
+      }
+      if (areaName.isEmpty) {
+        areaName = order.destinationArea ?? 'Laguna District';
+      }
+
+      // Extract Courier Rider & Vehicle
+      String riderName = (trackData?['courier_name'] ?? scannerEntry?['assigned_rider'] ?? '').toString().trim();
+      if (riderName.isEmpty) {
+        for (final s in scans) {
+          if (s is Map) {
+            final note = (s['notes'] ?? s['note'] ?? '').toString();
+            final m = RegExp(r'assigned to (?:rider\s+)?([A-Za-z0-9\s._-]+?)(?:\.|,|$)', caseSensitive: false).firstMatch(note);
+            if (m != null && m.group(1) != null) {
+              riderName = m.group(1)!.trim();
+              break;
+            }
+          }
+        }
+      }
+      final String driverName = riderName.isNotEmpty ? riderName : order.driverName;
+      final String courierName = riderName.isNotEmpty ? 'Lumora Logistics • $riderName' : 'Lumora Logistics';
+      final String driverPhone = (trackData?['courier_phone'] ?? '').toString().trim().isNotEmpty
+          ? (trackData!['courier_phone']).toString().trim()
+          : order.driverPhone;
+
+      String vehiclePlate = (trackData?['linehaul_truck'] ?? trackData?['courier_vehicle'] ?? '').toString().trim();
+      for (final s in scans) {
+        if (s is Map) {
+          final note = (s['notes'] ?? s['note'] ?? '').toString();
+          final m = RegExp(r'([A-Za-z\s]+Linehaul\s+Truck)', caseSensitive: false).firstMatch(note);
+          if (m != null && m.group(1) != null && mappedAppStatus == 'shipped') {
+            vehiclePlate = m.group(1)!.trim();
+            break;
+          }
+        }
+      }
+      if (vehiclePlate.isEmpty) {
+        vehiclePlate = order.vehiclePlate;
+      }
+
+      final String trackingNum = (trackData?['parcel_number'] ??
+              trackData?['tracking_number'] ??
+              scannerEntry?['parcel_number'] ??
+              '')
+          .toString()
+          .trim();
+      final String finalTrackingNumber =
+          trackingNum.isNotEmpty ? trackingNum : order.trackingNumber;
+
+      // Build merged status history from Logistics scans
+      final List<OrderStatusHistoryItem> mergedHistory = [];
+      for (final s in scans) {
+        if (s is Map) {
+          final sType = (s['type'] ?? s['scan_type'] ?? 'scanned').toString().toLowerCase();
+          final sNote = (s['notes'] ?? s['note'] ?? '').toString();
+          final sLocRaw = (s['location'] ?? hubName).toString().trim();
+          final sLoc = sLocRaw.toLowerCase().contains('hub') ? sLocRaw : '$sLocRaw Hub';
+          final sTime = (s['scanned_at'] ?? s['time'] ?? '').toString().trim();
+
+          String histStatus = mappedAppStatus;
+          String histLabel = 'Logistics Scan Update';
+          if (sType.contains('arrival') || sType.contains('verify')) {
+            histStatus = 'at_sorting_center';
+            histLabel = 'Arrived & Verified at Sorting Hub';
+          } else if (sType.contains('sort')) {
+            if (sNote.toLowerCase().contains('assigned to')) {
+              histStatus = 'assigned_to_rider';
+              histLabel = 'Sorted & Assigned to Courier';
+            } else {
+              histStatus = 'sorted';
+              histLabel = 'Sorted by Barangay Area';
+            }
+          } else if (sType.contains('dispatch')) {
+            if (sNote.toLowerCase().contains('returned')) {
+              histStatus = 'returned';
+              histLabel = 'Parcel Returned to Hub';
+            } else if (sNote.toLowerCase().contains('linehaul')) {
+              histStatus = 'shipped';
+              histLabel = 'Linehaul Truck Hub Transfer';
+            } else {
+              histStatus = 'shipped';
+              histLabel = 'Dispatched in Transit';
+            }
+          } else if (sType.contains('out_for_delivery') || sType.contains('out for delivery')) {
+            histStatus = 'out_for_delivery';
+            histLabel = 'Out for Delivery';
+          } else if (sType.contains('delivery')) {
+            histStatus = 'delivered';
+            histLabel = 'Delivered to Recipient';
+          }
+
+          mergedHistory.add(
+            OrderStatusHistoryItem(
+              status: histStatus,
+              notes: sNote,
+              location: sLoc,
+              trackingStatus: histStatus,
+              trackingLabel: histLabel,
+              courierName: riderName.isNotEmpty ? riderName : 'Lumora Logistics',
+              formattedTime: sTime.isNotEmpty ? '$sTime PHT' : null,
+              createdAt: order.createdAt,
+            ),
+          );
+        }
+      }
+
+      for (final existing in order.statusHistory) {
+        final dup = mergedHistory.any(
+          (m) => m.notes.trim().toLowerCase() == existing.notes.trim().toLowerCase(),
+        );
+        if (!dup) {
+          mergedHistory.add(existing);
+        }
+      }
+
+      final String headline = switch (mappedAppStatus) {
+        'at_sorting_center' => 'Arrived at $hubName',
+        'sorted' => 'Sorted for $areaName',
+        'assigned_to_rider' => 'Assigned to Courier • $driverName',
+        'shipped' => 'In Transit via Lumora Logistics',
+        'out_for_delivery' => 'Out for Delivery with $driverName',
+        'delivered' => 'Delivered by Lumora Logistics',
+        'returned' => 'Parcel Returned ($hubName)',
+        _ => order.statusHeadline ?? 'Order Status Updated',
+      };
+
+      final String explanation = latestScanNote.isNotEmpty
+          ? latestScanNote
+          : switch (mappedAppStatus) {
+              'at_sorting_center' => 'Your parcel has been scanned and verified at $hubName.',
+              'sorted' => 'Your parcel has been sorted at $hubName into $areaName.',
+              'assigned_to_rider' => 'Assigned to rider $driverName ($vehiclePlate) for $areaName.',
+              'shipped' => 'Your parcel is moving across the Laguna Logistics network toward $hubName.',
+              'out_for_delivery' => 'Courier $driverName ($vehiclePlate) is on the way to your address.',
+              'delivered' => 'Your parcel was successfully delivered and confirmed.',
+              'returned' => 'Parcel was marked as returned in Lumora Logistics.',
+              _ => order.statusExplanation ?? '',
+            };
+
+      final double progressVal = switch (mappedAppStatus) {
+        'pending' || 'processing' => 0.15,
+        'packed' => 0.30,
+        'at_sorting_center' => 0.45,
+        'sorted' => 0.55,
+        'assigned_to_rider' => 0.65,
+        'shipped' => 0.75,
+        'out_for_delivery' => 0.90,
+        'delivered' => 1.0,
+        _ => order.progress,
+      };
+
+      return OrderModel(
+        id: order.id,
+        trackingNumber: finalTrackingNumber,
+        createdAt: order.createdAt,
+        status: mappedAppStatus,
+        items: order.items,
+        totalAmount: order.totalAmount,
+        subtotalAmount: order.subtotalAmount,
+        shippingFeeAmount: order.shippingFeeAmount,
+        deliveryAddress: order.deliveryAddress,
+        recipientName: order.recipientName,
+        paymentMethod: order.paymentMethod,
+        courierName: courierName,
+        driverName: driverName,
+        driverPhone: driverPhone,
+        vehiclePlate: vehiclePlate,
+        sortingCenterName: hubName,
+        destinationArea: areaName,
+        assignedRiderId: riderName.isNotEmpty ? riderName : order.assignedRiderId,
+        statusHistory: mergedHistory.isNotEmpty ? mergedHistory : order.statusHistory,
+        progress: progressVal,
+        noteToSeller: order.noteToSeller,
+        voucherCode: order.voucherCode,
+        deliveredAt: order.deliveredAt,
+        isAutoCompleted: order.isAutoCompleted,
+        isDisputed: order.isDisputed,
+        returnRejectionReason: order.returnRejectionReason,
+        returnDisputeStatus: order.returnDisputeStatus,
+        returnEvidencePhotos: order.returnEvidencePhotos,
+        returnReason: order.returnReason,
+        paymentProofPath: order.paymentProofPath,
+        paymentReferenceLast6: order.paymentReferenceLast6,
+        paymentStatus: order.paymentStatus,
+        estimatedDelivery: order.estimatedDelivery,
+        statusHeadline: headline,
+        statusExplanation: explanation,
+        statusLabel: (trackData?['status_label'] ?? order.statusLabel)?.toString(),
+      );
+    } catch (e) {
+      debugPrint('ApiService.enrichOrderWithLogistics error: $e');
+      return order;
+    }
   }
 
   /// 7. Cancel Order (Web Parity: Buyer/OrderController@cancel)

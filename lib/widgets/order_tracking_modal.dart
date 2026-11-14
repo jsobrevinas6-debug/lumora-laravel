@@ -57,12 +57,24 @@ class _OrderTrackingContent extends StatefulWidget {
 class _OrderTrackingContentState extends State<_OrderTrackingContent> {
   late OrderModel _order;
   bool _isRefreshing = false;
+  Timer? _livePollTimer;
 
   @override
   void initState() {
     super.initState();
     _order = widget.order;
     _refreshLiveTracking(silent: true);
+    _livePollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted && !_isRefreshing) {
+        _refreshLiveTracking(silent: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _livePollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshLiveTracking({bool silent = false}) async {
@@ -132,6 +144,24 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
         border = const Color(0xFF80CBC4);
         dot = const Color(0xFF00796B);
         label = 'IN TRANSIT';
+        break;
+      case 'assigned_to_rider':
+        bg = const Color(0xFFE0F2F1);
+        border = const Color(0xFF80CBC4);
+        dot = const Color(0xFF00796B);
+        label = 'COURIER ASSIGNED';
+        break;
+      case 'sorted':
+        bg = const Color(0xFFE8EAF6);
+        border = const Color(0xFF9FA8DA);
+        dot = const Color(0xFF3949AB);
+        label = 'SORTED AT HUB';
+        break;
+      case 'at_sorting_center':
+        bg = const Color(0xFFE3F2FD);
+        border = const Color(0xFF90CAF9);
+        dot = const Color(0xFF1565C0);
+        label = 'AT SORTING HUB';
         break;
       case 'packed':
       case 'processing':
@@ -816,16 +846,17 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
     final normalized = _order.normalizedWebStatus;
     final isCompleted = normalized == 'delivered';
     final isOutForDelivery = normalized == 'out_for_delivery';
+    final isShipped = normalized == 'shipped';
     final isAssignedToRider = normalized == 'assigned_to_rider';
     final isSorted = normalized == 'sorted';
     final isAtSortingCenter = normalized == 'at_sorting_center';
-    final isPacked = normalized == 'packed' || normalized == 'shipped';
+    final isPacked = normalized == 'packed';
 
     final doneStep1 = true;
-    final doneStep2 = isPacked || isAtSortingCenter || isSorted || isAssignedToRider || isOutForDelivery || isCompleted;
-    final doneStep3 = isAtSortingCenter || isSorted || isAssignedToRider || isOutForDelivery || isCompleted;
-    final doneStep4 = isSorted || isAssignedToRider || isOutForDelivery || isCompleted;
-    final doneStep5 = isAssignedToRider || isOutForDelivery || isCompleted;
+    final doneStep2 = isPacked || isAtSortingCenter || isSorted || isAssignedToRider || isShipped || isOutForDelivery || isCompleted;
+    final doneStep3 = isAtSortingCenter || isSorted || isAssignedToRider || isShipped || isOutForDelivery || isCompleted;
+    final doneStep4 = isSorted || isAssignedToRider || isShipped || isOutForDelivery || isCompleted;
+    final doneStep5 = isAssignedToRider || isShipped || isOutForDelivery || isCompleted;
     final doneStep6 = isOutForDelivery || isCompleted;
     final doneStep7 = isCompleted;
 
@@ -861,13 +892,13 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
       {
         'title': 'Assigned to Dedicated Courier',
         'time': doneStep5
-            ? 'Stage 5 • ${_order.computedAssignedRider} (${_order.driverName})'
+            ? 'Stage 5 • ${_order.driverName}'
             : 'Stage 5 • Pending Rider Assignment',
         'desc': doneStep5
-            ? 'Parcel handed over to designated delivery officer for dispatch loadout.'
+            ? 'Parcel handed over to designated delivery officer (${_order.vehiclePlate}) for dispatch loadout.'
             : 'Courier rider will be assigned after seller processing and hub sorting.',
         'done': doneStep5,
-        'current': isAssignedToRider,
+        'current': isAssignedToRider || isShipped,
       },
       {
         'title': 'Out for Delivery (Live Tracking)',
@@ -1194,29 +1225,37 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
                               decoration: BoxDecoration(
                                 color: doneStep3
                                     ? const Color(0xFF2E7D32).withValues(alpha: 0.1)
-                                    : const Color(0xFFFFF8E1),
+                                    : (doneStep2 ? const Color(0xFFE3F2FD) : const Color(0xFFFFF8E1)),
                                 borderRadius: BorderRadius.circular(99),
                                 border: Border.all(
                                   color: doneStep3
                                       ? const Color(0xFF2E7D32).withValues(alpha: 0.3)
-                                      : const Color(0xFFFFE082),
+                                      : (doneStep2 ? const Color(0xFF90CAF9) : const Color(0xFFFFE082)),
                                 ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    doneStep3 ? Icons.check_circle_outline : Icons.schedule,
+                                    doneStep3
+                                        ? Icons.check_circle_outline
+                                        : (doneStep2 ? Icons.inventory_2_outlined : Icons.schedule),
                                     size: 11,
-                                    color: doneStep3 ? const Color(0xFF2E7D32) : const Color(0xFFF57F17),
+                                    color: doneStep3
+                                        ? const Color(0xFF2E7D32)
+                                        : (doneStep2 ? const Color(0xFF1976D2) : const Color(0xFFF57F17)),
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    doneStep3 ? 'Verified Hub' : 'Awaiting Seller',
+                                    doneStep3
+                                        ? 'Verified Hub'
+                                        : (doneStep2 ? 'Ready for Hub' : 'Awaiting Seller'),
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: doneStep3 ? const Color(0xFF2E7D32) : const Color(0xFFF57F17),
+                                      color: doneStep3
+                                          ? const Color(0xFF2E7D32)
+                                          : (doneStep2 ? const Color(0xFF1976D2) : const Color(0xFFF57F17)),
                                     ),
                                   ),
                                 ],
@@ -1254,9 +1293,9 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
                               child: _buildLogisticsInfoBadge(
                                 icon: Icons.delivery_dining_outlined,
                                 label: 'Rider Designation',
-                                value: doneStep5
-                                    ? '${_order.computedAssignedRider} • Regional Specialist'
-                                    : 'Assigned When Out for Delivery',
+                                value: doneStep5 || _order.driverName != 'Assigning Courier Rider'
+                                    ? _order.driverName
+                                    : 'Assigned at Sorting Hub',
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1264,9 +1303,9 @@ class _OrderTrackingContentState extends State<_OrderTrackingContent> {
                               child: _buildLogisticsInfoBadge(
                                 icon: Icons.local_shipping_outlined,
                                 label: 'Vehicle Unit',
-                                value: doneStep5
+                                value: doneStep3 || doneStep5
                                     ? _order.vehiclePlate.split('(').first.trim()
-                                    : 'Pending Rider Dispatch',
+                                    : 'Pending Hub Dispatch',
                               ),
                             ),
                           ],
