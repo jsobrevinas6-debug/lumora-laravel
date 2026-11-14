@@ -1,0 +1,104 @@
+diff --git a/app/Http/Controllers/Api/OrderController.php b/app/Http/Controllers/Api/OrderController.php
+index 082d1ea..04d1bed 100644
+--- a/app/Http/Controllers/Api/OrderController.php
++++ b/app/Http/Controllers/Api/OrderController.php
+@@ -35,11 +35,21 @@ public function index(Request $request): JsonResponse
+ 
+     public function store(Request $request): JsonResponse
+     {
++        // Multipart uploads (GCash/Maya receipt) send items as a JSON string.
++        if (is_string($request->input('items'))) {
++            $decoded = json_decode($request->input('items'), true);
++            if (is_array($decoded)) {
++                $request->merge(['items' => $decoded]);
++            }
++        }
++
+         $validated = $request->validate([
+             'payment_method' => ['required', 'string', 'in:cod,gcash,maya'],
+             'shipping_address' => ['nullable', 'string', 'max:500'],
+             'note_to_seller' => ['nullable', 'string', 'max:1000'],
+             'voucher_code' => ['nullable', 'string', 'max:50'],
++            'payment_proof' => ['required_if:payment_method,gcash,maya', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
++            'payment_reference_last6' => ['required_if:payment_method,gcash,maya', 'nullable', 'regex:/^\d{6}$/'],
+             'items' => ['required', 'array', 'min:1'],
+             'items.*.product_id' => ['required'],
+             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
+@@ -141,6 +151,12 @@ public function store(Request $request): JsonResponse
+                 'status' => 'pending',
+                 'payment_status' => 'pending',
+                 'payment_method' => $paymentMethod,
++                'payment_proof_path' => in_array($validated['payment_method'], ['gcash', 'maya'], true)
++                    ? $request->file('payment_proof')?->store('payment-proofs', config('filesystems.payment_proof_disk'))
++                    : null,
++                'payment_reference_last6' => in_array($validated['payment_method'], ['gcash', 'maya'], true)
++                    ? ($validated['payment_reference_last6'] ?? null)
++                    : null,
+                 'subtotal' => $subtotal,
+                 'shipping_fee' => $shipping,
+                 'discount' => $discount,
+@@ -215,6 +231,42 @@ public function cancel(Request $request, string $orderId): JsonResponse
+         return response()->json(['message' => 'Order cancelled.']);
+     }
+ 
++    public function replacePaymentProof(Request $request, string $orderId): JsonResponse
++    {
++        $order = $this->findBuyerOrder($request, $orderId);
++
++        if (! in_array($order->payment_method, ['gcash', 'maya', 'paymaya'], true)
++            || $order->payment_status !== 'pending'
++            || $order->status !== 'pending') {
++            return response()->json(['message' => 'Only pending e-wallet orders can update their payment proof.'], 422);
++        }
++
++        $validated = $request->validate([
++            'payment_proof' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
++            'payment_reference_last6' => ['required', 'regex:/^\d{6}$/'],
++        ]);
++
++        $diskName = config('filesystems.payment_proof_disk');
++        $disk = \Illuminate\Support\Facades\Storage::disk($diskName);
++        $previousPath = $order->payment_proof_path;
++        $newPath = $request->file('payment_proof')->store('payment-proofs', $diskName);
++
++        if (! $newPath) {
++            return response()->json(['message' => 'The receipt could not be saved. Please try again.'], 500);
++        }
++
++        $order->update([
++            'payment_proof_path' => $newPath,
++            'payment_reference_last6' => $validated['payment_reference_last6'],
++        ]);
++
++        if ($previousPath && $previousPath !== $newPath && $disk->exists($previousPath)) {
++            $disk->delete($previousPath);
++        }
++
++        return response()->json(['message' => 'Your payment receipt was submitted for review.']);
++    }
++
+     public function requestReturn(Request $request, string $orderId): JsonResponse
+     {
+         $order = $this->findBuyerOrder($request, $orderId);
+@@ -352,6 +404,9 @@ private function transformOrder(Order $o): array
+             'deliveryAddress' => $address ?: 'Philippines',
+             'recipientName' => $user?->name ?: 'Customer',
+             'paymentMethod' => strtoupper((string) $o->payment_method),
++            'paymentStatus' => (string) ($o->payment_status ?: 'pending'),
++            'paymentReferenceLast6' => $o->payment_reference_last6,
++            'hasPaymentProof' => (bool) $o->payment_proof_path,
+             'courierName' => $o->courier ?: 'Lumora Express Priority',
+             'noteToSeller' => $o->notes,
+             'voucherCode' => $o->voucher_code,
+diff --git a/routes/api.php b/routes/api.php
+index dbff8d5..d2a93cc 100644
+--- a/routes/api.php
++++ b/routes/api.php
+@@ -49,6 +49,7 @@
+     Route::post('/orders', [OrderController::class, 'store']);
+     Route::get('/buyer/orders', [OrderController::class, 'index']);
+     Route::post('/buyer/orders/{orderId}/cancel', [OrderController::class, 'cancel']);
++    Route::post('/buyer/orders/{orderId}/payment-proof', [OrderController::class, 'replacePaymentProof']);
+     Route::post('/buyer/orders/{orderId}/return', [OrderController::class, 'requestReturn']);
+     Route::post('/buyer/orders/{orderId}/dispute', [OrderController::class, 'escalateDispute']);
+     Route::post('/buyer/products/{product}/reviews', [OrderController::class, 'storeReview']);
