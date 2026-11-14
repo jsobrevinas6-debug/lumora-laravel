@@ -40,6 +40,8 @@ class OrderController extends Controller
             'shipping_address' => ['nullable', 'string', 'max:500'],
             'note_to_seller' => ['nullable', 'string', 'max:1000'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
+            'payment_reference_last6' => ['nullable', 'string', 'max:20'],
+            'payment_proof' => ['nullable'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
@@ -134,6 +136,8 @@ class OrderController extends Controller
             $discount = round($discount + $voucherSavings, 2);
             $total = max(0, round($subtotal + $shipping - $discount - $shippingDiscount, 2));
 
+            $trackingNum = 'PH-LMR-'.strtoupper(substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
+
             $orderData = [
                 'order_number' => $this->generateOrderNumber(),
                 'user_id' => $request->user()->id,
@@ -146,7 +150,17 @@ class OrderController extends Controller
                 'discount' => $discount,
                 'total' => $total,
                 'notes' => $validated['note_to_seller'] ?? null,
+                'tracking_number' => $trackingNum,
+                'courier' => 'Lumora Express Priority',
+                'estimated_delivery' => now()->addDays(3),
             ];
+
+            if ($request->hasFile('payment_proof')) {
+                $orderData['payment_proof_path'] = $request->file('payment_proof')->store('payment_proofs', 'public');
+            }
+            if ($request->filled('payment_reference_last6')) {
+                $orderData['payment_reference_last6'] = substr(preg_replace('/\D+/', '', (string) $request->input('payment_reference_last6')), -6);
+            }
 
             if (Schema::hasColumn('orders', 'buyer_id')) {
                 $orderData['buyer_id'] = $request->user()->id;
@@ -161,8 +175,10 @@ class OrderController extends Controller
 
             $order = Order::create($orderData);
 
-            $order->updateStatus('pending', 'Order placed via mobile app.', event: [
+            $order->updateStatus('pending', 'Order placed • Awaiting seller confirmation.', event: [
                 'changed_by' => $request->user()->id,
+                'tracking_status' => 'pending',
+                'tracking_label' => 'Order placed',
             ]);
 
             foreach ($lines as $line) {
@@ -287,17 +303,63 @@ class OrderController extends Controller
         ]);
     }
 
+    public function show(Request $request, string $orderId): JsonResponse
+    {
+        $order = $this->findBuyerOrder($request, $orderId);
+        $order->load(['user', 'seller', 'items.product', 'statusHistories']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->transformOrder($order),
+        ]);
+    }
+
+    public function track(Request $request, string $orderId): JsonResponse
+    {
+        $order = $this->findBuyerOrder($request, $orderId);
+        $order->load(['user', 'seller', 'items.product', 'statusHistories']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->transformOrder($order),
+        ]);
+    }
+
+    public function receive(Request $request, string $orderId): JsonResponse
+    {
+        $order = $this->findBuyerOrder($request, $orderId);
+
+        if (! in_array($order->status, ['shipped', 'out_for_delivery'], true)) {
+            return response()->json(['message' => 'Order is not eligible to be marked received.'], 422);
+        }
+
+        $order->updateStatus('delivered', 'Order marked as received by buyer.', event: [
+            'changed_by' => $request->user()->id,
+            'tracking_status' => 'delivered',
+            'tracking_label' => 'Delivered to recipient',
+        ]);
+
+        return response()->json([
+            'message' => 'Order marked as received.',
+            'data' => $this->transformOrder($order->fresh(['user', 'seller', 'items.product', 'statusHistories'])),
+        ]);
+    }
+
     private function findBuyerOrder(Request $request, string $orderId): Order
     {
+        $cleanId = trim($orderId);
         $order = Order::query()
             ->where('user_id', $request->user()->id)
-            ->where(function ($q) use ($orderId) {
-                $q->where('order_number', $orderId);
-                if (ctype_digit($orderId)) {
-                    $q->orWhere('id', (int) $orderId);
+            ->where(function ($q) use ($cleanId) {
+                $q->where('order_number', $cleanId)
+                  ->orWhere('tracking_number', $cleanId);
+                if (ctype_digit($cleanId)) {
+                    $q->orWhere('id', (int) $cleanId);
+                } elseif (preg_match('/(\d+)$/', $cleanId, $matches)) {
+                    $q->orWhere('id', (int) $matches[1]);
                 }
             })
-            ->with('items.product')
+            ->with(['items.product', 'statusHistories', 'user', 'seller'])
             ->first();
 
         abort_if(! $order, 404, 'Order not found.');
@@ -332,47 +394,162 @@ class OrderController extends Controller
     private function transformOrder(Order $o): array
     {
         $user = $o->user;
-        $address = $user
-            ? collect([$user->house_number, $user->street, $user->barangay, $user->municipality, $user->province])
-                ->filter()
-                ->implode(', ')
-            : '';
+        $addressLines = collect([
+            trim(implode(' ', array_filter([$user?->house_number, $user?->street]))),
+            $user?->barangay,
+            trim(implode(', ', array_filter([$user?->municipality, $user?->province]))),
+            $user?->postal_code,
+        ])->filter()->values();
+        $address = $addressLines->implode(', ');
+
+        $currentStatus = strtolower((string) $o->status);
+        $deliveredHistory = $o->statusHistories->first(fn ($event) => in_array(strtolower((string) ($event->tracking_status ?: $event->status)), ['delivered', 'completed'], true));
+        $deliveredDate = $o->delivered_at ?: $deliveredHistory?->created_at;
+
+        $statusHeadline = match ($currentStatus) {
+            'pending' => 'Your order is being prepared',
+            'processing', 'packed' => 'Your order is being prepared',
+            'shipped' => 'Your order is on its way',
+            'out_for_delivery' => 'Your order is out for delivery',
+            'delivered' => 'Delivered'.($deliveredDate ? ' on '.$deliveredDate->timezone('Asia/Manila')->format('M j') : ''),
+            'cancelled' => 'Order cancelled',
+            'returned' => 'Order returned',
+            default => $o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus)),
+        };
+
+        $statusExplanation = match ($currentStatus) {
+            'pending' => 'The seller is getting your order ready.',
+            'processing', 'packed' => 'Your order is being prepared for handoff to Lumora Logistics.',
+            'shipped' => 'Lumora Logistics is moving your parcel toward its destination.',
+            'out_for_delivery' => 'Your parcel is with the courier and should arrive soon.',
+            'delivered' => 'Your parcel has been delivered to the address on your order.',
+            'cancelled' => 'This order has been cancelled.',
+            'returned' => 'This order has been returned.',
+            default => 'We will keep your order status up to date here.',
+        };
+
+        $progressRank = match ($currentStatus) {
+            'processing', 'packed' => 1,
+            'shipped' => 2,
+            'out_for_delivery' => 3,
+            'delivered' => 4,
+            'cancelled', 'returned' => -1,
+            default => 0,
+        };
+
+        $addrLower = strtolower($address);
+        $destinationArea = 'Area B (Laguna Central District)';
+        $assignedRider = 'Rider 02';
+        if (str_contains($addrLower, 'santa cruz') || str_contains($addrLower, 'sta cruz') || str_contains($addrLower, 'sta. cruz')) {
+            $destinationArea = 'Area A (Santa Cruz, Laguna)';
+            $assignedRider = 'Rider 01';
+        } elseif (str_contains($addrLower, 'los banos') || str_contains($addrLower, 'los baños')) {
+            $destinationArea = 'Area C (Los Baños, Laguna)';
+            $assignedRider = 'Rider 03';
+        } elseif (str_contains($addrLower, 'binan') || str_contains($addrLower, 'biñan') || str_contains($addrLower, 'pagsanjan')) {
+            $destinationArea = 'Area B (Biñan, Laguna)';
+            $assignedRider = 'Rider 02';
+        }
+
+        $latestHistory = $o->statusHistories->first();
+        $courierName = $latestHistory?->courier_name ?: ($o->courier ?: 'Lumora Express Priority');
 
         return [
             'id' => $o->order_number ?: (string) $o->id,
+            'order_id' => (int) $o->id,
             'order_number' => $o->order_number ?: (string) $o->id,
             'trackingNumber' => $o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)),
+            'tracking_number' => $o->tracking_number ?: ('PH-'.($o->order_number ?: $o->id)),
             'createdAt' => $o->created_at?->toIso8601String(),
             'created_at' => $o->created_at?->toIso8601String(),
             'status' => $o->status,
+            'status_label' => $o->status_label ?? ucfirst(str_replace('_', ' ', $o->status)),
+            'statusLabel' => $o->status_label ?? ucfirst(str_replace('_', ' ', $o->status)),
+            'status_headline' => $statusHeadline,
+            'statusHeadline' => $statusHeadline,
+            'status_explanation' => $statusExplanation,
+            'statusExplanation' => $statusExplanation,
+            'progress_rank' => $progressRank,
+            'estimated_delivery' => $o->estimated_delivery?->toIso8601String(),
+            'estimatedDelivery' => $o->estimated_delivery?->toIso8601String(),
+            'deliveredAt' => $o->delivered_at?->toIso8601String(),
+            'delivered_at' => $o->delivered_at?->toIso8601String(),
+            'cancelled_at' => $o->cancelled_at?->toIso8601String(),
             'totalAmount' => (float) $o->total,
             'total' => (float) $o->total,
             'subtotalAmount' => (float) $o->subtotal,
+            'subtotal' => (float) $o->subtotal,
             'shippingFeeAmount' => (float) $o->shipping_fee,
-            'deliveryAddress' => $address ?: 'Philippines',
+            'shipping_fee' => (float) $o->shipping_fee,
+            'discount' => (float) $o->discount,
+            'deliveryAddress' => $address ?: 'Laguna, Philippines',
+            'delivery_address' => $address ?: 'Laguna, Philippines',
             'recipientName' => $user?->name ?: 'Customer',
+            'recipient_name' => $user?->name ?: 'Customer',
+            'recipientPhone' => $user?->contact_number,
+            'recipient_phone' => $user?->contact_number,
             'paymentMethod' => strtoupper((string) $o->payment_method),
-            'courierName' => $o->courier ?: 'Lumora Express Priority',
+            'payment_method' => strtolower((string) $o->payment_method),
+            'paymentStatus' => (string) ($o->payment_status ?? 'pending'),
+            'payment_status' => (string) ($o->payment_status ?? 'pending'),
+            'paymentProofPath' => $o->payment_proof_path,
+            'payment_proof' => $o->payment_proof_path,
+            'paymentReferenceLast6' => $o->payment_reference_last6,
+            'payment_reference_last6' => $o->payment_reference_last6,
+            'courierName' => $courierName,
+            'courier' => $courierName,
+            'driverName' => $courierName !== 'Lumora Express Priority' ? $courierName : 'Assigning Courier Rider',
+            'driverPhone' => '0917-889-LMR',
+            'vehiclePlate' => 'LAG-2026-LM',
+            'sortingCenterName' => 'Laguna Central Sorting Hub',
+            'destinationArea' => $destinationArea,
+            'assignedRiderId' => $assignedRider,
             'noteToSeller' => $o->notes,
             'voucherCode' => $o->voucher_code,
-            'deliveredAt' => $o->delivered_at?->toIso8601String(),
             'items' => $o->items->map(fn ($it) => [
                 'productId' => (string) $it->product_id,
                 'product_id' => (string) $it->product_id,
                 'productName' => $it->product?->name ?? 'Lumora Item',
+                'name' => $it->product?->name ?? 'Lumora Item',
                 'price' => (float) $it->price,
                 'quantity' => (int) $it->quantity,
+                'subtotal' => (float) $it->subtotal,
                 'imagePath' => $it->product?->image_url,
+                'image' => $it->product?->image_url,
             ])->values(),
-            'statusHistory' => $o->statusHistories->map(fn ($h) => [
-                'status' => $h->status,
-                'notes' => (string) ($h->note ?? ''),
-                'location' => $h->location,
-                'trackingStatus' => $h->tracking_status,
-                'trackingLabel' => $h->tracking_label,
-                'courierName' => $h->courier_name,
-                'created_at' => $h->created_at?->toIso8601String(),
-            ])->values(),
+            'statusHistory' => $o->statusHistories->map(function ($h) {
+                $eventStatus = strtolower((string) ($h->tracking_status ?: $h->status));
+                $eventLabel = $h->tracking_label ?: match ($eventStatus) {
+                    'pending', 'created' => 'Order placed',
+                    'received' => 'Received by Lumora Logistics',
+                    'scanned' => 'Scanned at logistics hub',
+                    'sorted' => 'Sorted at logistics hub',
+                    'assigned' => 'Assigned to courier',
+                    'rider_received' => 'Received by courier',
+                    'in_transit' => 'In Transit',
+                    'out_for_delivery' => 'Out for delivery',
+                    'delivered', 'completed' => 'Delivered',
+                    'cancelled' => 'Order cancelled',
+                    'returned' => 'Order returned',
+                    'failed', 'exception' => 'Delivery exception',
+                    default => ucfirst(str_replace('_', ' ', $eventStatus)),
+                };
+
+                return [
+                    'status' => $h->status,
+                    'notes' => (string) ($h->note ?? ''),
+                    'note' => (string) ($h->note ?? ''),
+                    'location' => $h->location,
+                    'trackingStatus' => $h->tracking_status,
+                    'tracking_status' => $h->tracking_status,
+                    'trackingLabel' => $eventLabel,
+                    'tracking_label' => $eventLabel,
+                    'courierName' => $h->courier_name,
+                    'courier_name' => $h->courier_name,
+                    'created_at' => $h->created_at?->toIso8601String(),
+                    'formatted_time' => $h->created_at?->timezone('Asia/Manila')->format('M j, Y • g:i A').' PHT',
+                ];
+            })->values(),
         ];
     }
 

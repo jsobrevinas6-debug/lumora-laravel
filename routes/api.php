@@ -48,8 +48,11 @@ Route::middleware(['auth:sanctum', 'buyer.approved'])->group(function () {
 
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/buyer/orders', [OrderController::class, 'index']);
+    Route::get('/buyer/orders/{orderId}', [OrderController::class, 'show']);
+    Route::get('/buyer/orders/{orderId}/track', [OrderController::class, 'track']);
     Route::post('/buyer/orders/{orderId}/cancel', [OrderController::class, 'cancel']);
     Route::post('/buyer/orders/{orderId}/return', [OrderController::class, 'requestReturn']);
     Route::post('/buyer/orders/{orderId}/dispute', [OrderController::class, 'escalateDispute']);
+    Route::post('/buyer/orders/{orderId}/receive', [OrderController::class, 'receive']);
     Route::post('/buyer/products/{product}/reviews', [OrderController::class, 'storeReview']);
 });
