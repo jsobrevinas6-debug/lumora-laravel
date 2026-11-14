@@ -299,7 +299,9 @@
 
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
                     @forelse ($returnRequest->evidence as $proof)
-                        @php($proofUrl = route('seller.returns.evidence', [$returnRequest, $proof->id]))
+                        @php
+                            $proofUrl = route('seller.returns.evidence', [$returnRequest, $proof->id]);
+                        @endphp
                         <a href="{{ $proofUrl }}" target="_blank" rel="noopener" style="position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;display:block;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
                             @if (str_starts_with($proof->mime_type, 'image/'))
                                 <img src="{{ $proofUrl }}" alt="Buyer proof" style="width:110px;height:110px;object-fit:cover;display:block;">
