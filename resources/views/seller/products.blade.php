@@ -97,6 +97,8 @@
                         @endif
                     </div>
 
+                    <a href="{{ route('shop.product', ['id' => $product->id]) }}" class="edit-stock-btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px;">View details</a>
+
                     @if ($view === 'active')
                         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
                             <button type="button" class="edit-stock-btn" style="width:100%;"
