@@ -135,12 +135,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/chat/{id}', [ChatController::class, 'adminShow'])->name('chat.show');
 });
 
+// Publicly accessible return evidence for Seller, Admin, Logistics Web, and Rider App
+Route::get('/seller/returns-refunds/{returnRequest}/evidence/{evidence}', [SellerReturnRequestController::class, 'evidence'])->name('seller.returns.evidence');
+Route::get('/api/logistics/returns-evidence/{returnRequest}/{evidence}', [SellerReturnRequestController::class, 'evidence'])->name('logistics.returns.evidence');
+
 // Seller routes
 Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->group(function () {
     Route::get('/dashboard', [SellerDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/returns-refunds', [SellerReturnRequestController::class, 'index'])->name('returns.index');
-    Route::get('/returns-refunds/{returnRequest}/evidence/{evidence}', [SellerReturnRequestController::class, 'evidence'])->name('returns.evidence');
     Route::post('/returns-refunds/{returnRequest}/approve', [SellerReturnRequestController::class, 'approve'])->name('returns.approve');
     Route::post('/returns-refunds/{returnRequest}/deny', [SellerReturnRequestController::class, 'deny'])->name('returns.deny');
 

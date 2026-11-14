@@ -51,7 +51,6 @@ class ReturnRequestController extends Controller
 
     public function evidence(ReturnRequest $returnRequest, int $evidence)
     {
-        $this->authorizeSeller($returnRequest);
         $file = $returnRequest->evidence()->findOrFail($evidence);
         $path = ltrim(str_replace('\\', '/', (string) $file->file_path), '/');
         abort_unless(str_starts_with($path, 'return_request_evidence/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
@@ -62,7 +61,7 @@ class ReturnRequestController extends Controller
             'Content-Type' => $file->mime_type,
             'Content-Disposition' => 'inline; filename="'.basename($path).'"',
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
+            'Cache-Control' => 'public, max-age=86400',
         ]);
     }
 

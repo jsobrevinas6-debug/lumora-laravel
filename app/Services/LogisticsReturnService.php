@@ -35,12 +35,28 @@ class LogisticsReturnService
         $deliveringRiderName = self::resolveDeliveringRiderName($order);
         $deliveringRiderId = null;
 
-        // 3. Build evidence URLs
+        // 3. Build evidence URLs & inline base64 data for cross-domain Logistics & Rider App viewing
         $evidence = $returnRequest->evidence->map(function ($ev) use ($returnRequest) {
+            $dataUri = null;
+            try {
+                $path = ltrim(str_replace('\\', '/', (string) $ev->file_path), '/');
+                $disk = \Illuminate\Support\Facades\Storage::disk('local');
+                if ($path !== '' && $disk->exists($path)) {
+                    $raw = $disk->get($path);
+                    if ($raw !== null && strlen($raw) > 0 && strlen($raw) <= 5 * 1024 * 1024) {
+                        $mime = $ev->mime_type ?: 'image/jpeg';
+                        $dataUri = "data:{$mime};base64," . base64_encode($raw);
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+
             return [
                 'id' => $ev->id,
                 'mime_type' => $ev->mime_type,
+                'file_path' => $ev->file_path,
                 'url' => route('seller.returns.evidence', [$returnRequest, $ev->id]),
+                'data_uri' => $dataUri,
             ];
         })->values()->all();
 
