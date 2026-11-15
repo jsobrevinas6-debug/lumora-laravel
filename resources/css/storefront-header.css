@@ -1,40 +1,277 @@
 /* Shared storefront header: loaded by app.css on all storefront and account pages. */
-.topbar .topbar-inner {
+.topbar.storefront-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    border-bottom: 1px solid var(--line, #ebddd8);
+    background: rgba(255, 253, 251, .96);
+    backdrop-filter: blur(6px);
+}
+
+.topbar.storefront-header .topbar-inner {
+    display: flex;
+    width: min(100% - 48px, 1240px);
+    max-width: 1240px;
+    align-items: center;
+    gap: 24px;
+    margin: 0 auto;
+    padding: 14px 0;
+}
+
+.topbar.storefront-header .x-logo {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.topbar.storefront-header .search {
+    display: flex;
+    min-width: 160px;
+    max-width: 520px;
+    flex: 1 1 520px;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1px solid var(--line, #ebddd8);
+    border-radius: 999px;
+    background: var(--cream, #fffdfb);
+}
+
+.topbar.storefront-header .search svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    color: var(--muted, #8a7b7e);
+}
+
+.topbar.storefront-header .search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink, #3a2e30);
+    font-size: 14px;
+}
+
+.topbar.storefront-header .nav-actions {
+    display: flex;
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.topbar.storefront-header .icon-btn {
+    position: relative;
+    display: flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line, #ebddd8);
+    border-radius: 50%;
+    background: var(--cream, #fffdfb);
+    color: var(--plum, #3d1b3d);
+}
+
+.topbar.storefront-header .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    display: flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e2703a;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.topbar.storefront-header .notification-trigger .badge {
+    width: auto;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+}
+
+.topbar.storefront-header .flow-menu-trigger {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--line, #ebddd8);
+    border-radius: 50%;
+    background: var(--cream, #fffdfb);
+    color: var(--plum, #3d1b3d);
+    cursor: pointer;
+}
+
+.topbar.storefront-header .notification-wrap {
+    position: relative;
+}
+
+.topbar.storefront-header .notification-dropdown {
+    display: none;
+    position: absolute;
+    z-index: 55;
+    top: calc(100% + 12px);
+    right: -54px;
+    width: min(360px, calc(100vw - 32px));
+    padding: 14px;
+    border: 1px solid var(--line, #ebddd8);
+    border-radius: 16px;
+    background: var(--cream, #fffdfb);
+    box-shadow: 0 14px 34px rgba(61, 27, 61, .16);
+}
+
+.topbar.storefront-header .notification-wrap.open .notification-dropdown {
+    display: block;
+}
+
+.topbar.storefront-header .notification-list {
+    max-height: 330px;
+    overflow: auto;
+}
+
+.topbar.storefront-header .notification-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 2px 10px;
+    border-bottom: 1px solid var(--line, #ebddd8);
+}
+
+.topbar.storefront-header .notification-head strong {
+    color: var(--plum, #3d1b3d);
+    font-size: 14px;
+}
+
+.topbar.storefront-header .notification-head form,
+.topbar.storefront-header .notification-item form {
+    margin: 0;
+}
+
+.topbar.storefront-header .notification-mark-all {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--rose, #b96562);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.topbar.storefront-header .notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 11px 4px;
+    border-bottom: 1px solid var(--line, #ebddd8);
+}
+
+.topbar.storefront-header .notification-item.unread {
+    margin: 0 -6px;
+    padding-right: 10px;
+    padding-left: 10px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(243, 216, 222, .35), transparent);
+}
+
+.topbar.storefront-header .notification-item form {
+    flex: 1;
+}
+
+.topbar.storefront-header .notification-open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink, #3a2e30);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.topbar.storefront-header .notification-message,
+.topbar.storefront-header .notification-time {
+    display: block;
+}
+
+.topbar.storefront-header .notification-message {
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.topbar.storefront-header .notification-time {
+    margin-top: 4px;
+    color: var(--muted, #8a7b7e);
+    font-size: 10px;
+}
+
+.topbar.storefront-header .notification-unread-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: #e2703a;
+}
+
+.topbar.storefront-header .notification-empty {
+    margin: 0;
+    padding: 20px 4px;
+    color: var(--muted, #8a7b7e);
+    font-size: 12px;
+    text-align: center;
+}
+
+.topbar.storefront-header .topbar-inner {
     min-width: 0;
 }
 
-.topbar svg {
+.topbar.storefront-header svg {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
 }
 
-.topbar .topbar-inner > * svg {
+.topbar.storefront-header .topbar-inner > * svg {
     width: 18px;
     height: 18px;
 }
 
-.topbar .icon-btn svg {
+.topbar.storefront-header .icon-btn svg {
     width: 18px;
     height: 18px;
 }
 
-.topbar .search {
+.topbar.storefront-header .search {
     min-width: 160px;
 }
 
-.topbar .nav-actions {
+.topbar.storefront-header .nav-actions {
     min-width: 0;
     flex: 0 0 auto;
     align-items: center;
 }
 
-.topbar .account-menu-wrap {
+.topbar.storefront-header .account-menu-wrap {
     position: relative;
     flex: 0 0 auto;
 }
 
-.topbar .account-trigger {
+.topbar.storefront-header .account-trigger {
     display: flex;
     min-width: 0;
     max-width: 252px;
@@ -49,7 +286,7 @@
     white-space: nowrap;
 }
 
-.topbar .account-trigger > .avatar {
+.topbar.storefront-header .account-trigger > .avatar {
     position: relative;
     display: grid;
     width: 38px;
@@ -64,7 +301,7 @@
     font-weight: 600;
 }
 
-.topbar .account-trigger > .avatar img {
+.topbar.storefront-header .account-trigger > .avatar img {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -73,14 +310,14 @@
     object-fit: cover;
 }
 
-.topbar .account-text {
+.topbar.storefront-header .account-text {
     display: block;
     min-width: 0;
     max-width: 160px;
     flex: 0 1 160px;
 }
 
-.topbar .account-name {
+.topbar.storefront-header .account-name {
     display: block;
     max-width: 160px;
     overflow: hidden;
@@ -91,7 +328,7 @@
     white-space: nowrap;
 }
 
-.topbar .account-mode {
+.topbar.storefront-header .account-mode {
     display: block;
     margin-top: 3px;
     overflow: hidden;
@@ -102,7 +339,7 @@
     white-space: nowrap;
 }
 
-.topbar .account-chevron {
+.topbar.storefront-header .account-chevron {
     display: block;
     width: 16px;
     height: 16px;
@@ -111,11 +348,11 @@
     transition: transform .18s ease;
 }
 
-.topbar .account-menu-wrap.open .account-chevron {
+.topbar.storefront-header .account-menu-wrap.open .account-chevron {
     transform: rotate(180deg);
 }
 
-.topbar .account-dropdown {
+.topbar.storefront-header .account-dropdown {
     display: none;
     position: absolute;
     z-index: 60;
@@ -129,11 +366,11 @@
     box-shadow: 0 14px 34px rgba(61, 27, 61, .16);
 }
 
-.topbar .account-menu-wrap.open .account-dropdown {
+.topbar.storefront-header .account-menu-wrap.open .account-dropdown {
     display: block;
 }
 
-.topbar .account-dropdown-head {
+.topbar.storefront-header .account-dropdown-head {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -142,7 +379,7 @@
     border-bottom: 1px solid var(--line, #ebddd8);
 }
 
-.topbar .account-dropdown-head > .avatar {
+.topbar.storefront-header .account-dropdown-head > .avatar {
     position: relative;
     width: 42px;
     height: 42px;
@@ -153,7 +390,7 @@
     color: #fff;
 }
 
-.topbar .account-dropdown-head > .avatar img {
+.topbar.storefront-header .account-dropdown-head > .avatar img {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -162,14 +399,14 @@
     object-fit: cover;
 }
 
-.topbar .account-dropdown-name {
+.topbar.storefront-header .account-dropdown-name {
     color: var(--ink, #3a2e30);
     font-size: 13px;
     font-weight: 600;
 }
 
-.topbar .account-menu-link,
-.topbar .account-menu-button {
+.topbar.storefront-header .account-menu-link,
+.topbar.storefront-header .account-menu-button {
     display: flex;
     width: 100%;
     align-items: center;
@@ -186,13 +423,13 @@
     cursor: pointer;
 }
 
-.topbar .account-menu-link:hover,
-.topbar .account-menu-button:hover {
+.topbar.storefront-header .account-menu-link:hover,
+.topbar.storefront-header .account-menu-button:hover {
     background: #fbefea;
     color: var(--plum, #3d1b3d);
 }
 
-.topbar .account-menu-icon {
+.topbar.storefront-header .account-menu-icon {
     display: inline-flex;
     width: 18px;
     flex: 0 0 18px;
@@ -200,36 +437,36 @@
     justify-content: center;
 }
 
-.topbar .account-menu-icon svg {
+.topbar.storefront-header .account-menu-icon svg {
     width: 16px;
     height: 16px;
 }
 
 @media (max-width: 900px) {
-    .topbar .search {
+    .topbar.storefront-header .search {
         min-width: 120px;
     }
 
-    .topbar .account-text {
+    .topbar.storefront-header .account-text {
         max-width: 132px;
         flex-basis: 132px;
     }
 }
 
 @media (max-width: 767px) {
-    .topbar .account-text,
-    .topbar .account-chevron {
+    .topbar.storefront-header .account-text,
+    .topbar.storefront-header .account-chevron {
         display: none;
     }
 
-    .topbar .account-trigger {
+    .topbar.storefront-header .account-trigger {
         width: 38px;
         max-width: 38px;
         justify-content: center;
         gap: 0;
     }
 
-    .topbar .search {
+    .topbar.storefront-header .search {
         min-width: 0;
     }
 }

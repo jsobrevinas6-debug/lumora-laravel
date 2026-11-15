@@ -23,7 +23,7 @@
     </aside>
 
     <!-- ===================== TOP BAR ===================== -->
-    <header class="topbar">
+    <header class="topbar storefront-header">
         <div class="topbar-inner">
             <button type="button" class="flow-menu-trigger left-menu-trigger" id="flowMenuTriggerLeft" aria-label="Open shop by collection" aria-expanded="false" aria-controls="flowMenuDrawer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -116,7 +116,6 @@
                                 <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
                                 <div>
                                     <div class="account-dropdown-name">{{ $authUser->name }}</div>
-                                    <div class="account-mode">Currently shopping as Buyer</div>
                                 </div>
                             </div>
 
