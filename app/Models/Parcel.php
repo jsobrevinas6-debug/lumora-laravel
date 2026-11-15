@@ -48,24 +48,15 @@ class Parcel extends Model
             } catch (\Throwable $e) {
                 $date = \Carbon\Carbon::now('Asia/Manila');
             }
+        } else {
+            $date = $date->copy()->setTimezone('Asia/Manila');
         }
 
-        $dateStr = $date->format('Y-m-d');
         $startUtc = $date->copy()->startOfDay()->setTimezone('UTC')->toDateTimeString();
         $endUtc = $date->copy()->endOfDay()->setTimezone('UTC')->toDateTimeString();
 
-        return $query->where(function ($q) use ($startUtc, $endUtc, $dateStr) {
-            $q->whereBetween('updated_at', [$startUtc, $endUtc])
-              ->orWhereDate('updated_at', $dateStr)
-              ->orWhereBetween('created_at', [$startUtc, $endUtc])
-              ->orWhereDate('created_at', $dateStr)
-              ->orWhereBetween('scanned_at', [$startUtc, $endUtc])
-              ->orWhereDate('scanned_at', $dateStr)
-              ->orWhereBetween('assigned_at', [$startUtc, $endUtc])
-              ->orWhereDate('assigned_at', $dateStr)
-              ->orWhereBetween('rider_received_at', [$startUtc, $endUtc])
-              ->orWhereDate('rider_received_at', $dateStr);
-        });
+        // Use the single immutable intake/creation timestamp so each parcel belongs to strictly ONE calendar date
+        return $query->whereRaw('COALESCE(received_at, created_at) BETWEEN ? AND ?', [$startUtc, $endUtc]);
     }
 
     public function store() { return $this->belongsTo(Store::class); }

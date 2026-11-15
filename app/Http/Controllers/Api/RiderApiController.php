@@ -767,13 +767,7 @@ class RiderApiController extends Controller
         $parcels = Parcel::with(['area', 'shipment', 'order', 'rider.user'])
             ->where('assigned_rider_id', $profile->id)
             ->where('status', '!=', 'returned')
-            ->where(function ($dq) use ($selectedDate) {
-                $dq->forDate($selectedDate)
-                   ->orWhere(function ($rq) {
-                       $rq->whereIn('status', ['assigned', 'in_transit', 'out_for_delivery', 'returning_to_hub'])
-                          ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_return_refund')) = 'true'");
-                   });
-            })
+            ->forDate($selectedDate)
             ->latest('assigned_at')
             ->latest('updated_at')
             ->get();
