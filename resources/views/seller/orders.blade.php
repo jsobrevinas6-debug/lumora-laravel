@@ -280,7 +280,7 @@
                         <td>{{ $o->buyer_name }}</td>
 
                         <td>
-                            {{ \Carbon\Carbon::parse($o->order_date)->format('M d, Y') }}
+                            {{ \Carbon\Carbon::parse($o->created_at)->format('M d, Y') }}
                         </td>
 
                         <td>
