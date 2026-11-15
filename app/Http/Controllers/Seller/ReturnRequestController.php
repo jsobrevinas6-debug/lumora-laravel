@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\ReturnRequest;
 use App\Notifications\ReturnRequestStatusNotification;
+use App\Support\ReturnEvidenceFiles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ReturnRequestController extends Controller
 {
@@ -53,16 +53,10 @@ class ReturnRequestController extends Controller
     {
         $file = $returnRequest->evidence()->findOrFail($evidence);
         $path = ltrim(str_replace('\\', '/', (string) $file->file_path), '/');
-        abort_unless(str_starts_with($path, 'return_request_evidence/') && ! preg_match('#(^|/)\.\.?(/|$)#', $path), 404);
-        $disk = Storage::disk('local');
-        abort_unless($disk->exists($path), 404);
+        $path = preg_replace('#^(?:public/|storage/)+#', '', $path);
+        abort_unless(str_starts_with($path, 'return_request_evidence/'), 404);
 
-        return response()->file($disk->path($path), [
-            'Content-Type' => $file->mime_type,
-            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'public, max-age=86400',
-        ]);
+        return ReturnEvidenceFiles::response($file);
     }
 
     public function approve(ReturnRequest $returnRequest)

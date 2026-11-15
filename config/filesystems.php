@@ -18,6 +18,9 @@ return [
     // Payment receipts must use the same persistent disk for uploads and admin previews.
     'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'public'),
 
+    // Keep return evidence on the same shared disk used by both admin and seller previews.
+    'return_evidence_disk' => env('RETURN_EVIDENCE_DISK', env('FILESYSTEM_DISK') === 's3' ? 's3' : 'local'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks
