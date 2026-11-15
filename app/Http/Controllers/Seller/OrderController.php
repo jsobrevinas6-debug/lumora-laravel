@@ -28,7 +28,19 @@ class OrderController extends Controller
         $currentStatus = $request->query('status', 'all');
         $search = trim((string) $request->query('search', ''));
         $query = (clone $base)->join('users as u','u.id','=','o.user_id')->leftJoinSub($summary,'s','s.order_id','=','o.id')
-            ->select('o.*','u.name as buyer_name','u.province','u.municipality','u.contact_number',DB::raw('COALESCE(s.seller_subtotal,0) seller_subtotal'),DB::raw('COALESCE(s.item_count,0) item_count'),DB::raw('COALESCE(s.unpacked_count,0) unpacked_count'),DB::raw('COALESCE(s.unseen_count,0) unseen_count'));
+            ->select('o.*',
+                DB::raw('COALESCE(o.recipient_name, u.name) as buyer_name'),
+                DB::raw('COALESCE(o.shipping_province, u.province) as province'),
+                DB::raw('COALESCE(o.shipping_city_municipality, u.municipality) as municipality'),
+                DB::raw('COALESCE(o.recipient_phone, u.contact_number) as contact_number'),
+                DB::raw('COALESCE(o.shipping_street_address, u.street) as street'),
+                DB::raw('COALESCE(o.shipping_barangay, u.barangay) as barangay'),
+                DB::raw('o.shipping_region as region'),
+                DB::raw('o.shipping_postal_code as postal_code'),
+                DB::raw('COALESCE(s.seller_subtotal,0) seller_subtotal'),
+                DB::raw('COALESCE(s.item_count,0) item_count'),
+                DB::raw('COALESCE(s.unpacked_count,0) unpacked_count'),
+                DB::raw('COALESCE(s.unseen_count,0) unseen_count'));
         $statusMap = ['pending'=>['pending','processing'],'packed'=>['packed'],'shipped'=>['shipped','out_for_delivery'],'delivered'=>['delivered'],'cancelled'=>['cancelled'],'returns'=>['returned']];
         if (isset($statusMap[$currentStatus]) && $currentStatus !== 'returns') $query->whereIn('o.status',$statusMap[$currentStatus]);
         if ($currentStatus==='refund') $query->where('o.payment_status','refunded');
@@ -53,7 +65,7 @@ class OrderController extends Controller
             'o.order_number',
             'o.created_at',
             'o.status',
-            'u.name as buyer_name',
+            DB::raw('COALESCE(o.recipient_name, u.name) as buyer_name'),
             DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method"),
             DB::raw($hasVoucherCols ? 'o.voucher_code' : 'NULL as voucher_code'),
             DB::raw($hasVoucherCols && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'voucher_type') ? 'o.voucher_type' : 'NULL as voucher_type'),
@@ -61,11 +73,15 @@ class OrderController extends Controller
             DB::raw($hasVoucherCols && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'shipping_discount') ? 'o.shipping_discount' : '0 as shipping_discount'),
         ];
 
-        foreach (['contact_number', 'province', 'municipality', 'barangay', 'street', 'house_number'] as $addressColumn) {
-            $orderColumns[] = \Illuminate\Support\Facades\Schema::hasColumn('users', $addressColumn)
-                ? 'u.'.$addressColumn
-                : DB::raw('NULL as '.$addressColumn);
-        }
+        $orderColumns = array_merge($orderColumns, [
+            DB::raw('COALESCE(o.recipient_phone, u.contact_number) as contact_number'),
+            DB::raw('COALESCE(o.shipping_province, u.province) as province'),
+            DB::raw('COALESCE(o.shipping_city_municipality, u.municipality) as municipality'),
+            DB::raw('COALESCE(o.shipping_barangay, u.barangay) as barangay'),
+            DB::raw('COALESCE(o.shipping_street_address, u.street) as street'),
+            DB::raw('o.shipping_region as region'),
+            DB::raw('o.shipping_postal_code as postal_code'),
+        ]);
 
         $order = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
@@ -206,13 +222,14 @@ class OrderController extends Controller
                 'o.id',
                 'o.order_number',
                 'o.created_at',
-                'u.name as buyer_name',
-                'u.contact_number',
-                'u.province',
-                'u.municipality',
-                'u.barangay',
-                'u.street',
-                'u.house_number',
+                DB::raw('COALESCE(o.recipient_name, u.name) as buyer_name'),
+                DB::raw('COALESCE(o.recipient_phone, u.contact_number) as contact_number'),
+                DB::raw('COALESCE(o.shipping_province, u.province) as province'),
+                DB::raw('COALESCE(o.shipping_city_municipality, u.municipality) as municipality'),
+                DB::raw('COALESCE(o.shipping_barangay, u.barangay) as barangay'),
+                DB::raw('COALESCE(o.shipping_street_address, u.street) as street'),
+                DB::raw('o.shipping_region as region'),
+                DB::raw('o.shipping_postal_code as postal_code'),
                 DB::raw($hasPaymentMethod ? 'o.payment_method' : "'cod' as payment_method")
             )
             ->firstOrFail();

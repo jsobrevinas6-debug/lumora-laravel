@@ -9,6 +9,7 @@ use App\Services\ReturnRefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -258,10 +259,19 @@ class OrderController extends Controller
         } catch (\Throwable $e) {
             // Ignore if table is not available in this environment.
         }
+        $addresses = $request->user()->addresses()->orderByDesc('is_default')->latest('id')->get();
+        $fallbackAddress = $addresses->firstWhere('is_default', true) ?? $addresses->first();
+        $requestedAddressId = (int) $request->old('address_id', $request->session()->get('checkout_address_id', $fallbackAddress?->id) ?? 0);
+        $selectedAddress = $addresses->firstWhere('id', $requestedAddressId) ?? $fallbackAddress;
+        $selectedAddressId = $selectedAddress?->id;
+
         return view('buyer.checkout', [
             'cartItems' => $items,
             'summary' => $this->summary($items),
             'buyer' => $request->user(),
+            'addresses' => $addresses,
+            'selectedAddress' => $selectedAddress,
+            'selectedAddressId' => $selectedAddress?->id,
             'cartPaymentOption' => $cartPaymentOption,
             'checkoutMode' => $checkoutMode,
             'activeVouchers' => $activeVouchers,
@@ -316,6 +326,7 @@ class OrderController extends Controller
             'payment_reference_last6' => ['required_if:payment_method,gcash,maya', 'nullable', 'regex:/^\d{6}$/'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
             'delivery_notes' => ['nullable', 'string', 'max:200'],
+            'address_id' => ['required', 'integer', Rule::exists('user_addresses', 'id')->where('user_id', $request->user()->id)],
             'quantities' => ['nullable', 'array'],
             'quantities.*' => ['required', 'integer', 'min:1', 'max:99'],
         ]);
@@ -350,6 +361,7 @@ class OrderController extends Controller
 
         try {
             $order = DB::transaction(function () use ($request, $validated, $selectedWallet, $checkoutMode, $checkoutToken, $voucherCode) {
+                $shippingAddress = $request->user()->addresses()->lockForUpdate()->findOrFail((int) $validated['address_id']);
                 $quantities = (array) ($validated['quantities'] ?? []);
                 $lines = $checkoutMode === 'buy_now'
                     ? $this->buyNowOrderLines($request, $quantities)
@@ -364,6 +376,16 @@ class OrderController extends Controller
                     'order_number' => $this->generateOrderNumber(),
                     'checkout_token' => $checkoutToken,
                     'user_id' => $request->user()->id,
+                    'shipping_address_id' => $shippingAddress->id,
+                    'recipient_name' => $shippingAddress->full_name,
+                    'recipient_phone' => $shippingAddress->phone_number,
+                    'shipping_region' => $shippingAddress->region,
+                    'shipping_province' => $shippingAddress->province,
+                    'shipping_city_municipality' => $shippingAddress->city_municipality,
+                    'shipping_barangay' => $shippingAddress->barangay,
+                    'shipping_street_address' => $shippingAddress->street_address,
+                    'shipping_postal_code' => $shippingAddress->postal_code,
+                    'shipping_address_label' => $shippingAddress->label,
                     'seller_id' => $lines->pluck('product.seller_id')->filter()->first(),
                     'status' => 'pending',
                     'payment_status' => 'pending',

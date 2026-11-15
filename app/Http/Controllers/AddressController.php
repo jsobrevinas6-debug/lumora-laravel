@@ -10,6 +10,18 @@ class AddressController extends Controller
 {
     private string $base = 'https://psgc.cloud/api/v2';
 
+    public function regions(): JsonResponse
+    {
+        return response()->json(['data' => $this->cachedList('psgc_regions', "{$this->base}/regions")]);
+    }
+
+    public function provincesForRegion(string $regionCode): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->cachedList("psgc_region_provinces_{$regionCode}", "{$this->base}/regions/{$regionCode}/provinces"),
+        ]);
+    }
+
     public function provinces(): JsonResponse
     {
         return response()->json([

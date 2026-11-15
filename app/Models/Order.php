@@ -16,6 +16,16 @@ class Order extends Model
         'order_number',
         'user_id',
         'buyer_id',
+        'shipping_address_id',
+        'recipient_name',
+        'recipient_phone',
+        'shipping_region',
+        'shipping_province',
+        'shipping_city_municipality',
+        'shipping_barangay',
+        'shipping_street_address',
+        'shipping_postal_code',
+        'shipping_address_label',
         'seller_id',
         'status',
         'payment_status',
@@ -58,6 +68,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function shippingAddress(): BelongsTo
+    {
+        return $this->belongsTo(UserAddress::class, 'shipping_address_id');
     }
 
     public function seller(): BelongsTo

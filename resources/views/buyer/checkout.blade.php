@@ -93,6 +93,19 @@
         }
         .delivery-card { padding: 29px 34px 27px; }
         .card-title { font-size: 29px; line-height: 1; margin-bottom: 25px; }
+        .delivery-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:25px; }
+        .delivery-heading .card-title { margin:0; }
+        .add-address-button { display:inline-flex; min-height:42px; flex:0 0 auto; align-items:center; justify-content:center; gap:8px; padding:0 15px; border:1px solid var(--plum); border-radius:9px; background:transparent; color:var(--plum); font:600 13px Inter,Arial,sans-serif; cursor:pointer; transition:background .18s ease,color .18s ease; }
+        .add-address-button:hover { background:var(--plum); color:#fff; }
+        .delivery-address-select { width:min(100%,440px); min-height:43px; margin:0 0 18px; padding:0 12px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--plum); font:500 13px Inter,Arial,sans-serif; }
+        .delivery-address-label { display:block; margin-bottom:7px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .selected-address-display { min-width:0; }
+        .selected-address-label { display:inline-flex; margin:0 0 8px; padding:4px 9px; border-radius:999px; background:#fbefea; color:var(--plum); font-size:10px; font-weight:700; text-transform:capitalize; }
+        .address-empty { margin:0 0 18px; padding:15px 17px; border:1px dashed var(--rose-soft); border-radius:12px; background:#fffaf7; color:var(--muted); font-size:13px; line-height:1.55; }
+        .address-management-actions { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .address-management-actions button { min-height:34px; padding:0 12px; border:1px solid var(--rose-soft); border-radius:999px; background:#fff; color:var(--plum); font-size:12px; font-weight:700; cursor:pointer; }
+        .address-management-actions button:hover { background:#fbefea; }
+        .address-management-actions .address-delete { color:#8f3447; }
         .address-row { display: flex; align-items: center; gap: 31px; }
         .pin {
             width: 90px;
@@ -118,6 +131,24 @@
         .address-change { display:inline-flex; align-items:center; min-height:34px; padding:0 13px; border:1px solid var(--rose-soft); border-radius:999px; background:#fff; color:var(--plum); font-size:12px; font-weight:700; }
         .delivery-notes { width:100%; min-height:74px; margin-top:18px; padding:12px 14px; resize:vertical; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:13px Inter,Arial,sans-serif; }
         .delivery-notes:focus-visible { outline:3px solid rgba(201,139,107,.35); outline-offset:2px; }
+        .address-modal { position:fixed; inset:0; z-index:1100; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(37,17,38,.56); backdrop-filter:blur(3px); }
+        .address-modal.is-open { display:flex; }
+        .address-modal-card { position:relative; width:min(720px,100%); max-height:min(90vh,820px); overflow:auto; padding:30px; border:1px solid var(--line); border-radius:18px; background:#fffdfb; box-shadow:0 24px 70px rgba(37,17,38,.24); }
+        .address-modal-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:22px; }
+        .address-modal-heading h2 { margin:0 0 6px; font:600 27px/1.15 'Playfair Display',Georgia,serif; }
+        .address-modal-heading p { margin:0; color:var(--muted); font-size:13px; }
+        .address-modal-close { display:grid; width:40px; height:40px; flex:0 0 40px; place-items:center; border:1px solid var(--line); border-radius:50%; background:#fff; color:var(--plum); font-size:23px; cursor:pointer; }
+        .address-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .address-form-field { display:grid; gap:6px; min-width:0; }
+        .address-form-field.full { grid-column:1/-1; }
+        .address-form-field label { color:var(--plum); font-size:12px; font-weight:700; }
+        .address-form-field input,.address-form-field select { width:100%; min-height:44px; padding:0 11px; border:1px solid #ded2cc; border-radius:8px; background:#fff; color:var(--ink); font:13px Inter,Arial,sans-serif; }
+        .address-default-choice { display:flex; grid-column:1/-1; align-items:center; gap:9px; color:var(--ink); font-size:13px; }
+        .address-default-choice input { width:18px; height:18px; accent-color:var(--plum); }
+        .address-modal-error { grid-column:1/-1; margin:0; color:#9f3349; font-size:12px; line-height:1.5; }
+        .address-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+        .address-modal-actions button { min-height:44px; padding:0 18px; border:1px solid var(--plum); border-radius:9px; background:#fff; color:var(--plum); font:600 13px Inter,Arial,sans-serif; cursor:pointer; }
+        .address-modal-actions .address-save { background:var(--plum); color:#fff; }
         .items-card { margin-top: 16px; padding: 27px 34px 17px; }
         .items-card .card-title { margin-bottom: 14px; }
         .item {
@@ -386,6 +417,13 @@
             .address-row { gap: 16px; align-items: flex-start; }
             .pin { width: 58px; height: 58px; flex-basis: 58px; font-size: 25px; }
             .address-copy { padding-left: 16px; font-size: 12px; }
+            .delivery-heading { align-items:flex-start; margin-bottom:20px; }
+            .delivery-heading .card-title { font-size:23px; line-height:1.1; }
+            .add-address-button { min-height:40px; padding:0 10px; font-size:11px; }
+            .address-modal { align-items:flex-end; padding:0; }
+            .address-modal-card { width:100%; max-height:92vh; padding:23px 18px calc(22px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; }
+            .address-form-grid { grid-template-columns:1fr; gap:12px; }
+            .address-form-field.full,.address-default-choice,.address-modal-error { grid-column:auto; }
             .item { gap: 10px; flex-wrap:wrap; padding:12px 0; }
             .item-image { width: 76px; height: 68px; flex-basis: 76px; }
             .item-name { font-size: 13px; }
@@ -425,20 +463,55 @@
     <div class="layout">
         <section class="left-column">
             <div class="card delivery-card">
-                <h2 class="card-title">Delivery information</h2>
-                <div class="address-row">
-                    <div class="pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.7"></circle></svg></div>
-                    <div class="address-copy">
-                        <div class="address-name">{{ $buyer->name }}</div>
-                        @if($buyer->house_number || $buyer->street)
-                            {{ $buyer->house_number }} {{ $buyer->street }}<br>
-                        @endif
-                        {{ $buyer->barangay }}@if($buyer->barangay && $buyer->municipality), @endif{{ $buyer->municipality }}<br>
-                        {{ $buyer->province }}@if($buyer->postal_code), {{ $buyer->postal_code }}@endif<br>
-                        <div class="contact">{{ $formattedPhone ?: 'Phone unavailable' }}</div>
-                        <div class="address-actions"><a class="address-change" href="{{ route('profile.edit', ['return_to' => $addressReturnTo]) }}#shipping-address">Change delivery address</a></div>
-                    </div>
+                <div class="delivery-heading">
+                    <h2 class="card-title">Delivery information</h2>
+                    <button class="add-address-button" type="button" id="addAddressButton"><span aria-hidden="true">+</span> Add Address</button>
                 </div>
+                <p class="address-empty" id="addressEmptyPrompt" @if($addresses->isNotEmpty()) hidden @endif>You have no saved delivery addresses yet. Add one to continue with checkout.</p>
+                @if($addresses->isNotEmpty())
+                    <label class="delivery-address-label" for="deliveryAddressSelect">Deliver to</label>
+                    <select class="delivery-address-select" id="deliveryAddressSelect" aria-label="Select delivery address">
+                        @foreach($addresses as $savedAddress)
+                            <option value="{{ $savedAddress->id }}" @selected((int) $selectedAddressId === (int) $savedAddress->id)>{{ ucfirst($savedAddress->label) }} · {{ $savedAddress->full_name }}{{ $savedAddress->is_default ? ' · Default' : '' }}</option>
+                        @endforeach
+                    </select>
+                    <input type="hidden" id="checkoutAddressId" name="address_id" form="checkoutForm" value="{{ $selectedAddressId }}">
+                    <div class="address-row" id="selectedAddressRow" @if(!$selectedAddress) hidden @endif>
+                        <div class="pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.7"></circle></svg></div>
+                        <div class="address-copy selected-address-display" id="selectedAddressDisplay">
+                            @if($selectedAddress)
+                                <span class="selected-address-label" data-address-label>{{ ucfirst($selectedAddress->label) }}{{ $selectedAddress->is_default ? ' · Default' : '' }}</span>
+                                <div class="address-name" data-address-name>{{ $selectedAddress->full_name }}</div>
+                                <span data-address-street>{{ $selectedAddress->street_address }}</span><br>
+                                <span data-address-locality>{{ $selectedAddress->barangay }}, {{ $selectedAddress->city_municipality }}, {{ $selectedAddress->province }}, {{ $selectedAddress->region }}</span><br>
+                                <span>Philippines · <span data-address-postal>{{ $selectedAddress->postal_code }}</span></span><br>
+                                <div class="contact" data-address-phone>{{ $selectedAddress->phone_number }}</div>
+                            @endif
+                            <div class="address-management-actions" id="addressManagementActions" @if(!$selectedAddress) hidden @endif>
+                                <button type="button" id="editAddressButton">Edit address</button>
+                                <button type="button" class="address-delete" id="deleteAddressButton">Delete address</button>
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <input type="hidden" id="checkoutAddressId" name="address_id" form="checkoutForm" value="">
+                    <div class="address-row" id="selectedAddressRow" hidden>
+                        <div class="pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.7"></circle></svg></div>
+                        <div class="address-copy selected-address-display" id="selectedAddressDisplay">
+                            <span class="selected-address-label" data-address-label></span>
+                            <div class="address-name" data-address-name></div>
+                            <span data-address-street></span><br>
+                            <span data-address-locality></span><br>
+                            <span>Philippines · <span data-address-postal></span></span><br>
+                            <div class="contact" data-address-phone></div>
+                            <div class="address-management-actions" id="addressManagementActions" hidden>
+                                <button type="button" id="editAddressButton">Edit address</button>
+                                <button type="button" class="address-delete" id="deleteAddressButton">Delete address</button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+                @error('address_id')<span class="payment-error" role="alert">{{ $message }}</span>@enderror
                 <label class="delivery-notes-label" for="deliveryNotes">Delivery notes for the rider (optional)</label>
                 <textarea class="delivery-notes" id="deliveryNotes" name="delivery_notes" form="checkoutForm" maxlength="200" placeholder="Gate code, landmark, or delivery instructions (200 characters max)">{{ old('delivery_notes') }}</textarea>
                 @error('delivery_notes')<span class="payment-error" role="alert">{{ $message }}</span>@enderror
@@ -627,7 +700,7 @@
                     @error('payment_method_id')<span class="payment-error">{{ $message }}</span>@enderror
                 </section>
 
-                <button class="place-order" type="submit" data-place-order>Place order · &#8369;<span data-button-total>{{ number_format($summary['total'], 2) }}</span></button>
+                <button class="place-order" type="submit" data-place-order @disabled(!$selectedAddress)>Place order · &#8369;<span data-button-total>{{ number_format($summary['total'], 2) }}</span></button>
                 <p class="order-legal">By placing your order you agree to our <a href="{{ route('legal.user-agreement') }}" target="_blank" rel="noopener">Terms</a> and <a href="{{ route('help.center', 'returns') }}" target="_blank" rel="noopener">Return Policy</a>.</p>
                 <p class="secure-returns">Secure payment · Easy returns</p>
                 <div class="wallet-modal-backdrop" data-wallet-modal hidden>
@@ -661,10 +734,293 @@
         </aside>
     </div>
 </main>
+<div class="address-modal" id="addressModal" aria-hidden="true">
+    <section class="address-modal-card" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle">
+        <div class="address-modal-heading">
+            <div><h2 id="addressModalTitle">Add delivery address</h2><p>Save an address for this and future orders.</p></div>
+            <button type="button" class="address-modal-close" data-close-address-modal aria-label="Close address form">&times;</button>
+        </div>
+        <form id="addressForm" method="POST" action="{{ route('buyer.addresses.store') }}" data-address-base="{{ url('/account/addresses') }}" data-regions-url="{{ route('address.regions') }}">
+            @csrf
+            <input type="hidden" name="_method" id="addressFormMethod" value="POST">
+            <div class="address-form-grid">
+                <div class="address-form-field"><label for="addressFullName">Full Name</label><input id="addressFullName" name="full_name" autocomplete="name" value="{{ $buyer->name }}" required maxlength="255"></div>
+                <div class="address-form-field"><label for="addressPhone">Phone Number</label><input id="addressPhone" name="phone_number" autocomplete="tel" value="{{ $formattedPhone }}" required maxlength="25" inputmode="tel"></div>
+                <div class="address-form-field"><label for="addressRegion">Region</label><select id="addressRegion" name="region" required><option value="">Select region</option></select><input type="hidden" name="region_code" id="addressRegionCode"></div>
+                <div class="address-form-field"><label for="addressProvince">Province</label><select id="addressProvince" name="province" required disabled><option value="">Select province</option></select><input type="hidden" name="province_code" id="addressProvinceCode"></div>
+                <div class="address-form-field"><label for="addressCity">City / Municipality</label><select id="addressCity" name="city_municipality" required disabled><option value="">Select city / municipality</option></select><input type="hidden" name="city_municipality_code" id="addressCityCode"></div>
+                <div class="address-form-field"><label for="addressBarangay">Barangay</label><select id="addressBarangay" name="barangay" required disabled><option value="">Select barangay</option></select><input type="hidden" name="barangay_code" id="addressBarangayCode"></div>
+                <div class="address-form-field full"><label for="addressStreet">Street Address / House Number</label><input id="addressStreet" name="street_address" autocomplete="street-address" required maxlength="255"></div>
+                <div class="address-form-field"><label for="addressPostal">Postal Code</label><input id="addressPostal" name="postal_code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required></div>
+                <div class="address-form-field"><label for="addressLabel">Address Label</label><select id="addressLabel" name="label" required><option value="home">Home</option><option value="work">Work</option><option value="other">Other</option></select></div>
+                <label class="address-default-choice"><input type="checkbox" name="is_default" value="1" id="addressDefault"> Set as default address</label>
+                <p class="address-modal-error" id="addressModalError" role="alert" hidden></p>
+            </div>
+            <div class="address-modal-actions"><button type="button" data-close-address-modal>Cancel</button><button type="submit" class="address-save" id="addressSaveButton">Save address</button></div>
+        </form>
+    </section>
+</div>
 <div class="mobile-checkout-bar" aria-label="Checkout total and place order">
     <span class="mobile-checkout-total">&#8369;<span data-mobile-total>{{ number_format($summary['total'], 2) }}</span></span>
-    <button class="place-order" type="submit" form="checkoutForm" data-place-order>Place order</button>
+    <button class="place-order" type="submit" form="checkoutForm" data-place-order @disabled(!$selectedAddress)>Place order</button>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('addressForm');
+    const modal = document.getElementById('addressModal');
+    if (!form || !modal) return;
+
+    const addressBase = form.dataset.addressBase;
+    const regionsUrl = form.dataset.regionsUrl;
+    const addressSelect = document.getElementById('deliveryAddressSelect');
+    const addressId = document.getElementById('checkoutAddressId');
+    const addressRow = document.getElementById('selectedAddressRow');
+    const addressDisplay = document.getElementById('selectedAddressDisplay');
+    const emptyPrompt = document.getElementById('addressEmptyPrompt');
+    const actions = document.getElementById('addressManagementActions');
+    const saveButton = document.getElementById('addressSaveButton');
+    const errorBox = document.getElementById('addressModalError');
+    const token = form.querySelector('input[name="_token"]')?.value || '';
+    let addressRecords = {{ Illuminate\Support\Js::from($addresses) }};
+    let activeAddress = null;
+    let lastFocus = null;
+
+    const field = (name) => form.elements.namedItem(name);
+    const setField = (name, value) => { const target = field(name); if (target) target.value = value ?? ''; };
+    const setAddressDisplay = (address) => {
+        activeAddress = address || null;
+        if (!address) {
+            addressRow.hidden = true;
+            actions.hidden = true;
+            if (emptyPrompt) emptyPrompt.hidden = false;
+            addressId.value = '';
+            document.querySelectorAll('[data-place-order]').forEach((button) => { button.disabled = true; });
+            return;
+        }
+        if (emptyPrompt) emptyPrompt.hidden = true;
+        addressRow.hidden = false;
+        actions.hidden = false;
+        addressId.value = address.id;
+        addressDisplay.querySelector('[data-address-label]').textContent = `${String(address.label || 'home').replace(/^./, (letter) => letter.toUpperCase())}${address.is_default ? ' · Default' : ''}`;
+        addressDisplay.querySelector('[data-address-name]').textContent = address.full_name || '';
+        addressDisplay.querySelector('[data-address-street]').textContent = address.street_address || '';
+        addressDisplay.querySelector('[data-address-locality]').textContent = [address.barangay, address.city_municipality, address.province, address.region].filter(Boolean).join(', ');
+        addressDisplay.querySelector('[data-address-postal]').textContent = address.postal_code || '';
+        addressDisplay.querySelector('[data-address-phone]').textContent = address.phone_number || '';
+        document.querySelectorAll('[data-place-order]').forEach((button) => { button.disabled = false; });
+    };
+
+    const renderAddresses = (addresses, selectedId) => {
+        addressRecords = addresses || [];
+        if (!addressSelect && addressRecords.length) {
+            window.location.reload();
+            return;
+        }
+        if (addressSelect) {
+            addressSelect.replaceChildren();
+            addressRecords.forEach((address) => {
+                const option = document.createElement('option');
+                option.value = address.id;
+                option.textContent = `${String(address.label || 'home').replace(/^./, (letter) => letter.toUpperCase())} · ${address.full_name}${address.is_default ? ' · Default' : ''}`;
+                addressSelect.append(option);
+            });
+            addressSelect.hidden = addressRecords.length === 0;
+            if (addressRecords.length) {
+                const preferred = addressRecords.find((address) => Number(address.id) === Number(selectedId)) || addressRecords.find((address) => address.is_default) || addressRecords[0];
+                addressSelect.value = preferred.id;
+                setAddressDisplay(preferred);
+            } else {
+                setAddressDisplay(null);
+            }
+        }
+    };
+
+    const populateSelect = async (select, url, placeholder, selectedCode = '') => {
+        select.replaceChildren(new Option(placeholder, ''));
+        select.disabled = true;
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) throw new Error('Address regions could not be loaded. Please try again.');
+        const payload = await response.json();
+        (payload.data || []).forEach((item) => {
+            const code = String(item.code ?? item.psgc_code ?? item.id ?? '');
+            const name = String(item.name ?? item.regionName ?? '');
+            if (!code || !name) return;
+            const option = new Option(name, name);
+            option.dataset.code = code;
+            select.add(option);
+        });
+        select.disabled = false;
+        if (selectedCode) {
+            const selected = [...select.options].find((option) => option.dataset.code === String(selectedCode));
+            if (selected) select.value = selected.value;
+        }
+        return select.selectedOptions[0]?.dataset.code || '';
+    };
+
+    const resetChildren = (from) => {
+        const children = [
+            ['province', 'Select province'], ['city_municipality', 'Select city / municipality'], ['barangay', 'Select barangay'],
+        ];
+        const start = children.findIndex(([name]) => name === from);
+        children.slice(start).forEach(([name, placeholder]) => {
+            const select = field(name);
+            select.replaceChildren(new Option(placeholder, ''));
+            select.disabled = true;
+            setField(`${name}_code`, '');
+        });
+    };
+
+    const regions = field('region');
+    const provinces = field('province');
+    const cities = field('city_municipality');
+    const barangays = field('barangay');
+    const loadProvinces = async (regionCode, selected = '') => {
+        resetChildren('province');
+        setField('region_code', regionCode);
+        if (regionCode) await populateSelect(provinces, `${regionsUrl}/${encodeURIComponent(regionCode)}/provinces`, 'Select province', selected);
+        setField('province_code', provinces.selectedOptions[0]?.dataset.code || '');
+    };
+    const loadCities = async (provinceCode, selected = '') => {
+        resetChildren('city_municipality');
+        setField('province_code', provinceCode);
+        if (provinceCode) await populateSelect(cities, `/address/provinces/${encodeURIComponent(provinceCode)}/municipalities`, 'Select city / municipality', selected);
+        setField('city_municipality_code', cities.selectedOptions[0]?.dataset.code || '');
+    };
+    const loadBarangays = async (cityCode, selected = '') => {
+        resetChildren('barangay');
+        setField('city_municipality_code', cityCode);
+        if (cityCode) await populateSelect(barangays, `/address/municipalities/${encodeURIComponent(cityCode)}/barangays`, 'Select barangay', selected);
+        setField('barangay_code', barangays.selectedOptions[0]?.dataset.code || '');
+    };
+
+    regions.addEventListener('change', async () => {
+        try { await loadProvinces(regions.selectedOptions[0]?.dataset.code || ''); setField('region', regions.selectedOptions[0]?.textContent || ''); }
+        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+    });
+    provinces.addEventListener('change', async () => {
+        try { await loadCities(provinces.selectedOptions[0]?.dataset.code || ''); setField('province', provinces.selectedOptions[0]?.textContent || ''); }
+        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+    });
+    cities.addEventListener('change', async () => {
+        try { await loadBarangays(cities.selectedOptions[0]?.dataset.code || ''); setField('city_municipality', cities.selectedOptions[0]?.textContent || ''); }
+        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+    });
+    barangays.addEventListener('change', () => {
+        setField('barangay_code', barangays.selectedOptions[0]?.dataset.code || '');
+        setField('barangay', barangays.selectedOptions[0]?.textContent || '');
+    });
+
+    const showModal = async (address = null) => {
+        lastFocus = document.activeElement;
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+        form.reset();
+        form.action = `${addressBase}${address ? `/${address.id}` : ''}`;
+        document.getElementById('addressFormMethod').value = address ? 'PATCH' : 'POST';
+        document.getElementById('addressModalTitle').textContent = address ? 'Edit delivery address' : 'Add delivery address';
+        saveButton.textContent = address ? 'Save changes' : 'Save address';
+        ['full_name', 'phone_number', 'street_address', 'postal_code', 'label'].forEach((name) => setField(name, address?.[name] ?? (name === 'label' ? 'home' : field(name).defaultValue)));
+        document.getElementById('addressDefault').checked = Boolean(address?.is_default);
+        try {
+            await populateSelect(regions, regionsUrl, 'Select region', address?.region_code || '');
+            setField('region', regions.selectedOptions[0]?.textContent === 'Select region' ? '' : (regions.selectedOptions[0]?.textContent || address?.region || ''));
+            if (address?.region_code) {
+                await loadProvinces(address.region_code, address.province_code || '');
+                setField('province', provinces.selectedOptions[0]?.textContent || address.province || '');
+                if (address.province_code) {
+                    await loadCities(address.province_code, address.city_municipality_code || '');
+                    setField('city_municipality', cities.selectedOptions[0]?.textContent || address.city_municipality || '');
+                    if (address.city_municipality_code) {
+                        await loadBarangays(address.city_municipality_code, address.barangay_code || '');
+                        setField('barangay', barangays.selectedOptions[0]?.textContent || address.barangay || '');
+                    }
+                }
+            }
+        } catch (error) {
+            errorBox.textContent = `${error.message} Refresh the page and try again.`;
+            errorBox.hidden = false;
+        }
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        document.getElementById('addressFullName').focus();
+    };
+    const closeModal = () => {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        lastFocus?.focus();
+    };
+
+    document.getElementById('addAddressButton').addEventListener('click', () => showModal());
+    document.getElementById('editAddressButton')?.addEventListener('click', () => activeAddress && showModal(activeAddress));
+    document.querySelectorAll('[data-close-address-modal]').forEach((button) => button.addEventListener('click', closeModal));
+    modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
+
+    addressSelect?.addEventListener('change', () => {
+        const chosen = addressRecords.find((address) => Number(address.id) === Number(addressSelect.value));
+        setAddressDisplay(chosen);
+    });
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorBox.hidden = true;
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving…';
+        const payload = new FormData(form);
+        if (!document.getElementById('addressDefault').checked) payload.set('is_default', '0');
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: payload,
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                const firstError = Object.values(result.errors || {}).flat()[0];
+                throw new Error(firstError || result.message || 'Unable to save this address.');
+            }
+            renderAddresses(result.addresses || [result.address], result.address.id);
+            closeModal();
+        } catch (error) {
+            errorBox.textContent = error.message;
+            errorBox.hidden = false;
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = document.getElementById('addressFormMethod').value === 'PATCH' ? 'Save changes' : 'Save address';
+        }
+    });
+
+    const removeSelectedAddress = async (confirmed = false) => {
+        if (!activeAddress) return;
+        const url = `${addressBase}/${activeAddress.id}${confirmed ? '?confirm_active_orders=1' : ''}`;
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': token },
+        });
+        const result = await response.json();
+        if (response.status === 409 && result.requires_confirmation) {
+            if (window.confirm(result.message)) return removeSelectedAddress(true);
+            return;
+        }
+        if (!response.ok) throw new Error(result.message || 'Unable to delete this address.');
+        renderAddresses(result.addresses || [], result.selected_address_id);
+    };
+    document.getElementById('deleteAddressButton')?.addEventListener('click', async () => {
+        if (!activeAddress || !window.confirm('Delete this saved delivery address?')) return;
+        try { await removeSelectedAddress(); }
+        catch (error) { window.alert(error.message); }
+    });
+
+    if (addressSelect && addressRecords.length) {
+        const initial = addressRecords.find((address) => Number(address.id) === Number(addressId.value || addressSelect.value));
+        if (initial) setAddressDisplay(initial);
+    } else if (!addressRecords.length) {
+        setAddressDisplay(null);
+    }
+});
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const checkoutForm = document.getElementById('checkoutForm');

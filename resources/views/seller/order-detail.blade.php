@@ -168,11 +168,12 @@
 
             <div>
                 {{ collect([
-                    $order->house_number,
                     $order->street,
                     $order->barangay,
                     $order->municipality,
                     $order->province,
+                    $order->region,
+                    $order->postal_code,
                 ])->filter()->implode(', ') ?: 'No address on file' }}
             </div>
         </div>

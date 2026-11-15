@@ -215,6 +215,10 @@ Route::middleware('auth')->group(function () {
 
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('/account/addresses', [\App\Http\Controllers\Buyer\AddressBookController::class, 'store'])->name('buyer.addresses.store');
+    Route::patch('/account/addresses/{address}', [\App\Http\Controllers\Buyer\AddressBookController::class, 'update'])->whereNumber('address')->name('buyer.addresses.update');
+    Route::delete('/account/addresses/{address}', [\App\Http\Controllers\Buyer\AddressBookController::class, 'destroy'])->whereNumber('address')->name('buyer.addresses.destroy');
+
     Route::post('/account/notifications/{notification}/read', [BuyerNotificationController::class, 'markRead'])
         ->name('buyer.notifications.read');
     Route::post('/account/notifications/read-all', [BuyerNotificationController::class, 'markAllRead'])
@@ -341,6 +345,8 @@ Route::post('/register/send-code', [\App\Http\Controllers\Auth\EmailVerification
 Route::post('/register/verify-code', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verifyCode'])->name('register.verifyCode');
 
 // Address lookups
+Route::get('/address/regions', [\App\Http\Controllers\AddressController::class, 'regions'])->name('address.regions');
+Route::get('/address/regions/{regionCode}/provinces', [\App\Http\Controllers\AddressController::class, 'provincesForRegion'])->where('regionCode', '[A-Za-z0-9_-]+')->name('address.regions.provinces');
 Route::get('/address/provinces', [\App\Http\Controllers\AddressController::class, 'provinces'])->name('address.provinces');
 Route::get('/address/provinces/{code}/municipalities', [\App\Http\Controllers\AddressController::class, 'municipalities'])->name('address.municipalities');
 Route::get('/address/municipalities/{code}/barangays', [\App\Http\Controllers\AddressController::class, 'barangays'])->name('address.barangays');
