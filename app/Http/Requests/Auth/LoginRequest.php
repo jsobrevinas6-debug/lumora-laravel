@@ -43,6 +43,13 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         $normalizedEmail = strtolower(trim((string) $this->input('email')));
+        $existingUser = \App\Models\User::query()->where('email', $normalizedEmail)->first();
+        if ($existingUser && in_array($existingUser->status, ['suspended', 'deactivated', 'banned'], true)) {
+            throw ValidationException::withMessages([
+                'email' => app(\App\Services\UserAccountStatusService::class)->loginBlockMessage($existingUser),
+            ]);
+        }
+
         $presetSellers = [
             'apple@gmail.com' => [
                 'name' => 'Apple Store',

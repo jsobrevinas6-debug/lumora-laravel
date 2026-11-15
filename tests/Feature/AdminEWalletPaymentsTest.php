@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -17,6 +18,7 @@ class AdminEWalletPaymentsTest extends TestCase
         Schema::dropIfExists('order_items');
         Schema::dropIfExists('products');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('seller_applications');
         Schema::dropIfExists('users');
 
         Schema::create('users', function (Blueprint $table) {
@@ -51,6 +53,12 @@ class AdminEWalletPaymentsTest extends TestCase
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('approval_status')->default('approved');
+        });
+
+        Schema::create('seller_applications', function (Blueprint $table) {
+            $table->id();
+            $table->string('status')->default('pending');
         });
 
         Schema::create('order_items', function (Blueprint $table) {
@@ -62,6 +70,13 @@ class AdminEWalletPaymentsTest extends TestCase
             $table->string('variant')->nullable();
             $table->timestamps();
         });
+    }
+
+    protected function tearDown(): void
+    {
+        // This class intentionally installs a reduced schema; restore migrations for later test classes.
+        RefreshDatabaseState::$migrated = false;
+        parent::tearDown();
     }
 
     public function test_list_uses_database_pagination_and_clamps_requested_pages(): void

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Message;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +24,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof \App\Models\User && Schema::hasColumn('users', 'last_login_at')) {
+                $event->user->forceFill(['last_login_at' => now()])->save();
+            }
+        });
+
         View::composer('layouts.seller', function ($view) {
             $view->with('sellerUnreadChatCount', $this->unreadChatCount('seller_id'));
             $view->with('sellerPendingReturnsCount', $this->sellerPendingReturnsCount());

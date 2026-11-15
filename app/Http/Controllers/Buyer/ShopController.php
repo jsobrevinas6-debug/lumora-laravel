@@ -100,7 +100,7 @@ class ShopController extends Controller
     {
         $seller->load(['approvedSellerApplication', 'sellerApplication']);
 
-        abort_unless($seller->role === 'seller' || $seller->approvedSellerApplication, 404);
+        abort_unless(($seller->role === 'seller' || $seller->approvedSellerApplication) && ! in_array($seller->status, ['suspended', 'deactivated', 'banned'], true), 404);
 
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],

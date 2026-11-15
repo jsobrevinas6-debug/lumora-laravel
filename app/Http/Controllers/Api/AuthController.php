@@ -57,10 +57,13 @@ class AuthController extends Controller
 
         if (in_array(strtolower((string) $user->status), self::BLOCKED_STATUSES, true)) {
             return response()->json([
-                'message' => 'Your account is not active. Please contact Lumora support.',
+                'message' => app(\App\Services\UserAccountStatusService::class)->loginBlockMessage($user),
             ], 403);
         }
 
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $user->forceFill(['last_login_at' => now()])->save();
+        }
 
         $token = $user->createToken($credentials['device_name'] ?? 'lumora-mobile')->plainTextToken;
 

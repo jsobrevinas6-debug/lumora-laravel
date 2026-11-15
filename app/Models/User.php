@@ -52,6 +52,8 @@ class User extends Authenticatable
         'seller_terms_accepted_at',
         'marketing_opt_in',
         'approval_status',
+        'suspended_until',
+        'last_login_at',
     ];
 
     /**
@@ -73,6 +75,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'suspended_until' => 'datetime',
+            'last_login_at' => 'datetime',
             'terms_accepted_at' => 'datetime',
             'seller_terms_accepted_at' => 'datetime',
             'marketing_opt_in' => 'boolean',
@@ -142,5 +146,10 @@ class User extends Authenticatable
         return $this->hasOne(SellerApplication::class)
             ->where('status', 'approved')
             ->latestOfMany();
+    }
+
+    public function statusLogs(): HasMany
+    {
+        return $this->hasMany(UserStatusLog::class)->latest('created_at');
     }
 }

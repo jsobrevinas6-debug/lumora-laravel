@@ -256,20 +256,6 @@ class DashboardController extends Controller
         return null;
     }
 
-    public function users()
-    {
-        $users = User::query()
-            ->select([
-                'id', 'name', 'first_name', 'last_name', 'email', 'email_verified',
-                'contact_number', 'date_of_birth', 'role', 'status', 'created_at',
-                'shop_name', 'shop_description',
-            ])
-            ->orderByDesc('created_at')
-            ->get();
-
-        return view('admin.users', compact('users'));
-    }
-
     public function applications(Request $request)
     {
         return $this->legacySellerApplications($request);
@@ -741,26 +727,6 @@ class DashboardController extends Controller
             ->get();
 
         return view('admin.dashboard', compact('totalSales', 'totalOrders', 'totalProducts', 'totalBuyers', 'applications'));
-    }
-
-    public function handleUserStatus($id, $action)
-    {
-        $newStatus = match ($action) {
-            'activate' => 'active',
-            'suspend' => 'suspended',
-            'deactivate' => 'deactivated',
-            default => null,
-        };
-
-        if (! $newStatus) {
-            abort(404);
-        }
-
-        DB::table('users')->where('id', $id)->update(['status' => $newStatus]);
-
-        session()->flash('flash_success', 'User account '.$newStatus.'.');
-
-        return redirect()->route('admin.users');
     }
 
     /**

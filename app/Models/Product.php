@@ -246,7 +246,8 @@ class Product extends Model
 
     public function scopeApproved(Builder $query): Builder
     {
-        return $query->where('approval_status', 'approved')->where('status', 'active');
+        return $query->where('approval_status', 'approved')->where('status', 'active')
+            ->whereHas('seller', fn (Builder $seller) => $seller->whereNotIn('status', ['suspended', 'deactivated', 'banned']));
     }
 
     /** Listing content changes require another review; price and inventory edits remain live. */

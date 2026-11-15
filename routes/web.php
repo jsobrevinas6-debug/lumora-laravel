@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SellerApplicationController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Seller\ProductController;
 use App\Http\Controllers\Seller\PayoutController;
@@ -82,7 +83,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/applications/{id}/approve', [DashboardController::class, 'approveSellerApplication'])->name('applications.approve');
     Route::post('/applications/{id}/reject', [DashboardController::class, 'rejectSellerApplication'])->name('applications.reject');
     Route::post('/applications/{id}/archive', [DashboardController::class, 'archiveSellerApplication'])->name('applications.archive');
-    Route::get('/users', [DashboardController::class, 'users'])->name('users');
+    Route::get('/users', [UserController::class, 'index'])->name('users');
+    Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
+    Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
+    Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::patch('/users/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
     Route::get('/applications', [DashboardController::class, 'applications'])->name('applications');
     Route::get('/product-approval', [DashboardController::class, 'productApproval'])->name('product-approval');
     Route::get('/product-approval/{id}/history', [DashboardController::class, 'productApprovalHistory'])->name('product-approval.history');
@@ -91,7 +96,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/product-approval/{id}/request-changes', [DashboardController::class, 'requestProductChanges'])->name('product-approval.request-changes');
     Route::post('/product-approval/{id}/send-back', [DashboardController::class, 'sendProductBack'])->name('product-approval.send-back');
     Route::post('/product-approval/bulk', [DashboardController::class, 'bulkProductApproval'])->name('product-approval.bulk');
-    Route::get('/users/{id}/{action}', [DashboardController::class, 'handleUserStatus'])->name('users.action');
 
     Route::get('/compliance', [DashboardController::class, 'compliance'])->name('compliance');
     Route::get('/compliance/product/{id}/flag', [DashboardController::class, 'flagProduct'])->name('compliance.flag');
