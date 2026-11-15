@@ -41,6 +41,16 @@ class NewSellerSeeder extends Seeder
                 'created_at'  => now(),
                 'updated_at'  => now(),
             ],
+            [
+                'name'        => 'Groomings Store',
+                'email'       => 'groomings@gmail.com',
+                'password'    => Hash::make('123123123'),
+                'role'        => 'seller',
+                'status'      => 'active',
+                'shop_name'   => 'Groomings Store',
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ],
         ];
 
         foreach ($sellers as $sellerData) {
