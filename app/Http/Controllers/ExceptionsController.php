@@ -760,9 +760,9 @@ class ExceptionsController extends Controller
         }
 
         [$returnStatus, $dbStatus, $resolutionLabel] = match ($action) {
-            'approve_refund', 'approve_return_refund' => ['approved', 'exception', 'Approve refund'],
+            'approve_refund', 'approve_return_refund' => ['approved', 'returned', 'Approve refund'],
             'redeliver', 'out_for_delivery' => ['rejected', 'out_for_delivery', 'Re-deliver to customer'],
-            'return_to_hub', 'receive_returned_parcel' => ['under_review', 'exception', 'Return to hub (Under review)'],
+            'return_to_hub', 'receive_returned_parcel' => ['returned_to_hub', 'returned', 'Returned to Hub'],
             'reject' => ['rejected', 'exception', 'Rejected with reason'],
             'in_transit' => ['rejected', 'in_transit', 'Resumed transit'],
             'cancelled' => ['approved', 'cancelled', 'Cancelled / Refunded'],
@@ -772,8 +772,12 @@ class ExceptionsController extends Controller
         $metadata['return_status'] = $returnStatus;
         $metadata['return_resolution'] = $resolutionLabel;
         $metadata['return_resolved_by'] = $operatorName;
-        if (in_array($returnStatus, ['approved', 'rejected'], true)) {
+        if (in_array($returnStatus, ['approved', 'rejected', 'returned_to_hub'], true)) {
             $metadata['return_resolved_at'] = $now->toIso8601String();
+            $metadata['return_stage'] = $returnStatus === 'returned_to_hub' ? 'returned_to_hub' : 'resolved';
+            if ($returnStatus === 'returned_to_hub' || $dbStatus === 'returned') {
+                $metadata['returned_to_hub_at'] = $now->toIso8601String();
+            }
         }
         if ($note !== '') {
             $metadata['return_resolution_note'] = $note;
@@ -795,6 +799,36 @@ class ExceptionsController extends Controller
             'status' => $dbStatus,
             'metadata' => $metadata,
         ]);
+
+        // Also update any duplicate/sibling parcel rows sharing the same parcel_number, barcode, or order_id
+        if (in_array($returnStatus, ['approved', 'rejected', 'returned_to_hub'], true)) {
+            Parcel::where('id', '!=', $parcel->id)
+                ->where(function ($sq) use ($parcel) {
+                    $sq->where('parcel_number', $parcel->parcel_number);
+                    if (! empty($parcel->barcode)) {
+                        $sq->orWhere('barcode', $parcel->barcode);
+                    }
+                    if (! empty($parcel->order_id)) {
+                        $sq->orWhere('order_id', $parcel->order_id);
+                    }
+                })
+                ->get()
+                ->each(function (Parcel $dup) use ($dbStatus, $returnStatus, $resolutionLabel, $operatorName, $now) {
+                    $dupMeta = is_array($dup->metadata) ? $dup->metadata : [];
+                    $dupMeta['return_status'] = $returnStatus;
+                    $dupMeta['return_stage'] = $returnStatus === 'returned_to_hub' ? 'returned_to_hub' : 'resolved';
+                    $dupMeta['return_resolution'] = $resolutionLabel;
+                    $dupMeta['return_resolved_by'] = $operatorName;
+                    $dupMeta['return_resolved_at'] = $now->toIso8601String();
+                    if ($dbStatus === 'returned') {
+                        $dupMeta['returned_to_hub_at'] = $now->toIso8601String();
+                    }
+                    $dup->updateQuietly([
+                        'status' => $dbStatus,
+                        'metadata' => $dupMeta,
+                    ]);
+                });
+        }
 
         ParcelScan::create([
             'parcel_id' => $parcel->id,

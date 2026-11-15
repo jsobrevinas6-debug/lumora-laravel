@@ -159,6 +159,12 @@ class LogisticsReturnApiController extends Controller
 
             // 4. Update parcel metadata with return items, seller approval, and courier assignment
             $metadata = is_array($parcel->metadata) ? $parcel->metadata : [];
+            unset(
+                $metadata['return_resolved_at'],
+                $metadata['returned_to_hub_at'],
+                $metadata['return_resolved_by'],
+                $metadata['is_return_resolved']
+            );
             $metadata['is_return_refund'] = true;
             $metadata['return_status'] = 'approved_for_pickup';
             $metadata['return_stage'] = 'assigned_for_pickup';

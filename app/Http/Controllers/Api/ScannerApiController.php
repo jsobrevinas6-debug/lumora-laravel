@@ -1256,6 +1256,11 @@ class ScannerApiController extends Controller
             'transfer_state' => $parcel->metadata['transfer_state'] ?? null,
             'origin_branch' => $parcel->metadata['origin_branch'] ?? null,
             'destination_branch' => $parcel->metadata['destination_branch'] ?? null,
+            'is_return_refund' => (bool) ($parcel->metadata['is_return_refund'] ?? false),
+            'return_status' => $parcel->metadata['return_status'] ?? null,
+            'return_stage' => $parcel->metadata['return_stage'] ?? null,
+            'return_resolved_at' => $parcel->metadata['return_resolved_at'] ?? null,
+            'returned_to_hub_at' => $parcel->metadata['returned_to_hub_at'] ?? null,
         ];
     }
 

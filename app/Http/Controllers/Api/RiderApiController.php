@@ -649,10 +649,10 @@ class RiderApiController extends Controller
             if ((int) $p->assigned_rider_id !== (int) $profile->id) {
                 return false;
             }
-            $meta = is_array($p->metadata) ? $p->metadata : [];
-            if ($p->status === 'returned' || ($meta['return_status'] ?? '') === 'returned_to_hub') {
+            if ($this->isResolvedOrHubDeliveredReturn($p)) {
                 return false;
             }
+            $meta = is_array($p->metadata) ? $p->metadata : [];
             if (! empty($meta['delivering_rider_id']) && (int) $meta['delivering_rider_id'] !== (int) $profile->id) {
                 return false;
             }
@@ -1311,6 +1311,32 @@ class RiderApiController extends Controller
             'rider_received_at' => in_array($dbStatus, ['rider_received', 'in_transit', 'out_for_delivery']) && ! $parcel->rider_received_at ? now() : $parcel->rider_received_at,
         ]);
 
+        // If parcel is returned to hub, ensure any duplicate/sibling parcel rows with the same barcode or parcel_number are also marked returned
+        if ($dbStatus === 'returned' || ($metadata['return_status'] ?? '') === 'returned_to_hub') {
+            Parcel::where('id', '!=', $parcel->id)
+                ->where(function ($sq) use ($parcel) {
+                    $sq->where('parcel_number', $parcel->parcel_number);
+                    if (! empty($parcel->barcode)) {
+                        $sq->orWhere('barcode', $parcel->barcode);
+                    }
+                    if (! empty($parcel->order_id)) {
+                        $sq->orWhere('order_id', $parcel->order_id);
+                    }
+                })
+                ->get()
+                ->each(function (Parcel $dup) use ($metadata) {
+                    $dupMeta = is_array($dup->metadata) ? $dup->metadata : [];
+                    $dupMeta['return_status'] = 'returned_to_hub';
+                    $dupMeta['return_stage'] = 'returned_to_hub';
+                    $dupMeta['return_resolved_at'] = $metadata['return_resolved_at'] ?? now()->toIso8601String();
+                    $dupMeta['returned_to_hub_at'] = $metadata['returned_to_hub_at'] ?? now()->toIso8601String();
+                    $dup->updateQuietly([
+                        'status' => 'returned',
+                        'metadata' => $dupMeta,
+                    ]);
+                });
+        }
+
         ParcelScan::create([
             'parcel_id' => $parcel->id,
             'user_id' => $user?->id ?? $parcel->rider?->user_id,
@@ -1652,6 +1678,88 @@ class RiderApiController extends Controller
     }
 
     /**
+     * Determine whether a Return / Refund parcel has already been resolved
+     * (by Admin/Hub on /exceptions) or already delivered/returned to the hub.
+     */
+    private function isResolvedOrHubDeliveredReturn(Parcel $p): bool
+    {
+        $meta = is_array($p->metadata) ? $p->metadata : [];
+        $returnStatus = strtolower(trim((string) ($meta['return_status'] ?? '')));
+        $returnStage = strtolower(trim((string) ($meta['return_stage'] ?? '')));
+        $returnResolution = strtolower(trim((string) ($meta['return_resolution'] ?? '')));
+        $isReturnRefund = (bool) ($meta['is_return_refund'] ?? false)
+            || $returnStatus !== ''
+            || $returnStage !== ''
+            || ! empty($meta['return_reason'])
+            || ! empty($meta['failure_reason'])
+            || in_array($p->status, ['returned', 'exception', 'failed'], true);
+
+        if (in_array($p->status, ['returned', 'cancelled'], true)) {
+            return true;
+        }
+
+        if (! $isReturnRefund) {
+            return false;
+        }
+
+        if (! empty($meta['returned_to_hub_at']) || ! empty($meta['return_resolved_at'])) {
+            return true;
+        }
+
+        if (in_array($returnStatus, [
+            'returned_to_hub',
+            'received_at_hub',
+            'hub_received',
+            'returned',
+            'approved',
+            'rejected',
+            'resolved',
+            'completed',
+            'cancelled',
+            'refunded',
+            'under_review',
+        ], true)) {
+            return true;
+        }
+
+        if (in_array($returnStage, [
+            'returned_to_hub',
+            'received_at_hub',
+            'resolved',
+            'completed',
+            'cancelled',
+        ], true)) {
+            return true;
+        }
+
+        if (
+            $returnResolution !== ''
+            && (
+                str_contains($returnResolution, 'returned to hub')
+                || str_contains($returnResolution, 'approve refund')
+                || str_contains($returnResolution, 'rejected')
+                || str_contains($returnResolution, 'cancelled')
+                || str_contains($returnResolution, 'refunded')
+                || str_contains($returnResolution, 'under review')
+                || str_contains($returnResolution, 'received at hub')
+            )
+        ) {
+            return true;
+        }
+
+        // Only allow a return/refund parcel in the Rider App when actively awaiting pickup or in rider hands
+        if (! in_array($returnStatus, ['approved_for_pickup', 'in_rider_hands', 'in_transit_to_hub'], true)) {
+            return true;
+        }
+
+        if ($p->status === 'delivered') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Helper to transform parcel into Flutter & Scanner compatible JSON.
      */
     private function transformParcel(Parcel $p): array
@@ -1663,11 +1771,15 @@ class RiderApiController extends Controller
 
         $isReturnRefund = (bool) ($metadata['is_return_refund'] ?? false);
         $returnStatus = (string) ($metadata['return_status'] ?? '');
+        $isResolvedOrReturned = $this->isResolvedOrHubDeliveredReturn($p);
 
         if ($isReturnRefund) {
-            if ($p->status === 'returned' || $returnStatus === 'returned_to_hub') {
+            if ($isResolvedOrReturned || $p->status === 'returned' || $returnStatus === 'returned_to_hub') {
                 $statusCode = 'RETURNED_TO_HUB';
                 $stage = 'returnedToHub';
+                $returnStatus = 'returned_to_hub';
+                $metadata['return_status'] = 'returned_to_hub';
+                $metadata['is_return_resolved'] = true;
             } elseif ($p->status === 'in_transit' || $p->status === 'returning_to_hub' || $returnStatus === 'in_rider_hands' || $returnStatus === 'in_transit_to_hub') {
                 $statusCode = 'RETURNING_TO_HUB';
                 $stage = 'returningToHub';
@@ -1849,14 +1961,40 @@ class RiderApiController extends Controller
                 $localParcel->shipment?->updateQuietly(['tracking_number' => $cloudParcelNum]);
             }
 
-            // If local parcel is further ahead than cloud (e.g., updated on local), push local status to cloud
+            // If local parcel is already resolved/returned or further ahead than cloud, push local status to cloud
             if ($localParcel) {
+                if ($this->isResolvedOrHubDeliveredReturn($localParcel)) {
+                    if ($cloudStatus !== 'returned') {
+                        $this->syncStatusToCloud($request, $localParcel, 'returned', $localParcel->metadata ?? []);
+                    }
+                    continue;
+                }
                 $localRank = $this->statusRank($localParcel->status);
                 $cloudRank = $this->statusRank($cloudStatus);
                 if ($localRank > $cloudRank && $localRank >= 4) {
                     $this->syncStatusToCloud($request, $localParcel, $localParcel->status, $localParcel->metadata ?? []);
                     continue;
                 }
+            }
+
+            // If Cloud parcel is already returned, cancelled, or resolved, mirror that onto local parcel and skip
+            $cloudReturnStatus = strtolower(trim((string) ($cp['return_status'] ?? '')));
+            $cloudResolvedAt = $cp['return_resolved_at'] ?? null;
+            if (
+                in_array($cloudStatus, ['returned', 'cancelled'], true)
+                || in_array($cloudReturnStatus, ['returned_to_hub', 'approved', 'rejected', 'resolved', 'completed', 'cancelled', 'under_review'], true)
+                || ! empty($cloudResolvedAt)
+            ) {
+                if ($localParcel) {
+                    $localMeta = is_array($localParcel->metadata) ? $localParcel->metadata : [];
+                    $localMeta['return_status'] = $cloudReturnStatus !== '' ? $cloudReturnStatus : 'returned_to_hub';
+                    $localMeta['return_resolved_at'] = $cloudResolvedAt ?: ($localMeta['return_resolved_at'] ?? now()->toIso8601String());
+                    $localParcel->updateQuietly([
+                        'status' => in_array($cloudStatus, ['returned', 'cancelled'], true) ? $cloudStatus : 'returned',
+                        'metadata' => $localMeta,
+                    ]);
+                }
+                continue;
             }
 
             if (! in_array($cloudStatus, ['assigned', 'rider_received', 'in_transit', 'out_for_delivery', 'delivered', 'exception'], true)) {
