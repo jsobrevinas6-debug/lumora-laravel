@@ -97,8 +97,14 @@
         .delivery-heading .card-title { margin:0; }
         .add-address-button { display:inline-flex; min-height:42px; flex:0 0 auto; align-items:center; justify-content:center; gap:8px; padding:0 15px; border:1px solid var(--plum); border-radius:9px; background:transparent; color:var(--plum); font:600 13px Inter,Arial,sans-serif; cursor:pointer; transition:background .18s ease,color .18s ease; }
         .add-address-button:hover { background:var(--plum); color:#fff; }
-        .delivery-address-select { width:min(100%,440px); min-height:43px; margin:0 0 18px; padding:0 12px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--plum); font:500 13px Inter,Arial,sans-serif; }
-        .delivery-address-label { display:block; margin-bottom:7px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .delivery-address-label { display:block; margin:0 0 9px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .delivery-address-choices { display:grid; gap:8px; margin:0 0 18px; }
+        .delivery-address-choice { display:flex; min-width:0; align-items:flex-start; gap:11px; padding:11px 13px; border:1px solid var(--line); border-radius:11px; background:#fff; cursor:pointer; transition:border-color .16s ease,background .16s ease,box-shadow .16s ease; }
+        .delivery-address-choice:has(input:checked) { border-color:var(--rose); background:#fffaf7; box-shadow:0 0 0 2px rgba(201,139,107,.12); }
+        .delivery-address-choice input { width:17px; height:17px; flex:0 0 17px; margin:2px 0 0; accent-color:var(--plum); cursor:pointer; }
+        .delivery-address-choice-copy { display:grid; min-width:0; gap:3px; color:var(--muted); font-size:12px; line-height:1.45; }
+        .delivery-address-choice-title { display:flex; align-items:center; flex-wrap:wrap; gap:7px; color:var(--plum); font-size:13px; font-weight:700; }
+        .delivery-address-default { padding:2px 7px; border-radius:999px; background:#fbefea; color:var(--plum); font-size:9px; font-weight:700; }
         .selected-address-display { min-width:0; }
         .selected-address-label { display:inline-flex; margin:0 0 8px; padding:4px 9px; border-radius:999px; background:#fbefea; color:var(--plum); font-size:10px; font-weight:700; text-transform:capitalize; }
         .address-empty { margin:0 0 18px; padding:15px 17px; border:1px dashed var(--rose-soft); border-radius:12px; background:#fffaf7; color:var(--muted); font-size:13px; line-height:1.55; }
@@ -468,14 +474,21 @@
                     <button class="add-address-button" type="button" id="addAddressButton"><span aria-hidden="true">+</span> Add Address</button>
                 </div>
                 <p class="address-empty" id="addressEmptyPrompt" @if($addresses->isNotEmpty()) hidden @endif>You have no saved delivery addresses yet. Add one to continue with checkout.</p>
+                <label class="delivery-address-label" id="deliveryAddressLabel">Choose the address for this order</label>
+                <div class="delivery-address-choices" id="deliveryAddressChoices" role="radiogroup" aria-labelledby="deliveryAddressLabel" @if($addresses->isEmpty()) hidden @endif>
+                    @foreach($addresses as $savedAddress)
+                        <label class="delivery-address-choice">
+                            <input type="radio" name="checkout_address_choice" value="{{ $savedAddress->id }}" aria-label="Use {{ ucfirst($savedAddress->label) }} address for {{ $savedAddress->full_name }}" @checked((int) $selectedAddressId === (int) $savedAddress->id)>
+                            <span class="delivery-address-choice-copy">
+                                <span class="delivery-address-choice-title">{{ ucfirst($savedAddress->label) }}{{ $savedAddress->is_default ? ' · Default' : '' }}</span>
+                                <span>{{ $savedAddress->full_name }} · {{ $savedAddress->phone_number }}</span>
+                                <span>{{ collect([$savedAddress->street_address, $savedAddress->barangay, $savedAddress->city_municipality, $savedAddress->province, $savedAddress->region, $savedAddress->postal_code])->filter()->implode(', ') }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <input type="hidden" id="checkoutAddressId" name="address_id" form="checkoutForm" value="{{ $selectedAddressId }}">
                 @if($addresses->isNotEmpty())
-                    <label class="delivery-address-label" for="deliveryAddressSelect">Deliver to</label>
-                    <select class="delivery-address-select" id="deliveryAddressSelect" aria-label="Select delivery address">
-                        @foreach($addresses as $savedAddress)
-                            <option value="{{ $savedAddress->id }}" @selected((int) $selectedAddressId === (int) $savedAddress->id)>{{ ucfirst($savedAddress->label) }} · {{ $savedAddress->full_name }}{{ $savedAddress->is_default ? ' · Default' : '' }}</option>
-                        @endforeach
-                    </select>
-                    <input type="hidden" id="checkoutAddressId" name="address_id" form="checkoutForm" value="{{ $selectedAddressId }}">
                     <div class="address-row" id="selectedAddressRow" @if(!$selectedAddress) hidden @endif>
                         <div class="pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.7"></circle></svg></div>
                         <div class="address-copy selected-address-display" id="selectedAddressDisplay">
@@ -494,7 +507,6 @@
                         </div>
                     </div>
                 @else
-                    <input type="hidden" id="checkoutAddressId" name="address_id" form="checkoutForm" value="">
                     <div class="address-row" id="selectedAddressRow" hidden>
                         <div class="pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.7"></circle></svg></div>
                         <div class="address-copy selected-address-display" id="selectedAddressDisplay">
@@ -774,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const regionsUrl = form.dataset.regionsUrl;
     const provincesUrl = form.dataset.provincesUrl;
     const municipalitiesUrl = form.dataset.municipalitiesUrl;
-    const addressSelect = document.getElementById('deliveryAddressSelect');
+    const addressChoices = document.getElementById('deliveryAddressChoices');
     const addressId = document.getElementById('checkoutAddressId');
     const addressRow = document.getElementById('selectedAddressRow');
     const addressDisplay = document.getElementById('selectedAddressDisplay');
@@ -814,26 +826,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderAddresses = (addresses, selectedId) => {
         addressRecords = addresses || [];
-        if (!addressSelect && addressRecords.length) {
-            window.location.reload();
-            return;
-        }
-        if (addressSelect) {
-            addressSelect.replaceChildren();
-            addressRecords.forEach((address) => {
-                const option = document.createElement('option');
-                option.value = address.id;
-                option.textContent = `${String(address.label || 'home').replace(/^./, (letter) => letter.toUpperCase())} · ${address.full_name}${address.is_default ? ' · Default' : ''}`;
-                addressSelect.append(option);
-            });
-            addressSelect.hidden = addressRecords.length === 0;
-            if (addressRecords.length) {
-                const preferred = addressRecords.find((address) => Number(address.id) === Number(selectedId)) || addressRecords.find((address) => address.is_default) || addressRecords[0];
-                addressSelect.value = preferred.id;
-                setAddressDisplay(preferred);
-            } else {
-                setAddressDisplay(null);
-            }
+        addressChoices.replaceChildren();
+        addressChoices.hidden = addressRecords.length === 0;
+        addressRecords.forEach((address) => {
+            const label = document.createElement('label');
+            label.className = 'delivery-address-choice';
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'checkout_address_choice';
+            radio.value = address.id;
+            radio.setAttribute('aria-label', `Use ${address.label || 'home'} address for ${address.full_name}`);
+            const copy = document.createElement('span');
+            copy.className = 'delivery-address-choice-copy';
+            const title = document.createElement('span');
+            title.className = 'delivery-address-choice-title';
+            title.textContent = `${String(address.label || 'home').replace(/^./, (letter) => letter.toUpperCase())}${address.is_default ? ' · Default' : ''}`;
+            const recipient = document.createElement('span');
+            recipient.textContent = [address.full_name, address.phone_number].filter(Boolean).join(' · ');
+            const location = document.createElement('span');
+            location.textContent = [address.street_address, address.barangay, address.city_municipality, address.province, address.region, address.postal_code].filter(Boolean).join(', ');
+            copy.append(title, recipient, location);
+            label.append(radio, copy);
+            addressChoices.append(label);
+        });
+        if (addressRecords.length) {
+            const preferred = addressRecords.find((address) => Number(address.id) === Number(selectedId)) || addressRecords.find((address) => address.is_default) || addressRecords[0];
+            const preferredRadio = [...addressChoices.querySelectorAll('input[type="radio"]')].find((radio) => Number(radio.value) === Number(preferred.id));
+            if (preferredRadio) preferredRadio.checked = true;
+            setAddressDisplay(preferred);
+        } else {
+            setAddressDisplay(null);
         }
     };
 
@@ -992,8 +1014,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
 
-    addressSelect?.addEventListener('change', () => {
-        const chosen = addressRecords.find((address) => Number(address.id) === Number(addressSelect.value));
+    addressChoices.addEventListener('change', (event) => {
+        const chosen = addressRecords.find((address) => Number(address.id) === Number(event.target.value));
         setAddressDisplay(chosen);
     });
 
@@ -1015,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const firstError = Object.values(result.errors || {}).flat()[0];
                 throw new Error(firstError || result.message || 'Unable to save this address.');
             }
-            const existingSelection = activeAddress?.id ?? addressSelect?.value;
+            const existingSelection = activeAddress?.id ?? addressId.value;
             const existingStillAvailable = (result.addresses || []).some((address) => Number(address.id) === Number(existingSelection));
             const selectedAfterSave = existingStillAvailable ? existingSelection : (result.addresses || []).find((address) => address.is_default)?.id || result.address.id;
             renderAddresses(result.addresses || [result.address], selectedAfterSave);
@@ -1050,12 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (error) { window.alert(error.message); }
     });
 
-    if (addressSelect && addressRecords.length) {
-        const initial = addressRecords.find((address) => Number(address.id) === Number(addressId.value || addressSelect.value));
-        if (initial) setAddressDisplay(initial);
-    } else if (!addressRecords.length) {
-        setAddressDisplay(null);
-    }
+    renderAddresses(addressRecords, addressId.value);
 });
 </script>
 <script>

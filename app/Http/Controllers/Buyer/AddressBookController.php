@@ -94,7 +94,7 @@ class AddressBookController extends Controller
             'phone_number' => ['required', 'string', 'max:25', 'regex:/^[0-9+() -]{7,25}$/'],
             'region' => [$existing && $existing->region === null ? 'nullable' : 'required', 'string', 'max:255'],
             'region_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'province' => ['required', 'string', 'max:255'],
+            'province' => ['nullable', 'string', 'max:255'],
             'province_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
             'city_municipality' => ['required', 'string', 'max:255'],
             'city_municipality_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
