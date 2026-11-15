@@ -1,0 +1,7 @@
+{
+  "name": "lumora",
+  "assets": {
+    "directory": "./dist"
+  },
+  "compatibility_date": "2026-09-11"
+}

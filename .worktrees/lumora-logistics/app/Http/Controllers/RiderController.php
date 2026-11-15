@@ -1,0 +1,609 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CommissionTransaction;
+use App\Models\DestinationArea;
+use App\Models\ErpMessage;
+use App\Models\Hub;
+use App\Models\Parcel;
+use App\Models\ParcelScan;
+use App\Models\RiderAreaAssignment;
+use App\Models\RiderProfile;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+
+class RiderController extends Controller
+{
+    public function registerForm() { return view('riders.register'); }
+
+    public function register(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'password' => ['required', 'min:8', 'confirmed'],
+            'phone' => ['required', 'string', 'max:40'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'municipality' => ['nullable', 'string', 'max:120'],
+            'barangay' => ['nullable', 'string', 'max:150'],
+            'vehicle_type' => ['required', 'string', Rule::in(['Motorcycle', 'Tricycle', 'motorcycle', 'tricycle'])],
+            'license_number' => ['nullable', 'string', 'max:80'],
+            'drivers_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:10240'],
+            'or_cr' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:10240'],
+        ]);
+
+        $vehicleType = match (strtolower(trim($data['vehicle_type']))) {
+            'tricycle' => 'Tricycle',
+            default => 'Motorcycle',
+        };
+
+        $licensePath = null;
+        if ($request->hasFile('drivers_license')) {
+            $licensePath = $request->file('drivers_license')->store('rider_documents', 'public');
+        }
+
+        $orCrPath = null;
+        if ($request->hasFile('or_cr')) {
+            $orCrPath = $request->file('or_cr')->store('rider_documents', 'public');
+        }
+
+        \App\Services\LagunaHubProvisioner::ensureProvisioned();
+        $hub = \App\Services\LagunaHubProvisioner::resolveHubFromAddress(
+            $data['municipality'] ?? null,
+            $data['barangay'] ?? null,
+            $data['address'] ?? null
+        );
+        $branchName = $hub?->branch;
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'role' => 'rider',
+            'branch' => $branchName,
+        ]);
+
+        $profile = RiderProfile::create([
+            'user_id' => $user->id,
+            'hub_id' => $hub?->id,
+            'phone' => $data['phone'],
+            'vehicle_type' => $vehicleType,
+            'license_number' => $data['license_number'] ?? null,
+            'license_photo_path' => $licensePath,
+            'or_cr_photo_path' => $orCrPath,
+            'registration_status' => 'pending',
+            'availability' => 'offline',
+        ]);
+
+        if ($branchName) {
+            $storeId = \App\Models\Store::where('is_active', true)->value('id');
+            $matchedArea = \App\Services\LagunaHubProvisioner::resolveMatchingArea(
+                $storeId,
+                $branchName,
+                ($data['barangay'] ?? '') . ' ' . ($data['address'] ?? ''),
+                $data['municipality'] ?? $branchName
+            );
+            if ($matchedArea) {
+                RiderAreaAssignment::updateOrCreate(
+                    ['rider_profile_id' => $profile->id, 'destination_area_id' => $matchedArea->id],
+                    ['is_active' => true, 'is_primary' => true]
+                );
+            }
+        }
+
+        return redirect()->route('login')->with('status', 'Registration complete and assigned to ' . ($hub ? $hub->name : 'your local Hub') . '. Please wait for hub approval.');
+    }
+
+    public function document(RiderProfile $rider, string $type)
+    {
+        $path = match ($type) {
+            'license', 'drivers_license' => $rider->license_photo_path,
+            'or_cr', 'orcr' => $rider->or_cr_photo_path,
+            default => null,
+        };
+
+        if ($path && str_starts_with($path, 'http')) {
+            return redirect()->away($path);
+        }
+
+        abort_unless($path && Storage::disk('public')->exists($path), 404, 'Document file not found.');
+
+        return Storage::disk('public')->response($path);
+    }
+
+    public function index(Request $request)
+    {
+        \App\Services\LagunaHubProvisioner::ensureProvisioned();
+
+        if ($request->user()?->isMasterAdmin()) {
+            return redirect()->route('admin.riders');
+        }
+
+        $branch = $request->user()?->getBranchName();
+        $areas = DestinationArea::where('is_active', true)
+            ->forBranch($branch)
+            ->orderByRaw("CASE WHEN code LIKE 'SCN-%' THEN 0 ELSE 1 END")
+            ->orderBy('name')
+            ->get();
+        $areaIds = $areas->pluck('id');
+
+        $query = RiderProfile::with(['user', 'areas', 'hub'])->latest();
+
+        if ($branch) {
+            $query->forBranch($branch, $areaIds);
+        }
+
+        if ($request->filled('search')) {
+            $term = $request->string('search');
+            $query->where(function ($q) use ($term) {
+                $q->whereHas('user', function ($uq) use ($term) {
+                    $uq->where('name', 'like', "%{$term}%")
+                      ->orWhere('email', 'like', "%{$term}%");
+                })->orWhere('phone', 'like', "%{$term}%")
+                  ->orWhere('vehicle_type', 'like', "%{$term}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('registration_status', $request->string('status'));
+        }
+
+        if ($request->filled('area_id')) {
+            $areaId = $request->integer('area_id');
+            $query->whereHas('areas', function ($q) use ($areaId) {
+                $q->where('destination_areas.id', $areaId);
+            });
+        }
+
+        $riders = $query->paginate(20)->withQueryString();
+
+        $baseCount = RiderProfile::query();
+        if ($branch) {
+            $baseCount->forBranch($branch, $areaIds);
+        }
+
+        $counts = [
+            'total' => (clone $baseCount)->count(),
+            'approved' => (clone $baseCount)->where('registration_status', 'approved')->count(),
+            'online' => (clone $baseCount)->where('registration_status', 'approved')->whereIn('availability', ['online', 'available'])->count(),
+            'pending' => (clone $baseCount)->where('registration_status', 'pending')->count(),
+            'archived' => (clone $baseCount)->where('registration_status', 'archived')->count(),
+        ];
+
+        return view('riders.index', compact('riders', 'areas', 'counts', 'branch'));
+    }
+
+    public function approve(Request $request, RiderProfile $rider)
+    {
+        $authUser = $request->user();
+        $adminBranch = ($authUser && ! $authUser->isMasterAdmin()) ? $authUser->getBranchName() : null;
+
+        if ($adminBranch) {
+            $areaIds = DestinationArea::forBranch($adminBranch)->pluck('id');
+            $belongsToBranch = RiderProfile::whereKey($rider->id)
+                ->forBranch($adminBranch, $areaIds)
+                ->exists();
+            abort_unless($belongsToBranch, 403, "You can only manage riders assigned to {$adminBranch} Hub.");
+        }
+
+        $status = $request->input('status');
+        if (! in_array($status, ['approved', 'disapproved', 'pending', 'archived'])) {
+            $status = $request->boolean('approved') ? 'approved' : 'disapproved';
+        }
+
+        $reason = trim((string) ($request->input('reason') ?? $request->input('rejection_reason') ?? $request->input('note') ?? ''));
+
+        $updates = [
+            'registration_status' => $status,
+            'approved_at' => $status === 'approved' ? now() : null,
+            'approved_by' => $status === 'approved' ? $authUser?->id : null,
+            'registration_note' => $status === 'disapproved'
+                ? ($reason ?: 'Suspended or disapproved by hub administrator.')
+                : ($status === 'archived' ? ($reason ?: 'Archived by administrator.') : null),
+        ];
+
+        if (in_array($status, ['disapproved', 'archived'])) {
+            $updates['availability'] = 'offline';
+        }
+
+        try {
+            $resolvedBranch = $rider->user?->branch
+                ?: $rider->hub?->branch
+                ?: $rider->areas->whereNotNull('branch')->first()?->branch
+                ?: $adminBranch;
+
+            if ($resolvedBranch) {
+                if ($rider->user && empty($rider->user->branch)) {
+                    $rider->user->update(['branch' => $resolvedBranch]);
+                }
+                if (empty($rider->hub_id)) {
+                    $matchedHub = \App\Models\Hub::where('branch', $resolvedBranch)
+                        ->orWhere('city', $resolvedBranch)
+                        ->first();
+                    if ($matchedHub) {
+                        $updates['hub_id'] = $matchedHub->id;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Could not sync rider branch on approval: " . $e->getMessage());
+        }
+
+        $rider->update($updates);
+
+        $user = $rider->user;
+        $hubName = $rider->hub?->name ?? ($user?->branch ? "{$user->branch} Hub" : 'Lumora Logistics Hub');
+        $branch = $user?->branch ?? ($rider->hub?->branch ?? 'Local Branch');
+
+        if ($user && ! empty($user->email)) {
+            try {
+                if (in_array(config('mail.default'), ['log', 'array'], true) || empty(config('mail.mailers.smtp.username'))) {
+                    config([
+                        'mail.default' => 'smtp',
+                        'mail.mailers.smtp.transport' => 'smtp',
+                        'mail.mailers.smtp.host' => 'smtp.gmail.com',
+                        'mail.mailers.smtp.port' => 587,
+                        'mail.mailers.smtp.username' => 'cjrubiales12@gmail.com',
+                        'mail.mailers.smtp.password' => 'uqqggenrzxmpwwsw',
+                        'mail.from.address' => 'cjrubiales12@gmail.com',
+                        'mail.from.name' => 'Lumora Logistics',
+                    ]);
+                    app('mail.manager')->purge('smtp');
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Could not purge smtp mailer: " . $e->getMessage());
+            }
+
+            if ($status === 'approved') {
+                try {
+                    Mail::mailer('smtp')->send('emails.rider_approved', [
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'hubName' => $hubName,
+                        'branch' => $branch,
+                        'vehicle' => $rider->vehicle_type ?? 'Motorcycle',
+                    ], function ($m) use ($user, $hubName) {
+                        $m->from('cjrubiales12@gmail.com', 'Lumora Logistics')
+                            ->to($user->email)
+                            ->subject("✓ Application Approved - Welcome to {$hubName} (Lumora Logistics)");
+                    });
+                } catch (\Throwable $e) {
+                    Log::error("Failed to send approval email to {$user->email}: " . $e->getMessage());
+                }
+            } elseif ($status === 'disapproved') {
+                try {
+                    Mail::mailer('smtp')->send('emails.rider_rejected', [
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'hubName' => $hubName,
+                        'branch' => $branch,
+                        'reason' => $reason ?: 'Document verification criteria were not fulfilled. Please contact your hub coordinator.',
+                    ], function ($m) use ($user, $hubName) {
+                        $m->from('cjrubiales12@gmail.com', 'Lumora Logistics')
+                            ->to($user->email)
+                            ->subject("Notice Regarding Your Courier Account - {$hubName}");
+                    });
+                } catch (\Throwable $e) {
+                    Log::error("Failed to send rejection email to {$user->email}: " . $e->getMessage());
+                }
+            }
+        }
+
+        $actionText = match ($status) {
+            'approved' => 'approved and notified via Gmail',
+            'disapproved' => 'suspended / disapproved and notified with reason via Gmail',
+            'archived' => 'archived',
+            default => 'status updated',
+        };
+
+        $riderName = $rider->user?->name ?? 'Rider';
+
+        return back()->with('success', "Rider {$riderName} has been {$actionText}.");
+    }
+
+    public function archive(RiderProfile $rider)
+    {
+        $name = $rider->user?->name ?? 'Rider';
+        $isArchived = $rider->registration_status === 'archived';
+
+        $rider->update([
+            'registration_status' => $isArchived ? 'approved' : 'archived',
+            'availability' => 'offline',
+            'registration_note' => $isArchived ? null : 'Archived by administrator.',
+        ]);
+
+        return back()->with('success', $isArchived
+            ? "Rider {$name} has been restored from archive."
+            : "Rider {$name} has been archived.");
+    }
+
+    public function destroy(RiderProfile $rider)
+    {
+        $name = $rider->user?->name ?? 'Rider';
+        $user = $rider->user;
+
+        DB::transaction(function () use ($rider, $user) {
+            DB::table('parcels')
+                ->where('assigned_rider_id', $rider->id)
+                ->update(['assigned_rider_id' => null]);
+
+            $rider->delete();
+            if ($user && $user->role === 'rider') {
+                $user->delete();
+            }
+        });
+
+        return back()->with('success', "Rider {$name} has been permanently deleted.");
+    }
+
+    public function assignArea(Request $request, RiderProfile $rider)
+    {
+        $data = $request->validate([
+            'destination_area_id' => ['required', 'exists:destination_areas,id'],
+        ]);
+        RiderAreaAssignment::updateOrCreate(
+            ['rider_profile_id' => $rider->id, 'destination_area_id' => $data['destination_area_id']],
+            ['is_active' => true, 'is_primary' => $rider->areaAssignments()->doesntExist()]
+        );
+        return back()->with('success', "Delivery area assigned to {$rider->user->name}.");
+    }
+
+    public function removeArea(RiderProfile $rider, DestinationArea $area)
+    {
+        RiderAreaAssignment::where('rider_profile_id', $rider->id)
+            ->where('destination_area_id', $area->id)
+            ->delete();
+
+        return back()->with('success', "Area '{$area->name}' unassigned from {$rider->user->name}.");
+    }
+
+    public function dashboard(Request $request)
+    {
+        $rider = $request->user()->riderProfile?->load('areas');
+        abort_unless($rider && $rider->registration_status === 'approved', 403, 'Your rider account is awaiting administrator approval.');
+
+        $query = $rider->parcels()->with(['area', 'shipment', 'scans'])->latest('assigned_at');
+
+        if ($request->filled('status')) {
+            $filter = $request->string('status');
+            if ($filter === 'active') {
+                $query->whereIn('status', ['assigned', 'rider_received', 'in_transit', 'out_for_delivery']);
+            } elseif ($filter === 'delivered') {
+                $query->where('status', 'delivered');
+            } elseif ($filter === 'exception') {
+                $query->whereIn('status', ['exception', 'failed']);
+            } else {
+                $query->where('status', $filter);
+            }
+        }
+
+        if ($request->filled('search')) {
+            $term = $request->string('search');
+            $query->where(function ($q) use ($term) {
+                $q->where('parcel_number', 'like', "%{$term}%")
+                    ->orWhere('barcode', 'like', "%{$term}%")
+                    ->orWhere('recipient_name', 'like', "%{$term}%")
+                    ->orWhere('city', 'like', "%{$term}%");
+            });
+        }
+
+        $parcels = $query->paginate(15)->withQueryString();
+
+        $counts = [
+            'total' => $rider->parcels()->count(),
+            'assigned' => $rider->parcels()->where('status', 'assigned')->count(),
+            'in_transit' => $rider->parcels()->whereIn('status', ['rider_received', 'in_transit', 'out_for_delivery'])->count(),
+            'delivered' => $rider->parcels()->where('status', 'delivered')->count(),
+            'exception' => $rider->parcels()->whereIn('status', ['exception', 'failed'])->count(),
+        ];
+
+        $todayStart = now()->startOfDay();
+        $todayEarnings = CommissionTransaction::where('rider_profile_id', $rider->id)
+            ->where('earned_at', '>=', $todayStart)
+            ->sum('amount');
+
+        $totalBalance = CommissionTransaction::where('rider_profile_id', $rider->id)
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        $recentMessages = ErpMessage::with(['sender', 'recipient', 'parcel'])
+            ->where(function ($q) use ($request) {
+                $q->where('sender_id', $request->user()->id)
+                    ->orWhere('recipient_id', $request->user()->id);
+            })
+            ->latest()
+            ->take(6)
+            ->get();
+
+        $unreadCount = ErpMessage::where('recipient_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->count();
+
+        return view('riders.dashboard', compact(
+            'rider',
+            'parcels',
+            'counts',
+            'todayEarnings',
+            'totalBalance',
+            'recentMessages',
+            'unreadCount'
+        ));
+    }
+
+    public function scanBarcode(Request $request)
+    {
+        $data = $request->validate([
+            'barcode' => ['required', 'string', 'max:100'],
+            'action' => ['nullable', 'string', 'in:lookup,accept,in_transit,out_for_delivery,delivered'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $code = trim($data['barcode']);
+        $parcel = Parcel::where('barcode', $code)
+            ->orWhere('parcel_number', $code)
+            ->orWhere('id', is_numeric($code) ? $code : -1)
+            ->orWhereHas('shipment', function ($q) use ($code) {
+                $q->where('tracking_number', $code);
+            })
+            ->first();
+
+        if (! $parcel) {
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'error', 'message' => "No parcel found matching barcode '{$code}'."], 404);
+            }
+            return back()->withErrors(['barcode' => "No parcel found matching barcode '{$code}'."]);
+        }
+
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider && $rider->registration_status === 'approved', 403);
+
+        // If parcel is unassigned, assign to this rider
+        if (! $parcel->assigned_rider_id) {
+            $parcel->update([
+                'assigned_rider_id' => $rider->id,
+                'status' => 'assigned',
+                'assigned_at' => now(),
+            ]);
+        } elseif ($parcel->assigned_rider_id !== $rider->id) {
+            $msg = "Parcel {$parcel->parcel_number} is currently assigned to another courier.";
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'error', 'message' => $msg], 403);
+            }
+            return back()->withErrors(['barcode' => $msg]);
+        }
+
+        $action = $data['action'] ?? 'lookup';
+        $newStatus = match ($action) {
+            'accept', 'in_transit' => 'in_transit',
+            'out_for_delivery' => 'out_for_delivery',
+            'delivered' => 'delivered',
+            default => null,
+        };
+
+        if ($newStatus) {
+            $parcel->update([
+                'status' => $newStatus,
+                'rider_received_at' => in_array($newStatus, ['in_transit', 'out_for_delivery']) && ! $parcel->rider_received_at ? now() : $parcel->rider_received_at,
+            ]);
+
+            ParcelScan::create([
+                'parcel_id' => $parcel->id,
+                'user_id' => $request->user()->id,
+                'scan_type' => $newStatus,
+                'barcode' => $parcel->barcode ?: $code,
+                'result' => 'success',
+                'note' => $data['notes'] ?: "Barcode scanned ({$action}) by rider {$request->user()->name}",
+                'scanned_at' => now(),
+            ]);
+
+            if ($newStatus === 'delivered' && $parcel->assigned_rider_id) {
+                CommissionTransaction::firstOrCreate(
+                    [
+                        'rider_profile_id' => $parcel->assigned_rider_id,
+                        'parcel_id' => $parcel->id,
+                    ],
+                    [
+                        'amount' => 150.00,
+                        'status' => 'pending',
+                        'description' => 'Delivery payout for ' . $parcel->parcel_number,
+                        'earned_at' => now(),
+                    ]
+                );
+            }
+
+            // Automatically sync status to shipment & tracking events
+            app(\App\Services\ParcelShipmentSyncService::class)->sync($parcel->fresh());
+
+            $successMsg = "Parcel {$parcel->parcel_number} scanned successfully! Status updated to " . ucwords(str_replace('_', ' ', $newStatus)) . ".";
+        } else {
+            // Pure barcode verification scan
+            ParcelScan::create([
+                'parcel_id' => $parcel->id,
+                'user_id' => $request->user()->id,
+                'scan_type' => 'scan_check',
+                'barcode' => $parcel->barcode ?: $code,
+                'result' => 'success',
+                'note' => "Barcode verified by rider {$request->user()->name}",
+                'scanned_at' => now(),
+            ]);
+            $successMsg = "Verified parcel {$parcel->parcel_number} for {$parcel->recipient_name} ({$parcel->address_line}). Current status: " . ucwords(str_replace('_', ' ', $parcel->status)) . ".";
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => $successMsg,
+                'parcel' => $parcel->fresh(['area', 'shipment']),
+            ]);
+        }
+
+        return back()->with('success', $successMsg);
+    }
+
+    public function updateStatus(Request $request, Parcel $parcel)
+    {
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider && $parcel->assigned_rider_id === $rider->id, 403, 'Unauthorized.');
+
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:in_transit,out_for_delivery,delivered,exception'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $status = $data['status'];
+        $note = $data['note'] ?? ("Status updated to " . str_replace('_', ' ', $status) . " by rider " . $request->user()->name);
+
+        $parcel->update([
+            'status' => $status,
+            'rider_received_at' => in_array($status, ['in_transit', 'out_for_delivery']) && ! $parcel->rider_received_at ? now() : $parcel->rider_received_at,
+        ]);
+
+        ParcelScan::create([
+            'parcel_id' => $parcel->id,
+            'user_id' => $request->user()->id,
+            'scan_type' => $status,
+            'barcode' => $parcel->barcode,
+            'result' => 'success',
+            'note' => $note,
+            'scanned_at' => now(),
+        ]);
+
+        // Automatically sync status to shipment & tracking events
+        app(\App\Services\ParcelShipmentSyncService::class)->sync($parcel->fresh());
+
+        if ($status === 'delivered') {
+            CommissionTransaction::firstOrCreate(
+                [
+                    'rider_profile_id' => $rider->id,
+                    'parcel_id' => $parcel->id,
+                ],
+                [
+                    'amount' => 150.00,
+                    'status' => 'pending',
+                    'description' => 'Delivery payout for ' . $parcel->parcel_number,
+                    'earned_at' => now(),
+                ]
+            );
+        }
+
+        return back()->with('success', "Delivery status for {$parcel->parcel_number} updated to " . ucwords(str_replace('_', ' ', $status)) . ".");
+    }
+
+    public function toggleAvailability(Request $request)
+    {
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider, 404);
+
+        $newAvailability = $rider->availability === 'online' ? 'offline' : 'online';
+        $rider->update(['availability' => $newAvailability]);
+
+        return back()->with('success', "Availability status updated to " . strtoupper($newAvailability) . ".");
+    }
+}

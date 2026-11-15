@@ -1,0 +1,128 @@
+<?php
+
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\OrdersController;
+use App\Http\Controllers\ShipmentsController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\ExceptionsController;
+use App\Http\Controllers\LocationsController;
+use App\Http\Controllers\IntegrationsController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SortingCenterController;
+use App\Http\Controllers\RiderController;
+use App\Http\Controllers\AreasController;
+use App\Http\Controllers\MessagesController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\CommissionController;
+use App\Http\Controllers\RemittanceController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/track', [TrackingController::class, 'index'])->name('tracking.index');
+Route::get('/track/{trackingNumber}', [TrackingController::class, 'index'])->name('tracking.show');
+Route::get('/rider/register', [RiderController::class, 'registerForm'])->name('riders.register');
+Route::post('/rider/register', [RiderController::class, 'register'])->name('riders.register.store');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'create'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+});
+Route::match(['get', 'post'], '/logout', [LoginController::class, 'destroy'])->name('logout');
+Route::middleware(['auth', 'rider'])->group(function () {
+    Route::get('/rider/dashboard', [RiderController::class, 'dashboard'])->name('riders.dashboard');
+    Route::post('/parcels/{parcel}/accept', [SortingCenterController::class, 'riderAccept'])->name('parcels.accept');
+    Route::post('/rider/scan', [RiderController::class, 'scanBarcode'])->name('riders.scan');
+    Route::post('/rider/parcels/{parcel}/status', [RiderController::class, 'updateStatus'])->name('riders.status');
+    Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'])->name('riders.availability');
+    Route::get('/rider/messages', [MessagesController::class, 'riderIndex'])->name('riders.messages');
+    Route::post('/rider/messages', [MessagesController::class, 'send'])->name('riders.messages.send');
+});
+Route::middleware(['auth', 'logistics'])->group(function () {
+    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/admin/branches', [AdminDashboardController::class, 'branches'])->name('admin.branches');
+    Route::get('/admin/riders', [AdminDashboardController::class, 'riders'])->name('admin.riders');
+    Route::get('/admin/accounts', [AdminDashboardController::class, 'accounts'])->name('admin.accounts');
+    Route::post('/admin/users', [AdminDashboardController::class, 'storeUser'])->name('admin.users.store');
+    Route::delete('/admin/users/{user}', [AdminDashboardController::class, 'destroyUser'])->name('admin.users.destroy');
+    Route::post('/admin/users/{user}/password', [AdminDashboardController::class, 'resetPassword'])->name('admin.users.password');
+
+    Route::get('/', function (\Illuminate\Http\Request $request) {
+        if ($request->user()->isMasterAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('sorting-center.index');
+    })->name('dashboard');
+
+    Route::get('/sorting-center', [SortingCenterController::class, 'index'])->name('sorting-center.index');
+    Route::get('/shipments', [ShipmentsController::class, 'index'])->name('shipments.index');
+    Route::post('/shipments/{shipment}/status', [ShipmentsController::class, 'updateStatus'])->name('shipments.status');
+    Route::get('/shipments/{shipment}', [ShipmentsController::class, 'show'])->name('shipments.show');
+    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+    Route::patch('/inventory/{inventoryItem}', [InventoryController::class, 'update'])->name('inventory.update');
+    Route::get('/exceptions', [ExceptionsController::class, 'index'])->name('exceptions.index');
+    Route::get('/returns', [ExceptionsController::class, 'index'])->name('returns.index');
+    Route::get('/exceptions/export', [ExceptionsController::class, 'exportCsv'])->name('exceptions.export');
+    Route::post('/exceptions/bulk-resolve', [ExceptionsController::class, 'bulkResolve'])->name('exceptions.bulk-resolve');
+    Route::post('/exceptions/{shipment}/resolve', [ExceptionsController::class, 'resolve'])->name('exceptions.resolve');
+    Route::post('/exceptions/parcels/{parcel}/resolve', [ExceptionsController::class, 'resolveParcel'])->name('exceptions.resolve-parcel');
+    Route::get('/returns/media/{parcel}/{type}', [ExceptionsController::class, 'media'])->name('returns.media');
+    Route::get('/locations', [LocationsController::class, 'index'])->name('locations.index');
+    Route::post('/locations', [LocationsController::class, 'store'])->name('locations.store');
+    Route::patch('/locations/{location}/toggle', [LocationsController::class, 'toggle'])->name('locations.toggle');
+    Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations.index');
+    Route::patch('/integrations/{store}/toggle', [IntegrationsController::class, 'toggle'])->name('integrations.toggle');
+    Route::post('/integrations/webhooks/{delivery}/retry', [IntegrationsController::class, 'retry'])->name('integrations.retry');
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/messages', [MessagesController::class, 'index'])->name('messages.index');
+    Route::post('/messages', [MessagesController::class, 'send'])->name('messages.send');
+    Route::get('/areas', [AreasController::class, 'index'])->name('areas.index');
+    Route::post('/areas', [AreasController::class, 'store'])->name('areas.store');
+    Route::put('/areas/{area}', [AreasController::class, 'update'])->name('areas.update');
+    Route::patch('/areas/{area}/toggle', [AreasController::class, 'toggle'])->name('areas.toggle');
+    Route::delete('/areas/{area}', [AreasController::class, 'destroy'])->name('areas.destroy');
+    Route::get('/riders', [RiderController::class, 'index'])->name('riders.index');
+    Route::post('/riders/{rider}/approval', [RiderController::class, 'approve'])->name('riders.approval');
+    Route::patch('/riders/{rider}/archive', [RiderController::class, 'archive'])->name('riders.archive');
+    Route::delete('/riders/{rider}', [RiderController::class, 'destroy'])->name('riders.destroy');
+    Route::post('/riders/{rider}/areas', [RiderController::class, 'assignArea'])->name('riders.areas');
+    Route::delete('/riders/{rider}/areas/{area}', [RiderController::class, 'removeArea'])->name('riders.areas.destroy');
+    Route::get('/riders/{rider}/documents/{type}', [RiderController::class, 'document'])->name('riders.documents');
+    Route::get('/sorting-center', [SortingCenterController::class, 'index'])->name('sorting-center.index');
+    Route::post('/sorting-center/receive', [SortingCenterController::class, 'receive'])->name('sorting-center.receive');
+    Route::post('/sorting-center/{parcel}/scan', [SortingCenterController::class, 'scan'])->name('sorting-center.scan');
+    Route::post('/sorting-center/{parcel}/sort', [SortingCenterController::class, 'sort'])->name('sorting-center.sort');
+    Route::post('/sorting-center/{parcel}/assign', [SortingCenterController::class, 'assign'])->name('sorting-center.assign');
+    Route::post('/sorting-center/{parcel}/transfer-hub', [SortingCenterController::class, 'transferHub'])->name('sorting-center.transfer-hub');
+    Route::post('/sorting-center/{parcel}/receive-hub', [SortingCenterController::class, 'receiveHubTransfer'])->name('sorting-center.receive-hub');
+    // Finance: Rider Commission (Shared Backend)
+    // Super Admin HQ routes
+    Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->group(function () {
+        Route::get('/commission', [CommissionController::class, 'index'])->name('commission.index');
+        Route::put('/commission/rules', [CommissionController::class, 'updateRules'])->name('commission.rules.update');
+        Route::post('/commission/approve', [CommissionController::class, 'bulkApprove'])->name('commission.approve');
+        Route::post('/commission/{riderCommission}/resolve-flag', [CommissionController::class, 'resolveFlag'])->name('commission.resolve-flag');
+    });
+
+    // Branch Hub Admin & HQ routes (Export, Single & Bulk Payout, Flag Issue)
+    Route::get('/hub/commission', [CommissionController::class, 'hubIndex'])->name('commission.hub');
+    Route::get('/commission/export', [CommissionController::class, 'exportCsv'])->name('commission.export');
+    Route::post('/commission/bulk-paid', [CommissionController::class, 'bulkMarkPaid'])->name('commission.bulk-paid');
+    Route::post('/commission/{riderCommission}/mark-paid', [CommissionController::class, 'markPaid'])->name('commission.mark-paid');
+    Route::post('/commission/{riderCommission}/flag', [CommissionController::class, 'flagIssue'])->name('commission.flag');
+
+    // Hub Cashier COD Remittance
+    Route::get('/hub/remittance', [RemittanceController::class, 'index'])->name('remittance.index');
+    Route::get('/hub/remittance/overview', [RemittanceController::class, 'index'])->name('remittance.hub');
+    Route::get('/hub/remittance/poll', [RemittanceController::class, 'poll'])->name('remittance.poll');
+    Route::get('/hub/remittance/export', [RemittanceController::class, 'export'])->name('remittance.export');
+    Route::post('/hub/remittance/cutoff', [RemittanceController::class, 'updateCutoff'])->name('remittance.cutoff');
+    Route::post('/hub/remittance/remind', [RemittanceController::class, 'remindUnremitted'])->name('remittance.remind');
+    Route::post('/hub/remittance/{id}/confirm', [RemittanceController::class, 'confirm'])->name('remittance.confirm');
+
+    Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{order}', [OrdersController::class, 'show'])->name('orders.show');
+});
