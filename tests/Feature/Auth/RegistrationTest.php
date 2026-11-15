@@ -43,8 +43,8 @@ class RegistrationTest extends TestCase
             'street' => 'Main Street',
             'house_number' => '1',
             'email' => 'test@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => 'Password1!',
+            'password_confirmation' => 'Password1!',
             'signup_type' => 'buyer',
         ]);
 
@@ -71,7 +71,7 @@ class RegistrationTest extends TestCase
             'first_name' => 'Seller', 'last_name' => 'Test', 'sex' => 'female',
             'contact_number' => '09123456789', 'date_of_birth' => '2000-01-01',
             'province' => 'Laguna', 'municipality' => 'Majayjay', 'barangay' => 'Poblacion',
-            'email' => 'seller@example.com', 'password' => 'password', 'password_confirmation' => 'password',
+            'email' => 'seller@example.com', 'password' => 'Password1!', 'password_confirmation' => 'Password1!',
             'signup_type' => 'seller', 'terms_accepted' => '1', 'seller_terms_accepted' => '1',
             'business_name' => 'Test Shop', 'category' => 'Beauty',
             'id_document' => UploadedFile::fake()->create('id.pdf', 20, 'application/pdf'),

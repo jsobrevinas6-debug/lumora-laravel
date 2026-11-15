@@ -29,6 +29,7 @@
         .error-box ul { margin:4px 0 0 18px; padding:0; }
         .field-error[hidden] { display:none !important; }
         .field-error { display:block; margin-top:6px; color:#dc2626; font-size:.74rem; line-height:1.4; }
+        .password-hint { display:block; margin-top:6px; color:var(--text-muted); font-size:.74rem; line-height:1.4; }
         .success-box { background:#eef3ec; color:#5C7355; padding:10px 14px; border-radius:12px; margin-bottom:16px; font-size:.85rem; }
 
         .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -179,7 +180,7 @@
                         </label>
                     </div>
                 </div>
-                <div class="form-group"><label>Contact Number</label><input type="tel" name="contact_number" value="{{ old('contact_number') }}" placeholder="09XX XXX XXXX" required></div>
+                <div class="form-group"><label for="contactNumber">Contact Number</label><input type="tel" id="contactNumber" name="contact_number" value="{{ old('contact_number') }}" placeholder="09XXXXXXXXX" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9]{1,11}" title="Enter up to 11 digits" required><span class="field-error" @if (! $errors->has('contact_number')) hidden @endif>{{ $errors->first('contact_number') }}</span></div>
             </div>
 
             <div class="row-2">
@@ -218,8 +219,8 @@
 
             <div class="section-label">Account</div>
             <div class="row-2">
-                <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8"></div>
-                <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8"></div>
+                <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8" pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,}" title="At least 8 characters, with an uppercase letter, a number, and a special character" autocomplete="new-password"><small class="password-hint">At least 8 characters, with 1 uppercase letter, 1 number, and 1 special character.</small><span class="field-error" @if (! $errors->has('password')) hidden @endif>{{ $errors->first('password') }}</span></div>
+                <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required minlength="8" autocomplete="new-password"></div>
             </div>
 
             <div class="agreement-box @if (old('terms_accepted')) is-accepted @endif @if ($errors->has('terms_accepted') || $errors->has('seller_terms_accepted')) has-error @endif" id="agreementBox">
@@ -289,6 +290,11 @@
 
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+const contactNumberInput = document.getElementById('contactNumber');
+contactNumberInput?.addEventListener('input', () => {
+    contactNumberInput.value = contactNumberInput.value.replace(/\D/g, '').slice(0, 11);
+});
 
 // ---------- Age auto-compute & 18+ check ----------
 function computeAge() {

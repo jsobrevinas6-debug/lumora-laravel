@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -37,7 +36,7 @@ class RegisteredUserController extends Controller
             'last_name' => ['required', 'string', 'min:2', 'max:50', 'not_regex:/\d/', 'regex:/^[A-Za-zñÑ\s]+$/u'],
             'middle_initial' => ['nullable', 'string', 'max:4', 'not_regex:/\d/', 'regex:/^[A-Za-zñÑ\s]+$/u'],
             'sex' => ['required', 'in:male,female'],
-            'contact_number' => ['required', 'string', 'max:20'],
+            'contact_number' => ['required', 'string', 'regex:/^\d{1,11}$/'],
             'date_of_birth' => ['required', 'date', 'before_or_equal:' . now()->subYears(18)->toDateString()],
             'province' => ['required', 'string', 'max:255'],
             'municipality' => ['required', 'string', 'max:255'],
@@ -46,7 +45,7 @@ class RegisteredUserController extends Controller
             'house_number' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:4', 'regex:/^\d{1,4}$/'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', 'string', 'min:8', 'regex:/^(?=.*\p{Lu})(?=.*\pN)(?=.*[\p{P}\p{S}]).{8,}$/u'],
             'terms_accepted' => ['accepted'],
             'seller_terms_accepted' => ['accepted_if:signup_type,seller'],
             'marketing_opt_in' => ['sometimes', 'boolean'],
@@ -70,6 +69,11 @@ class RegisteredUserController extends Controller
             'seller_terms_accepted.accepted_if' => 'Please accept the Seller Agreement to create a seller account.',
             'postal_code.max' => 'Postal code must be a maximum of 4 digits.',
             'postal_code.regex' => 'Postal code must contain numbers only (maximum 4 digits).',
+            'contact_number.regex' => 'Contact number must contain digits only and be no more than 11 digits.',
+            'password.min' => 'Password must be at least 8 characters long.',
+            'password.uppercase' => 'Password must include at least one uppercase letter.',
+            'password.numbers' => 'Password must include at least one number.',
+            'password.regex' => 'Password must include at least one uppercase letter, one number, and one special character.',
             'id_document.mimes' => 'Valid ID must be a JPG, PNG, or PDF file only.',
             'id_document.max' => 'Valid ID file size must not exceed 5MB.',
             'business_permit.mimes' => 'Business Permit must be a JPG, PNG, or PDF file only.',
