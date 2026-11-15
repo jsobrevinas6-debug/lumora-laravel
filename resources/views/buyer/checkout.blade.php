@@ -483,7 +483,7 @@
                                 <span class="selected-address-label" data-address-label>{{ ucfirst($selectedAddress->label) }}{{ $selectedAddress->is_default ? ' · Default' : '' }}</span>
                                 <div class="address-name" data-address-name>{{ $selectedAddress->full_name }}</div>
                                 <span data-address-street>{{ $selectedAddress->street_address }}</span><br>
-                                <span data-address-locality>{{ $selectedAddress->barangay }}, {{ $selectedAddress->city_municipality }}, {{ $selectedAddress->province }}, {{ $selectedAddress->region }}</span><br>
+                                <span data-address-locality>{{ collect([$selectedAddress->barangay, $selectedAddress->city_municipality, $selectedAddress->province, $selectedAddress->region])->filter()->implode(', ') }}</span><br>
                                 <span>Philippines · <span data-address-postal>{{ $selectedAddress->postal_code }}</span></span><br>
                                 <div class="contact" data-address-phone>{{ $selectedAddress->phone_number }}</div>
                             @endif
@@ -919,6 +919,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('addressFormMethod').value = address ? 'PATCH' : 'POST';
         document.getElementById('addressModalTitle').textContent = address ? 'Edit delivery address' : 'Add delivery address';
         saveButton.textContent = address ? 'Save changes' : 'Save address';
+        regions.required = !address || Boolean(address.region);
+        field('street_address').required = !address || address.street_address !== null;
+        field('postal_code').required = !address || address.postal_code !== null;
         ['full_name', 'phone_number', 'street_address', 'postal_code', 'label'].forEach((name) => setField(name, address?.[name] ?? (name === 'label' ? 'home' : field(name).defaultValue)));
         document.getElementById('addressDefault').checked = Boolean(address?.is_default);
         try {
@@ -981,7 +984,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const firstError = Object.values(result.errors || {}).flat()[0];
                 throw new Error(firstError || result.message || 'Unable to save this address.');
             }
-            renderAddresses(result.addresses || [result.address], result.address.id);
+            const existingSelection = activeAddress?.id ?? addressSelect?.value;
+            const existingStillAvailable = (result.addresses || []).some((address) => Number(address.id) === Number(existingSelection));
+            const selectedAfterSave = existingStillAvailable ? existingSelection : (result.addresses || []).find((address) => address.is_default)?.id || result.address.id;
+            renderAddresses(result.addresses || [result.address], selectedAfterSave);
             closeModal();
         } catch (error) {
             errorBox.textContent = error.message;

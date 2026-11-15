@@ -261,7 +261,7 @@ class OrderController extends Controller
         }
         $addresses = $request->user()->addresses()->orderByDesc('is_default')->latest('id')->get();
         $fallbackAddress = $addresses->firstWhere('is_default', true) ?? $addresses->first();
-        $requestedAddressId = (int) $request->old('address_id', $request->session()->get('checkout_address_id', $fallbackAddress?->id) ?? 0);
+        $requestedAddressId = (int) $request->old('address_id', $fallbackAddress?->id ?? 0);
         $selectedAddress = $addresses->firstWhere('id', $requestedAddressId) ?? $fallbackAddress;
         $selectedAddressId = $selectedAddress?->id;
 

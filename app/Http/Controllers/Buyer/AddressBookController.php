@@ -26,28 +26,31 @@ class AddressBookController extends Controller
 
             return $user->addresses()->create($data + ['is_default' => $makeDefault]);
         });
-        $request->session()->put('checkout_address_id', $address->id);
-
         return $this->respond($request, $address, 'Delivery address saved.', 201);
     }
 
     public function update(Request $request, int $address): JsonResponse|RedirectResponse
     {
         $record = $request->user()->addresses()->findOrFail($address);
-        $data = $this->validatedAddress($request);
+        $data = $this->validatedAddress($request, $record);
         $makeDefault = (bool) ($data['is_default'] ?? false);
         unset($data['is_default']);
 
         DB::transaction(function () use ($request, $record, $data, $makeDefault) {
             if ($makeDefault) {
                 $request->user()->addresses()->where('id', '<>', $record->id)->update(['is_default' => false]);
+            } elseif ($record->is_default) {
+                $replacement = $request->user()->addresses()->where('id', '<>', $record->id)->oldest('id')->first();
+                if ($replacement) {
+                    $replacement->update(['is_default' => true]);
+                } else {
+                    $makeDefault = true;
+                }
             }
             $record->fill($data);
             $record->is_default = $makeDefault;
             $record->save();
         });
-        $request->session()->put('checkout_address_id', $record->id);
-
         return $this->respond($request, $record->fresh(), 'Delivery address updated.');
     }
 
@@ -77,8 +80,6 @@ class AddressBookController extends Controller
         });
 
         $nextAddress = $request->user()->addresses()->orderByDesc('is_default')->latest('id')->first();
-        $request->session()->put('checkout_address_id', $nextAddress?->id);
-
         return response()->json([
             'message' => 'Delivery address deleted.',
             'addresses' => $request->user()->addresses()->orderByDesc('is_default')->latest('id')->get(),
@@ -86,12 +87,12 @@ class AddressBookController extends Controller
         ]);
     }
 
-    private function validatedAddress(Request $request): array
+    private function validatedAddress(Request $request, ?UserAddress $existing = null): array
     {
         return $request->validate([
             'full_name' => ['required', 'string', 'max:255'],
             'phone_number' => ['required', 'string', 'max:25', 'regex:/^[0-9+() -]{7,25}$/'],
-            'region' => ['required', 'string', 'max:255'],
+            'region' => [$existing && $existing->region === null ? 'nullable' : 'required', 'string', 'max:255'],
             'region_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
             'province' => ['required', 'string', 'max:255'],
             'province_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
@@ -99,8 +100,8 @@ class AddressBookController extends Controller
             'city_municipality_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
             'barangay' => ['required', 'string', 'max:255'],
             'barangay_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'street_address' => ['required', 'string', 'max:255'],
-            'postal_code' => ['required', 'string', 'regex:/^\d{4}$/'],
+            'street_address' => [$existing && $existing->street_address === null ? 'nullable' : 'required', 'string', 'max:255'],
+            'postal_code' => [$existing && $existing->postal_code === null ? 'nullable' : 'required', 'string', 'regex:/^\d{4}$/'],
             'label' => ['required', 'string', 'in:home,work,other'],
             'is_default' => ['nullable', 'boolean'],
         ]);
