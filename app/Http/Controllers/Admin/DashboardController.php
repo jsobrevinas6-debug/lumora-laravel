@@ -256,7 +256,14 @@ class DashboardController extends Controller
 
     public function users()
     {
-        $users = DB::table('users')->orderByDesc('created_at')->get();
+        $users = User::query()
+            ->select([
+                'id', 'name', 'first_name', 'last_name', 'email', 'email_verified',
+                'contact_number', 'date_of_birth', 'role', 'status', 'created_at',
+                'shop_name', 'shop_description',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
 
         return view('admin.users', compact('users'));
     }

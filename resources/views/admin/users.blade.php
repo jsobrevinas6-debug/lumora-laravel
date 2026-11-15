@@ -46,21 +46,21 @@
                         </div>
 
                         @if($u->status !== 'active')
-                            <a href="{{ route('admin.users.action', [$u->id, 'activate']) }}"
+                            <a href="{{ route('admin.users.action', ['id' => $u->getKey(), 'action' => 'activate']) }}"
                                class="btn-link"
                                style="color:#5C7355;"
                                onclick="return confirm('Activate this account?')">Activate</a>
                         @endif
 
                         @if($u->status !== 'suspended')
-                            <a href="{{ route('admin.users.action', [$u->id, 'suspend']) }}"
+                            <a href="{{ route('admin.users.action', ['id' => $u->getKey(), 'action' => 'suspend']) }}"
                                class="btn-link"
                                style="color:#D9A94E;"
                                onclick="return confirm('Suspend this account?')">Suspend</a>
                         @endif
 
                         @if($u->status !== 'deactivated')
-                            <a href="{{ route('admin.users.action', [$u->id, 'deactivate']) }}"
+                            <a href="{{ route('admin.users.action', ['id' => $u->getKey(), 'action' => 'deactivate']) }}"
                                class="btn-link"
                                style="color:#B85C3B;"
                                onclick="return confirm('Deactivate this account?')">Deactivate</a>
