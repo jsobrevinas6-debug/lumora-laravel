@@ -317,32 +317,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               const Icon(Icons.location_on_outlined, size: 20, color: AppColors.orange),
               const SizedBox(width: 8),
-              Text(
-                'Delivery Address',
-                style: AppTextStyles.body(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: AppColors.plum,
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Delivery Address',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body(
+                          size: 14,
+                          weight: FontWeight.w700,
+                          color: AppColors.plum,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.plum.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: AppColors.line),
+                      ),
+                      child: Text(
+                        _selectedAddressLabel.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.plum,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.plum.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: AppColors.line),
-                ),
-                child: Text(
-                  _selectedAddressLabel.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.plum,
-                  ),
-                ),
-              ),
-              const Spacer(),
               GestureDetector(
                 onTap: () {
                   _showEditAddressDialog();
@@ -1771,11 +1781,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text('Label: ', style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
-                              const SizedBox(width: 6),
-                              for (final lbl in ['Home', 'Work', 'Other']) ...[
+                              Text('Label:', style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
+                              for (final lbl in ['Home', 'Work', 'Other'])
                                 ChoiceChip(
                                   label: Text(lbl),
                                   selected: selectedLabel == lbl,
@@ -1786,8 +1798,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     color: selectedLabel == lbl ? Colors.white : AppColors.ink,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                              ],
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -2218,9 +2228,13 @@ class _EWalletPaymentSheetState extends State<_EWalletPaymentSheet> {
                                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.plum))
                                       : const Icon(Icons.file_upload_outlined, size: 20, color: AppColors.plum),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    _isUploading ? 'Loading image...' : 'Upload receipt screenshot (Camera / Gallery)',
-                                    style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600, color: AppColors.plum),
+                                  Flexible(
+                                    child: Text(
+                                      _isUploading ? 'Loading image...' : 'Upload receipt screenshot (Camera / Gallery)',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600, color: AppColors.plum),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2281,38 +2295,41 @@ class _EWalletPaymentSheetState extends State<_EWalletPaymentSheet> {
                     Text('Input the last 6 digits of Reference Number', style: AppTextStyles.body(size: 12, weight: FontWeight.w700, color: AppColors.plum)),
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: List.generate(6, (index) {
-                        return Container(
-                          width: 46,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: _referenceControllers[index].text.isNotEmpty ? AppColors.plum : AppColors.line,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Center(
-                            child: TextField(
-                              controller: _referenceControllers[index],
-                              focusNode: _referenceFocusNodes[index],
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              maxLength: 1,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.plum,
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _referenceControllers[index].text.isNotEmpty ? AppColors.plum : AppColors.line,
+                                  width: 1.2,
+                                ),
                               ),
-                              decoration: const InputDecoration(
-                                counterText: '',
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
+                              child: Center(
+                                child: TextField(
+                                  controller: _referenceControllers[index],
+                                  focusNode: _referenceFocusNodes[index],
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  maxLength: 1,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.plum,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    counterText: '',
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (val) => _onDigitChanged(index, val),
+                                ),
                               ),
-                              onChanged: (val) => _onDigitChanged(index, val),
                             ),
                           ),
                         );

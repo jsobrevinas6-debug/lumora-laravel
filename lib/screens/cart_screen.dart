@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../data/mock_data.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
@@ -222,10 +223,29 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
         Expanded(
-          child: ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 20),
-            children: [
+          child: RefreshIndicator(
+            color: AppColors.plum,
+            backgroundColor: AppColors.cream,
+            onRefresh: () async {
+              HapticService.selection();
+              await MockData.syncFromApi();
+              await cart.reloadCartForCurrentUser();
+              if (context.mounted) {
+                if (mounted) setState(() {});
+                LuxurySnackBar.show(
+                  context,
+                  message: 'Bag prices & stock updated',
+                  icon: Icons.refresh_rounded,
+                  iconColor: AppColors.emeraldText,
+                );
+              }
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.only(bottom: 20),
+              children: [
               const SizedBox(height: 10),
 
               // Delivery Address Card
@@ -254,7 +274,8 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 );
               }),
-            ],
+              ],
+            ),
           ),
         ),
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/mock_data.dart';
 import '../models/models.dart';
@@ -13,6 +14,7 @@ import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_modal.dart';
 import '../widgets/cards.dart';
+import '../widgets/luxury_snackbar.dart';
 import '../widgets/notification_center_modal.dart';
 import 'categories_screen.dart';
 import 'chat_screen.dart';
@@ -31,8 +33,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final PageController _heroPageController = PageController();
   final ValueNotifier<int> _currentHeroIndex = ValueNotifier<int>(0);
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _heroTimer;
   String _activeCategoryTab = 'ALL';
+  String _searchQuery = '';
+  String _searchCategoryFilter = 'All';
+  String _searchSortBy = 'best'; // 'best', 'price_asc', 'price_desc', 'rating'
+  bool _isSearchFocused = false;
+  List<String> _recentSearches = [];
+  static const String _recentSearchesPrefKey = 'lumora_recent_home_searches';
 
   final List<String> _textCategories = [
     'ALL',
@@ -48,6 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    LumoraAppearanceController.load();
+    _loadRecentSearches();
+    _searchFocusNode.addListener(() {
+      if (mounted) {
+        setState(() => _isSearchFocused = _searchFocusNode.hasFocus);
+      }
+    });
     MockData.catalogVersion.addListener(_onCatalogUpdated);
     _heroTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (_heroPageController.hasClients) {
@@ -61,6 +78,58 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _loadRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_recentSearchesPrefKey);
+      if (list != null && mounted) {
+        setState(() => _recentSearches = list);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _recordSearchTerm(String term) async {
+    final clean = term.trim();
+    if (clean.isEmpty) return;
+    final updated = [
+      clean,
+      ..._recentSearches.where((e) => e.toLowerCase() != clean.toLowerCase()),
+    ].take(8).toList();
+    setState(() => _recentSearches = updated);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_recentSearchesPrefKey, updated);
+    } catch (_) {}
+  }
+
+  Future<void> _clearRecentSearches() async {
+    setState(() => _recentSearches = []);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_recentSearchesPrefKey);
+    } catch (_) {}
+  }
+
+  Future<void> _handleRefresh() async {
+    HapticService.selection();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final orders = Provider.of<OrderProvider>(context, listen: false);
+    await Future.wait([
+      MockData.syncFromApi(),
+      if (auth.isLoggedIn) auth.refreshSession(),
+      if (auth.isLoggedIn) orders.refreshOrders(),
+    ]);
+    if (mounted) {
+      setState(() {});
+      LuxurySnackBar.show(
+        context,
+        message: 'Boutique catalog refreshed',
+        icon: Icons.refresh_rounded,
+        iconColor: AppColors.emeraldText,
+      );
+    }
+  }
+
   void _onCatalogUpdated() {
     if (mounted) setState(() {});
   }
@@ -71,7 +140,41 @@ class _HomeScreenState extends State<HomeScreen> {
     _heroTimer?.cancel();
     _currentHeroIndex.dispose();
     _heroPageController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  bool get _isInHomeSearchActive => _searchQuery.trim().isNotEmpty || _isSearchFocused;
+
+  List<Product> _getInHomeSearchResults() {
+    final q = _searchQuery.trim().toLowerCase();
+    var results = MockData.allProducts.where((p) {
+      final matchesCategory = _searchCategoryFilter == 'All' ||
+          p.category.toLowerCase() == _searchCategoryFilter.toLowerCase();
+      if (!matchesCategory) return false;
+      if (q.isEmpty) return true;
+      return p.name.toLowerCase().contains(q) ||
+          p.brand.toLowerCase().contains(q) ||
+          p.sellerName.toLowerCase().contains(q) ||
+          p.category.toLowerCase().contains(q) ||
+          p.description.toLowerCase().contains(q);
+    }).toList();
+
+    switch (_searchSortBy) {
+      case 'price_asc':
+        results.sort((a, b) => a.price.compareTo(b.price));
+        break;
+      case 'price_desc':
+        results.sort((a, b) => b.price.compareTo(a.price));
+        break;
+      case 'rating':
+        results.sort((a, b) => b.rating.compareTo(a.rating));
+        break;
+      default:
+        break;
+    }
+    return results;
   }
 
   @override
@@ -82,18 +185,30 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: _buildHeader(context)),
-              SliverToBoxAdapter(child: _buildZaloraCategoryStrip(context)),
-              const SliverToBoxAdapter(child: SizedBox(height: 10)),
-              SliverToBoxAdapter(child: _buildHeroCarousel(context)),
-              SliverToBoxAdapter(child: _buildTrendsCarousel(context)),
-              SliverToBoxAdapter(child: _buildFlashDealsSection(deals)),
-              SliverToBoxAdapter(child: _buildCuratedSection(context)),
-              const SliverToBoxAdapter(child: SizedBox(height: 110)),
-            ],
+          child: RefreshIndicator(
+            color: AppColors.plum,
+            backgroundColor: AppColors.cream,
+            onRefresh: _handleRefresh,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(context)),
+                if (_isInHomeSearchActive)
+                  SliverToBoxAdapter(child: _buildInHomeSearchSection(context))
+                else ...[
+                  SliverToBoxAdapter(child: _buildZaloraCategoryStrip(context)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                  SliverToBoxAdapter(child: _buildHeroCarousel(context)),
+                  SliverToBoxAdapter(child: _buildTrendsCarousel(context)),
+                  SliverToBoxAdapter(child: _buildFlashDealsSection(deals)),
+                  SliverToBoxAdapter(child: _buildCuratedSection(context)),
+                ],
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
+              ],
+            ),
           ),
         ),
       ),
@@ -105,50 +220,80 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
       child: Row(
         children: [
-          // Integrated Luxury Search Bar
+          // Real In-Home Luxury Search Field (filters inside Home without navigating away)
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticService.lightImpact();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const CategoriesScreen(initialCategory: 'All'),
-                  ),
-                );
-              },
-              child: Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.cream,
-                  border: Border.all(color: AppColors.line),
-                  borderRadius: BorderRadius.circular(99),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.plum.withValues(alpha: 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.cream,
+                border: Border.all(
+                  color: _isSearchFocused ? AppColors.plum : AppColors.line,
+                  width: _isSearchFocused ? 1.4 : 1.0,
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, size: 19, color: AppColors.rose),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Search luxury, beauty, fashion...',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.body(
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.plum.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, size: 19, color: AppColors.rose),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      textInputAction: TextInputAction.search,
+                      style: AppTextStyles.body(
+                        size: 13,
+                        weight: FontWeight.w500,
+                        color: AppColors.ink,
+                      ),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        border: InputBorder.none,
+                        hintText: 'Search Xiaomi, Rolex, Nike, skincare...',
+                        hintStyle: AppTextStyles.body(
                           size: 12.5,
                           color: AppColors.muted,
                         ),
                       ),
+                      onChanged: (val) {
+                        setState(() => _searchQuery = val);
+                      },
+                      onSubmitted: (val) {
+                        _recordSearchTerm(val);
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                  if (_searchQuery.isNotEmpty || _isSearchFocused)
+                    GestureDetector(
+                      onTap: () {
+                        HapticService.selection();
+                        _searchController.clear();
+                        _searchFocusNode.unfocus();
+                        setState(() {
+                          _searchQuery = '';
+                          _searchCategoryFilter = 'All';
+                          _searchSortBy = 'best';
+                          _isSearchFocused = false;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.blush2,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded, size: 14, color: AppColors.plum),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -837,7 +982,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 206,
+            height: (218.0 * MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.28))
+                .ceilToDouble(),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -980,9 +1126,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: products.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.64,
+                    mainAxisExtent: LumoraGridMetrics.productCardExtent(context, horizontalPadding: 36),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 14,
                   ),
@@ -993,6 +1139,243 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInHomeSearchSection(BuildContext context) {
+    final results = _getInHomeSearchResults();
+    final quickCategories = ['All', 'Women', 'Men', 'Beauty', 'Electronics', 'Sports'];
+    final trendingTags = ['Rolex', 'Xiaomi', 'Nike', 'Earrings', 'Chrome Hearts', 'Bracelet'];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_recentSearches.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent Searches',
+                  style: AppTextStyles.body(size: 12, weight: FontWeight.w700, color: AppColors.plum),
+                ),
+                GestureDetector(
+                  onTap: _clearRecentSearches,
+                  child: Text(
+                    'Clear',
+                    style: AppTextStyles.body(size: 11.5, weight: FontWeight.w600, color: AppColors.rose),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _recentSearches.map((term) {
+                return ActionChip(
+                  avatar: const Icon(Icons.history_rounded, size: 14, color: AppColors.muted),
+                  label: Text(term, style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: AppColors.line),
+                  onPressed: () {
+                    HapticService.selection();
+                    _searchController.text = term;
+                    _searchController.selection = TextSelection.collapsed(offset: term.length);
+                    setState(() => _searchQuery = term);
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          Text(
+            'Trending in Boutique',
+            style: AppTextStyles.body(size: 12, weight: FontWeight.w700, color: AppColors.plum),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: trendingTags.length,
+              separatorBuilder: (_, idx) => const SizedBox(width: 8),
+              itemBuilder: (_, idx) {
+                final tag = trendingTags[idx];
+                final active = _searchQuery.trim().toLowerCase() == tag.toLowerCase();
+                return GestureDetector(
+                  onTap: () {
+                    HapticService.selection();
+                    _searchController.text = tag;
+                    _searchController.selection = TextSelection.collapsed(offset: tag.length);
+                    setState(() => _searchQuery = tag);
+                    _recordSearchTerm(tag);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: active ? AppColors.plum : AppColors.cream,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: active ? AppColors.plum : AppColors.line),
+                    ),
+                    child: Text(
+                      tag,
+                      style: AppTextStyles.body(
+                        size: 11.5,
+                        weight: FontWeight.w600,
+                        color: active ? Colors.white : AppColors.ink,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Quick category filter row inside Home
+          SizedBox(
+            height: 32,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: quickCategories.length,
+              separatorBuilder: (_, idx) => const SizedBox(width: 8),
+              itemBuilder: (_, idx) {
+                final cat = quickCategories[idx];
+                final active = _searchCategoryFilter == cat;
+                return GestureDetector(
+                  onTap: () {
+                    HapticService.selection();
+                    setState(() => _searchCategoryFilter = cat);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: active ? AppColors.rose : Colors.white,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: active ? AppColors.rose : AppColors.line),
+                    ),
+                    child: Text(
+                      cat,
+                      style: AppTextStyles.body(
+                        size: 11.5,
+                        weight: FontWeight.w700,
+                        color: active ? Colors.white : AppColors.plum,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Match count & Sort bar
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _searchQuery.trim().isEmpty
+                      ? '${results.length} Boutique Items'
+                      : '${results.length} ${results.length == 1 ? 'result' : 'results'} for "${_searchQuery.trim()}"',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.heading(size: 16, weight: FontWeight.w700, color: AppColors.plum),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButtonHideUnderline(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: DropdownButton<String>(
+                    value: _searchSortBy,
+                    isDense: true,
+                    icon: const Icon(Icons.sort_rounded, size: 16, color: AppColors.plum),
+                    style: AppTextStyles.body(size: 11.5, weight: FontWeight.w600, color: AppColors.ink),
+                    items: const [
+                      DropdownMenuItem(value: 'best', child: Text('Best Match')),
+                      DropdownMenuItem(value: 'price_asc', child: Text('Price: Low-High')),
+                      DropdownMenuItem(value: 'price_desc', child: Text('Price: High-Low')),
+                      DropdownMenuItem(value: 'rating', child: Text('Top Rated')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _searchSortBy = val);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (results.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 20),
+              decoration: BoxDecoration(
+                color: AppColors.cream,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.search_off_rounded, size: 42, color: AppColors.rose),
+                  const SizedBox(height: 10),
+                  Text(
+                    'No matching boutique items found',
+                    style: AppTextStyles.heading(size: 16, color: AppColors.plum),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Try another keyword or clear your category filter.',
+                    style: AppTextStyles.caption(size: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.plum),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _searchCategoryFilter = 'All';
+                      });
+                    },
+                    child: const Text('Reset Search', style: TextStyle(color: AppColors.plum)),
+                  ),
+                ],
+              ),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: results.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisExtent: LumoraGridMetrics.productCardExtent(context, horizontalPadding: 36),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 14,
+              ),
+              itemBuilder: (context, index) {
+                return ProductCard(
+                  product: results[index],
+                  heroTag: 'home_search_${results[index].id}',
+                );
+              },
+            ),
         ],
       ),
     );

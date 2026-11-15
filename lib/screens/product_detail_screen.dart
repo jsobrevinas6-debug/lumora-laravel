@@ -609,69 +609,82 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         border: Border.all(color: AppColors.line),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            formattedVariantPrice,
-            style: AppTextStyles.body(
-              size: 24,
-              weight: FontWeight.w800,
-              color: AppColors.plum,
+          Expanded(
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  formattedVariantPrice,
+                  style: AppTextStyles.body(
+                    size: 24,
+                    weight: FontWeight.w800,
+                    color: AppColors.plum,
+                  ),
+                ),
+                if (p.originalPrice != null && formattedVariantOrigPrice.isNotEmpty)
+                  Text(
+                    formattedVariantOrigPrice,
+                    style: AppTextStyles.body(
+                      size: 15,
+                      color: AppColors.muted,
+                    ).copyWith(decoration: TextDecoration.lineThrough),
+                  ),
+              ],
             ),
           ),
-          if (p.originalPrice != null && formattedVariantOrigPrice.isNotEmpty) ...[
-            const SizedBox(width: 10),
-            Text(
-              formattedVariantOrigPrice,
-              style: AppTextStyles.body(
-                size: 15,
-                color: AppColors.muted,
-              ).copyWith(decoration: TextDecoration.lineThrough),
-            ),
-          ],
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: variantStock > 0
-                  ? const Color(0xFFE8F5E9)
-                  : const Color(0xFFFFEBEE),
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(
-                color: variantStock > 0
-                    ? const Color(0xFFA5D6A7)
-                    : const Color(0xFFEF9A9A),
-              ),
-            ),
-            child: Text(
-              variantStock > 0 ? 'Stock: $variantStock' : 'Out of Stock',
-              style: AppTextStyles.body(
-                size: 11,
-                weight: FontWeight.w700,
-                color: variantStock > 0
-                    ? const Color(0xFF2E7D32)
-                    : Colors.redAccent,
-              ),
-            ),
-          ),
-          if (p.discountPercentage != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.plum.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: AppColors.line),
-              ),
-              child: Text(
-                'Save ${p.discountPercentage}%',
-                style: AppTextStyles.body(
-                  size: 11.5,
-                  weight: FontWeight.w700,
-                  color: AppColors.plum,
+          const SizedBox(width: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            alignment: WrapAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: variantStock > 0
+                      ? AppColors.emeraldBg
+                      : AppColors.dangerBg,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: variantStock > 0
+                        ? AppColors.emeraldBorder
+                        : AppColors.dangerBorder,
+                  ),
+                ),
+                child: Text(
+                  variantStock > 0 ? 'Stock: $variantStock' : 'Out of Stock',
+                  style: AppTextStyles.body(
+                    size: 11,
+                    weight: FontWeight.w700,
+                    color: variantStock > 0
+                        ? AppColors.emeraldText
+                        : AppColors.danger,
+                  ),
                 ),
               ),
-            ),
-          ],
+              if (p.discountPercentage != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.plum.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: Text(
+                    'Save ${p.discountPercentage}%',
+                    style: AppTextStyles.body(
+                      size: 11.5,
+                      weight: FontWeight.w700,
+                      color: AppColors.plum,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -1362,8 +1375,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildSellerStoreCard(BuildContext context, Product p) {
     final sellerName = p.sellerName.trim().isNotEmpty ? p.sellerName : 'Aura Luxury Manila';
+    final resolvedSellerId = p.sellerId.trim().isNotEmpty
+        ? p.sellerId.trim()
+        : 'seller_${sellerName.toLowerCase().replaceAll(' ', '_')}';
     final shop = ShopItem(
-      id: 'seller_${sellerName.toLowerCase().replaceAll(' ', '_')}',
+      id: resolvedSellerId,
       name: sellerName,
       avatar: 'assets/images/hero.jpg',
       isVerified: true,
@@ -1486,6 +1502,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ChatScreen(
+                          sellerId: p.sellerId.trim().isNotEmpty ? p.sellerId.trim() : shop.id,
                           sellerName: shop.name,
                           sellerRole: 'Merchant Specialist',
                           productContext: p,
@@ -2240,6 +2257,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => ChatScreen(
+                    sellerId: p.sellerId.trim().isNotEmpty ? p.sellerId.trim() : null,
                     sellerName: p.sellerName.trim().isNotEmpty ? p.sellerName : 'Aura Luxury Manila',
                     sellerRole: 'Merchant Specialist',
                     productContext: p,
@@ -2272,27 +2290,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(99),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                 elevation: 0,
               ),
               onPressed: () {
                 HapticService.lightImpact();
                 _showPurchaseModal(context, p, auth, isDirectCheckout: false);
               },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.shopping_bag_outlined, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Add to Cart',
-                    style: AppTextStyles.body(
-                      size: 13.5,
-                      weight: FontWeight.w700,
-                      color: AppColors.plum,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Add to Cart',
+                      style: AppTextStyles.body(
+                        size: 13.5,
+                        weight: FontWeight.w700,
+                        color: AppColors.plum,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -2445,13 +2466,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 ),
                               ),
                               Text(
-                                'Selected: ${(modalSelectedColor ?? 'None chosen')} • ${(modalSelectedOption ?? 'None chosen')}',
+                                p.colorOptions.isEmpty
+                                    ? 'Selected: ${modalSelectedOption ?? 'None chosen'}'
+                                    : 'Selected: ${modalSelectedColor ?? 'None chosen'} • ${modalSelectedOption ?? 'None chosen'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: (modalSelectedColor != null && modalSelectedOption != null) ? AppColors.plum : AppColors.rose,
+                                  color: ((p.colorOptions.isEmpty || modalSelectedColor != null) &&
+                                          (p.secondaryOptions.isEmpty || modalSelectedOption != null))
+                                      ? AppColors.plum
+                                      : AppColors.rose,
                                 ),
                               ),
                             ],
@@ -2849,9 +2875,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 selectedSizeOrOption: chosenOption,
                               );
                               if (added) {
+                                final addedLabel = chosenColor.trim().isNotEmpty
+                                    ? '$chosenColor • $chosenOption'
+                                    : chosenOption;
                                 LuxurySnackBar.show(
                                   context,
-                                  message: 'Added $modalQuantity "${p.name}" ($chosenColor • $chosenOption) to cart!',
+                                  message: 'Added $modalQuantity "${p.name}" ($addedLabel) to cart!',
                                   icon: Icons.shopping_bag_outlined,
                                 );
                               } else {

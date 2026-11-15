@@ -6,7 +6,7 @@ const MethodChannel _photoChannel = MethodChannel('com.example.lumora/photo_pick
 
 Future<String?> pickNativeImage({bool fromCamera = false}) async {
   try {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS) {
       final dataUri = await _photoChannel.invokeMethod<String>(
         'pickImage',
         {'fromCamera': fromCamera},

@@ -66,7 +66,7 @@ class LumoraApp extends StatelessWidget {
           create: (_) => ChatProvider(),
           update: (_, auth, chat) {
             final ch = chat ?? ChatProvider();
-            ch.syncWithAuth(auth.currentUser?.email);
+            ch.syncWithAuth(auth.currentUser?.email, token: auth.authToken);
             return ch;
           },
         ),

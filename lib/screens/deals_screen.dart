@@ -32,7 +32,12 @@ class _DealsScreenState extends State<DealsScreen> {
   @override
   void initState() {
     super.initState();
+    MockData.catalogVersion.addListener(_onCatalogUpdated);
     _startTimer();
+  }
+
+  void _onCatalogUpdated() {
+    if (mounted) setState(() {});
   }
 
   void _startTimer() {
@@ -47,6 +52,7 @@ class _DealsScreenState extends State<DealsScreen> {
 
   @override
   void dispose() {
+    MockData.catalogVersion.removeListener(_onCatalogUpdated);
     _timer.cancel();
     _remainingTime.dispose();
     super.dispose();
@@ -80,9 +86,27 @@ class _DealsScreenState extends State<DealsScreen> {
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
+          child: RefreshIndicator(
+            color: AppColors.plum,
+            backgroundColor: AppColors.cream,
+            onRefresh: () async {
+              HapticService.selection();
+              await MockData.syncFromApi();
+              if (context.mounted) {
+                if (mounted) setState(() {});
+                LuxurySnackBar.show(
+                  context,
+                  message: 'Flash deals refreshed',
+                  icon: Icons.flash_on_rounded,
+                  iconColor: AppColors.gold,
+                );
+              }
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
               SliverToBoxAdapter(child: _buildHeader()),
               SliverToBoxAdapter(child: _buildCountdownBanner()),
               SliverToBoxAdapter(child: _buildVouchersCarousel()),
@@ -108,6 +132,7 @@ class _DealsScreenState extends State<DealsScreen> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -271,7 +296,7 @@ class _DealsScreenState extends State<DealsScreen> {
     ];
 
     return SizedBox(
-      height: 78,
+      height: (84.0 * MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3)).ceilToDouble(),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
         scrollDirection: Axis.horizontal,

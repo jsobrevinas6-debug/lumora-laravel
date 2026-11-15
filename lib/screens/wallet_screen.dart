@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../models/models.dart';
+import '../providers/auth_provider.dart';
 import '../providers/wallet_provider.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
@@ -295,9 +296,23 @@ class WalletScreen extends StatelessWidget {
         builder: (context, wallet, _) {
           final methods = wallet.methods;
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            children: [
+          return RefreshIndicator(
+            color: AppColors.plum,
+            backgroundColor: AppColors.cream,
+            onRefresh: () async {
+              HapticService.selection();
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              await Future.wait([
+                wallet.reload(),
+                auth.refreshSession(),
+              ]);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              children: [
               // Header Card
               Container(
                 padding: const EdgeInsets.all(18),
@@ -423,7 +438,8 @@ class WalletScreen extends StatelessWidget {
                 )
               else
                 ...methods.map((m) => _buildMethodItem(context, m, wallet)),
-            ],
+              ],
+            ),
           );
         },
       ),

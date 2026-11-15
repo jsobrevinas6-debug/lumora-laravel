@@ -14,6 +14,30 @@ class ProductColorOption {
   });
 }
 
+class ProductVariant {
+  final int id;
+  final String name;
+  final int stock;
+
+  const ProductVariant({
+    required this.id,
+    required this.name,
+    required this.stock,
+  });
+
+  factory ProductVariant.fromJson(Map<String, dynamic> json) {
+    return ProductVariant(
+      id: (json['id'] as num?)?.toInt() ??
+          int.tryParse(json['id']?.toString() ?? '0') ??
+          0,
+      name: (json['name'] ?? '').toString().trim(),
+      stock: (json['stock'] as num?)?.toInt() ??
+          int.tryParse(json['stock']?.toString() ?? '0') ??
+          0,
+    );
+  }
+}
+
 class Product {
   final String id;
   final String name;
@@ -34,6 +58,8 @@ class Product {
   final String? imagePath;
   final List<String> galleryImages;
   final int stock;
+  final String? variantType;
+  final List<ProductVariant> variants;
   final List<ProductColorOption> _rawColorOptions;
   final String _rawSecondaryOptionLabel;
   final List<String> _rawSecondaryOptions;
@@ -63,6 +89,8 @@ class Product {
     this.imagePath,
     this.galleryImages = const [],
     this.stock = 25,
+    this.variantType,
+    this.variants = const [],
     this.sellerId = 'store_lumora_official',
     this.sellerName = 'LUMORA Official Store',
     this.sellerLocation = 'Metro Manila',
@@ -80,6 +108,8 @@ class Product {
         _rawSecondaryOptions = secondaryOptions,
         _rawHasSizeGuide = hasSizeGuide;
 
+  bool get hasServerVariants => variants.isNotEmpty;
+
   bool get _hasGenericDefaultColors =>
       _rawColorOptions.isEmpty ||
       (_rawColorOptions.length == 3 &&
@@ -91,36 +121,69 @@ class Product {
       _rawSecondaryOptions.isEmpty ||
       (_rawSecondaryOptions.length == 1 && _rawSecondaryOptions.first == 'Standard');
 
+  /// When a live catalog item supplies real seller-defined `variants` without custom colors,
+  /// only render the exact seller variant axis so no synthetic color swatches are fabricated.
+  bool get showPrimaryOptionSelector =>
+      !hasServerVariants || !_hasGenericDefaultColors;
+
   ProductVariationProfile get _variationProfile =>
       ProductVariationGenerator.forProduct(id: id, name: name, category: category);
 
   String get primaryOptionLabel => _variationProfile.primaryLabel;
 
-  List<ProductColorOption> get colorOptions =>
-      _hasGenericDefaultColors ? _variationProfile.primaryOptions : _rawColorOptions;
+  List<ProductColorOption> get colorOptions {
+    if (hasServerVariants) {
+      return _hasGenericDefaultColors ? const <ProductColorOption>[] : _rawColorOptions;
+    }
+    return _hasGenericDefaultColors ? _variationProfile.primaryOptions : _rawColorOptions;
+  }
 
-  String get secondaryOptionLabel =>
-      (_rawSecondaryOptionLabel == 'Option' || _hasGenericDefaultSecondary)
-          ? _variationProfile.secondaryLabel
-          : _rawSecondaryOptionLabel;
+  String get secondaryOptionLabel {
+    if (hasServerVariants) {
+      if (variantType != null && variantType!.trim().isNotEmpty) {
+        return variantType!.trim();
+      }
+      return 'Option';
+    }
+    return (_rawSecondaryOptionLabel == 'Option' || _hasGenericDefaultSecondary)
+        ? _variationProfile.secondaryLabel
+        : _rawSecondaryOptionLabel;
+  }
 
-  List<String> get secondaryOptions =>
-      _hasGenericDefaultSecondary ? _variationProfile.secondaryOptions : _rawSecondaryOptions;
+  List<String> get secondaryOptions {
+    if (hasServerVariants) {
+      return variants.map((v) => v.name).toList();
+    }
+    return _hasGenericDefaultSecondary ? _variationProfile.secondaryOptions : _rawSecondaryOptions;
+  }
 
-  bool get hasSizeGuide => _rawHasSizeGuide || _variationProfile.hasSizeGuide;
+  bool get hasSizeGuide => _rawHasSizeGuide || (!hasServerVariants && _variationProfile.hasSizeGuide);
 
   String get defaultColorName =>
-      colorOptions.isNotEmpty ? colorOptions.first.name : 'Signature';
+      (showPrimaryOptionSelector && colorOptions.isNotEmpty) ? colorOptions.first.name : '';
 
-  String get defaultSecondaryOption =>
-      secondaryOptions.isNotEmpty ? secondaryOptions.first : 'Standard';
+  String get defaultSecondaryOption {
+    if (hasServerVariants && variants.isNotEmpty) {
+      final inStock = variants.where((v) => v.stock > 0);
+      return inStock.isNotEmpty ? inStock.first.name : variants.first.name;
+    }
+    return secondaryOptions.isNotEmpty ? secondaryOptions.first : 'Standard';
+  }
 
-  String get defaultVariationSummary =>
-      '$defaultColorName • $defaultSecondaryOption';
+  String get defaultVariationSummary {
+    if (!showPrimaryOptionSelector || defaultColorName.isEmpty) {
+      return defaultSecondaryOption;
+    }
+    return '$defaultColorName • $defaultSecondaryOption';
+  }
 
-  /// Returns the dynamic price for a selected variation (`BUY-PDP-002`, `BUY-CART-002`).
-  /// Base option (index 0) uses `price`; higher size/volume/storage tiers scale upward cleanly.
+  /// Returns the price for a selected variation.
+  /// Real seller `variants` share the server base price; curated profiles only scale prices
+  /// for volume/storage/pack tiers (`scalePriceByTier`), never for clothing/shoe/jewelry sizes.
   double priceForVariant({String? color, String? secondaryOption}) {
+    if (hasServerVariants || !_variationProfile.scalePriceByTier) {
+      return price;
+    }
     if (secondaryOption == null || secondaryOption.trim().isEmpty) {
       return price;
     }
@@ -160,36 +223,25 @@ class Product {
     return op % 1 == 0 ? '₱${op.toInt()}' : '₱${op.toStringAsFixed(2)}';
   }
 
-  /// Returns the dynamic stock count for a specific variation (`BUY-PDP-002`, `BUY-PDP-003`).
-  /// When the last primary color is paired with the last secondary option (on products with >=3 secondary options),
-  /// it represents an out-of-stock variant (`0` stock) so `BUY-PDP-003` can be verified on any multi-tier item.
+  /// Returns the stock count for a specific variation.
+  /// When real DB `variants` exist, returns that exact variant's database stock.
   int stockForVariant({String? color, String? secondaryOption}) {
-    if (stock <= 0) return 0;
-    final colors = colorOptions;
-    final secs = secondaryOptions;
-
-    final colorIdx = (color != null && color.trim().isNotEmpty)
-        ? colors.indexWhere((c) => c.name.toLowerCase() == color.trim().toLowerCase())
-        : 0;
-    final secIdx = (secondaryOption != null && secondaryOption.trim().isNotEmpty)
-        ? secs.indexWhere((s) => s.toLowerCase() == secondaryOption.trim().toLowerCase())
-        : 0;
-
-    // Out-of-stock variant combination for BUY-PDP-003:
-    // Last primary option + last secondary option when there are at least 2 colors and 3 secondary options
-    if (colors.length >= 2 &&
-        secs.length >= 3 &&
-        colorIdx == colors.length - 1 &&
-        secIdx == secs.length - 1) {
-      return 0;
+    if (hasServerVariants) {
+      final target = (secondaryOption ?? '').trim().toLowerCase();
+      if (target.isNotEmpty) {
+        for (final v in variants) {
+          if (v.name.toLowerCase() == target) return v.stock;
+        }
+      }
+      final colorTarget = (color ?? '').trim().toLowerCase();
+      if (colorTarget.isNotEmpty) {
+        for (final v in variants) {
+          if (v.name.toLowerCase() == colorTarget) return v.stock;
+        }
+      }
+      return variants.first.stock;
     }
-
-    final safeColorIdx = colorIdx < 0 ? 0 : colorIdx;
-    final safeSecIdx = secIdx < 0 ? 0 : secIdx;
-    if (safeColorIdx == 0 && safeSecIdx == 0) return stock;
-
-    final adjusted = stock - (safeColorIdx * 2) - (safeSecIdx * 3);
-    return adjusted.clamp(2, 99);
+    return stock;
   }
 
   bool isVariantOutOfStock({String? color, String? secondaryOption}) =>
@@ -228,9 +280,39 @@ class CartItem {
         selectedSizeOrOption =
             selectedSizeOrOption ?? product.defaultSecondaryOption;
 
-  String get variationLabel => '$selectedColor • $selectedSizeOrOption';
+  String get variationLabel {
+    final c = selectedColor.trim();
+    final s = selectedSizeOrOption.trim();
+    if (c.isEmpty) return s.isEmpty ? 'Standard' : s;
+    if (s.isEmpty || s == 'Standard') return c;
+    return '$c • $s';
+  }
 
   String get itemKey => '${product.id}_${selectedColor}_$selectedSizeOrOption';
+
+  int? get selectedVariantId {
+    if (!product.hasServerVariants) return null;
+    final target = selectedSizeOrOption.trim().toLowerCase();
+    for (final v in product.variants) {
+      if (v.name.toLowerCase() == target) return v.id;
+    }
+    final colorTarget = selectedColor.trim().toLowerCase();
+    for (final v in product.variants) {
+      if (v.name.toLowerCase() == colorTarget) return v.id;
+    }
+    return product.variants.first.id;
+  }
+
+  String get selectedVariantName {
+    if (!product.hasServerVariants) return variationLabel;
+    final id = selectedVariantId;
+    if (id != null) {
+      for (final v in product.variants) {
+        if (v.id == id) return v.name;
+      }
+    }
+    return selectedSizeOrOption.trim().isNotEmpty ? selectedSizeOrOption : variationLabel;
+  }
 
   double get unitPrice => product.priceForVariant(
         color: selectedColor,
@@ -322,15 +404,19 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
     id: (json['id'] ?? '').toString(),
-    senderName: json['senderName'] as String? ?? 'Seller',
-    senderRole: json['senderRole'] as String? ?? 'Seller',
+    senderName: (json['senderName'] ?? json['sender_name']) as String? ?? 'Seller',
+    senderRole: (json['senderRole'] ?? json['sender_role']) as String? ?? 'Seller',
     message: (json['body'] ?? json['message'] ?? '').toString(),
-    timestamp: DateTime.tryParse(json['timestamp'] as String? ?? json['created_at'] as String? ?? '') ?? DateTime.now(),
-    isFromUser: json['isFromUser'] as bool? ?? false,
-    isBot: json['isBot'] as bool? ?? false,
-    attachmentUrl: json['attachmentUrl'] as String?,
-    attachmentName: json['attachmentName'] as String?,
-    productContext: (json['productContext'] as Map?)?.map((k, v) => MapEntry(k.toString(), v.toString())),
+    timestamp: DateTime.tryParse(
+          (json['timestamp'] ?? json['created_at'])?.toString() ?? '',
+        ) ??
+        DateTime.now(),
+    isFromUser: (json['isFromUser'] ?? json['is_from_user']) as bool? ?? false,
+    isBot: (json['isBot'] ?? json['is_bot']) as bool? ?? false,
+    attachmentUrl: (json['attachmentUrl'] ?? json['attachment_url']) as String?,
+    attachmentName: (json['attachmentName'] ?? json['attachment_name']) as String?,
+    productContext: ((json['productContext'] ?? json['product_context']) as Map?)
+        ?.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
   );
 }
 
@@ -372,20 +458,33 @@ class ConversationThread {
     'unreadCount': unreadCount,
   };
 
-  factory ConversationThread.fromJson(Map<String, dynamic> json) => ConversationThread(
-    id: (json['id'] ?? '').toString(),
-    sellerId: (json['seller_id'] ?? json['sellerId'] ?? '').toString(),
-    sellerName: json['sellerName'] as String? ?? 'Lumora Merchant',
-    sellerRole: json['sellerRole'] as String? ?? 'Verified Luxury Merchant',
-    sellerAvatar: json['sellerAvatar'] as String?,
-    productContext: (json['productContext'] as Map?)?.map((k, v) => MapEntry(k.toString(), v.toString())),
-    messages: (json['messages'] as List<dynamic>?)
-            ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [],
-    lastMessageAt: DateTime.tryParse(json['last_message_at'] as String? ?? '') ?? DateTime.now(),
-    unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
-  );
+  factory ConversationThread.fromJson(Map<String, dynamic> json) {
+    final rawMessages = json['messages'] as List<dynamic>?;
+    final parsedMessages = rawMessages != null && rawMessages.isNotEmpty
+        ? rawMessages
+            .whereType<Map>()
+            .map((e) => ChatMessage.fromJson(Map<String, dynamic>.from(e)))
+            .toList()
+        : (json['last_message'] is Map
+            ? [ChatMessage.fromJson(Map<String, dynamic>.from(json['last_message'] as Map))]
+            : <ChatMessage>[]);
+
+    return ConversationThread(
+      id: (json['id'] ?? '').toString(),
+      sellerId: (json['seller_id'] ?? json['sellerId'] ?? '').toString(),
+      sellerName: (json['sellerName'] ?? json['seller_name']) as String? ?? 'Lumora Merchant',
+      sellerRole: (json['sellerRole'] ?? json['seller_role']) as String? ?? 'Verified Luxury Merchant',
+      sellerAvatar: (json['sellerAvatar'] ?? json['seller_avatar']) as String?,
+      productContext: ((json['productContext'] ?? json['product_context']) as Map?)
+          ?.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
+      messages: parsedMessages,
+      lastMessageAt: DateTime.tryParse(
+            (json['last_message_at'] ?? json['lastMessageAt'])?.toString() ?? '',
+          ) ??
+          DateTime.now(),
+      unreadCount: ((json['unreadCount'] ?? json['unread_count']) as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 class ShopItem {
@@ -545,6 +644,7 @@ class User {
     String? googleId,
     String? provider,
     String? avatar,
+    bool clearAvatar = false,
     bool? emailVerified,
     DateTime? emailVerifiedAt,
     String? passwordHash,
@@ -573,7 +673,7 @@ class User {
       status: status ?? this.status,
       googleId: googleId ?? this.googleId,
       provider: provider ?? this.provider,
-      avatar: avatar ?? this.avatar,
+      avatar: clearAvatar ? null : (avatar ?? this.avatar),
       emailVerified: emailVerified ?? this.emailVerified,
       emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
       passwordHash: passwordHash ?? this.passwordHash,
@@ -846,6 +946,8 @@ class OrderItem {
   final double price;
   final int quantity;
   final String? imagePath;
+  final int? variantId;
+  final String? variantName;
   final String? variation;
 
   const OrderItem({
@@ -854,6 +956,8 @@ class OrderItem {
     required this.price,
     required this.quantity,
     this.imagePath,
+    this.variantId,
+    this.variantName,
     this.variation,
   });
 
@@ -864,17 +968,29 @@ class OrderItem {
     'price': price,
     'quantity': quantity,
     'imagePath': imagePath,
-    'variation': variation,
+    if (variantId != null) 'variant_id': variantId,
+    if (variantName != null) 'variant_name': variantName,
+    'variation': variation ?? variantName,
   };
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-    productId: (json['productId'] ?? json['product_id'] ?? '').toString(),
-    productName: json['productName'] as String? ?? 'Luxury Item',
-    price: (json['price'] as num?)?.toDouble() ?? 0.0,
-    quantity: (json['quantity'] as num?)?.toInt() ?? 1,
-    imagePath: json['imagePath'] as String?,
-    variation: json['variation'] as String?,
-  );
+  factory OrderItem.fromJson(Map<String, dynamic> json) {
+    final rawVarId = json['variantId'] ?? json['variant_id'];
+    final parsedVarId = rawVarId is num
+        ? rawVarId.toInt()
+        : int.tryParse((rawVarId ?? '').toString());
+    final varName = (json['variantName'] ?? json['variant_name'])?.toString();
+    final variationStr = (json['variation'] ?? varName)?.toString();
+    return OrderItem(
+      productId: (json['productId'] ?? json['product_id'] ?? '').toString(),
+      productName: json['productName'] as String? ?? 'Luxury Item',
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      imagePath: json['imagePath'] as String?,
+      variantId: parsedVarId,
+      variantName: varName,
+      variation: variationStr,
+    );
+  }
 }
 
 class OrderModel {
@@ -905,11 +1021,17 @@ class OrderModel {
   bool isDisputed;
   String? returnRejectionReason;
   String? returnDisputeStatus;
+  String? returnStatus;
+  String? preferredSolution;
+  String? returnReviewNote;
+  String? refundStatus;
+  double? refundAmount;
+  DateTime? refundedAt;
   List<String> returnEvidencePhotos;
   String? returnReason;
   final String? paymentProofPath;
   final String? paymentReferenceLast6;
-  String paymentStatus; // 'pending', 'paid', 'verified', 'failed'
+  String paymentStatus; // 'pending', 'paid', 'verified', 'failed', 'refunded'
   final DateTime? estimatedDelivery;
   final String? statusHeadline;
   final String? statusExplanation;
@@ -943,6 +1065,12 @@ class OrderModel {
     this.isDisputed = false,
     this.returnRejectionReason,
     this.returnDisputeStatus,
+    this.returnStatus,
+    this.preferredSolution,
+    this.returnReviewNote,
+    this.refundStatus,
+    this.refundAmount,
+    this.refundedAt,
     this.returnEvidencePhotos = const [],
     this.returnReason,
     this.paymentProofPath,
@@ -953,6 +1081,27 @@ class OrderModel {
     this.statusExplanation,
     this.statusLabel,
   });
+
+  bool get hasReturnRequest =>
+      (returnStatus != null && returnStatus!.isNotEmpty) ||
+      normalizedWebStatus == 'return_requested' ||
+      normalizedWebStatus == 'returned' ||
+      (returnDisputeStatus != null && returnDisputeStatus!.isNotEmpty);
+
+  bool get isReturnApproved =>
+      normalizedWebStatus == 'returned' || returnStatus == 'approved';
+
+  bool get isReturnDenied =>
+      returnStatus == 'denied' ||
+      (!isReturnApproved &&
+          returnRejectionReason != null &&
+          returnRejectionReason!.isNotEmpty);
+
+  bool get isWithinReturnWindow {
+    final dt = deliveredAt;
+    if (dt == null) return true;
+    return DateTime.now().difference(dt).inDays <= 7;
+  }
 
   String get orderNumber => id;
   String get formattedTotal => '₱${totalAmount.toStringAsFixed(2)}';
@@ -1097,10 +1246,27 @@ class OrderModel {
     'deliveredAt': deliveredAt?.toIso8601String(),
     'isAutoCompleted': isAutoCompleted,
     'isDisputed': isDisputed,
+    'is_disputed': isDisputed,
     'returnRejectionReason': returnRejectionReason,
+    'return_rejection_reason': returnRejectionReason,
     'returnDisputeStatus': returnDisputeStatus,
+    'return_dispute_status': returnDisputeStatus,
+    'returnStatus': returnStatus,
+    'return_status': returnStatus,
+    'preferredSolution': preferredSolution,
+    'preferred_solution': preferredSolution,
+    'returnReviewNote': returnReviewNote,
+    'return_review_note': returnReviewNote,
+    'refundStatus': refundStatus,
+    'refund_status': refundStatus,
+    'refundAmount': refundAmount,
+    'refund_amount': refundAmount,
+    'refundedAt': refundedAt?.toIso8601String(),
+    'refunded_at': refundedAt?.toIso8601String(),
     'returnEvidencePhotos': returnEvidencePhotos,
+    'return_evidence_photos': returnEvidencePhotos,
     'returnReason': returnReason,
+    'return_reason': returnReason,
     'paymentProofPath': paymentProofPath,
     'payment_proof': paymentProofPath,
     'paymentReferenceLast6': paymentReferenceLast6,
@@ -1150,11 +1316,23 @@ class OrderModel {
         ? DateTime.tryParse(json['deliveredAt'].toString())
         : (json['delivered_at'] != null ? DateTime.tryParse(json['delivered_at'].toString()) : null),
     isAutoCompleted: json['isAutoCompleted'] as bool? ?? false,
-    isDisputed: json['isDisputed'] as bool? ?? false,
-    returnRejectionReason: json['returnRejectionReason'] as String?,
-    returnDisputeStatus: json['returnDisputeStatus'] as String?,
-    returnEvidencePhotos: (json['returnEvidencePhotos'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-    returnReason: json['returnReason'] as String?,
+    isDisputed: (json['isDisputed'] ?? json['is_disputed']) == true ||
+        (json['returnDisputeStatus'] ?? json['return_dispute_status']) == 'under_arbitration',
+    returnRejectionReason: (json['returnRejectionReason'] ?? json['return_rejection_reason'])?.toString(),
+    returnDisputeStatus: (json['returnDisputeStatus'] ?? json['return_dispute_status'])?.toString(),
+    returnStatus: (json['returnStatus'] ?? json['return_status'])?.toString(),
+    preferredSolution: (json['preferredSolution'] ?? json['preferred_solution'])?.toString(),
+    returnReviewNote: (json['returnReviewNote'] ?? json['return_review_note'])?.toString(),
+    refundStatus: (json['refundStatus'] ?? json['refund_status'])?.toString(),
+    refundAmount: (json['refundAmount'] as num? ?? json['refund_amount'] as num?)?.toDouble(),
+    refundedAt: (json['refundedAt'] ?? json['refunded_at']) != null
+        ? DateTime.tryParse((json['refundedAt'] ?? json['refunded_at']).toString())
+        : null,
+    returnEvidencePhotos: ((json['returnEvidencePhotos'] ?? json['return_evidence_photos']) as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const [],
+    returnReason: (json['returnReason'] ?? json['return_reason'])?.toString(),
     paymentProofPath: (json['paymentProofPath'] ?? json['payment_proof']) as String?,
     paymentReferenceLast6: (json['paymentReferenceLast6'] ?? json['payment_reference_last6']) as String?,
     paymentStatus: (json['paymentStatus'] ?? json['payment_status'] ?? 'pending').toString(),
@@ -1351,6 +1529,7 @@ class ProductVariationProfile {
   final String secondaryLabel;
   final List<String> secondaryOptions;
   final bool hasSizeGuide;
+  final bool scalePriceByTier;
 
   const ProductVariationProfile({
     required this.primaryLabel,
@@ -1358,6 +1537,7 @@ class ProductVariationProfile {
     required this.secondaryLabel,
     required this.secondaryOptions,
     this.hasSizeGuide = false,
+    this.scalePriceByTier = false,
   });
 }
 
@@ -1370,6 +1550,15 @@ class ProductVariationGenerator {
     return hash.abs();
   }
 
+  static bool _hasAnyWord(String text, List<String> keywords) {
+    for (final k in keywords) {
+      if (RegExp('\\b${RegExp.escape(k)}\\b', caseSensitive: false).hasMatch(text)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static ProductVariationProfile forProduct({
     required String id,
     required String name,
@@ -1380,10 +1569,7 @@ class ProductVariationGenerator {
     final seed = _stableHash('${id}_${name}_$category');
 
     // 1. LIPSTICK / LIP GLOSS / LIP TINT / LIP CARE
-    if (n.contains('lipstick') ||
-        n.contains('lip ') ||
-        n.contains('lipgloss') ||
-        n.contains('tint')) {
+    if (_hasAnyWord(n, ['lipstick', 'lipgloss', 'lip', 'tint'])) {
       const shadeBanks = [
         [
           ProductColorOption(name: 'Ruby Velvet #01', color: Color(0xFF9B1B30)),
@@ -1414,23 +1600,16 @@ class ProductVariationGenerator {
         primaryOptions: shadeBanks[seed % shadeBanks.length],
         secondaryLabel: 'Finish & Pack',
         secondaryOptions: finishBanks[(seed ~/ 3) % finishBanks.length],
+        scalePriceByTier: true,
       );
     }
 
     // 2. FOUNDATION / CUSHION / CONCEALER / POWDER / BLUSH / EYESHADOW
-    if (n.contains('foundation') ||
-        n.contains('cushion') ||
-        n.contains('concealer') ||
-        n.contains('powder') ||
-        n.contains('blush') ||
-        n.contains('palette') ||
-        n.contains('eyeshadow') ||
-        n.contains('mascara') ||
-        n.contains('brow')) {
+    if (_hasAnyWord(n, ['foundation', 'cushion', 'concealer', 'powder', 'blush', 'palette', 'eyeshadow', 'mascara', 'brow'])) {
       const complexionBanks = [
         [
           ProductColorOption(name: '1N0 Porcelain Ivory', color: Color(0xFFF3E2D2)),
-          ProductColorOption(name: '2W1 WarmVanilla', color: Color(0xFFE7CBB3)),
+          ProductColorOption(name: '2W1 Warm Vanilla', color: Color(0xFFE7CBB3)),
           ProductColorOption(name: '3N1 Natural Sand', color: Color(0xFFD8B292)),
           ProductColorOption(name: '4W2 Golden Honey', color: Color(0xFFC3936F)),
         ],
@@ -1454,12 +1633,7 @@ class ProductVariationGenerator {
     }
 
     // 3. FRAGRANCE / PERFUME / EAU DE PARFUM / COLOGNE
-    if (n.contains('perfume') ||
-        n.contains('parfum') ||
-        n.contains('fragrance') ||
-        n.contains('cologne') ||
-        n.contains('mist') ||
-        n.contains('scent')) {
+    if (_hasAnyWord(n, ['perfume', 'parfum', 'fragrance', 'cologne', 'mist', 'scent'])) {
       const scentBanks = [
         [
           ProductColorOption(name: 'Oud & Damask Rose', color: Color(0xFF6B2D46)),
@@ -1481,23 +1655,55 @@ class ProductVariationGenerator {
         primaryOptions: scentBanks[seed % scentBanks.length],
         secondaryLabel: 'Bottle Volume',
         secondaryOptions: bottleBanks[(seed ~/ 2) % bottleBanks.length],
+        scalePriceByTier: true,
       );
     }
 
-    // 4. SKINCARE / SERUM / CREAM / CLEANSER / TONER / SUNSCREEN / MASK / BEAUTY
-    if (n.contains('serum') ||
-        n.contains('cream') ||
-        n.contains('cleanser') ||
-        n.contains('toner') ||
-        n.contains('sunscreen') ||
-        n.contains('spf') ||
-        n.contains('lotion') ||
-        n.contains('moisturizer') ||
-        n.contains('mask') ||
-        n.contains('essence') ||
-        n.contains('oil') ||
-        n.contains('shampoo') ||
-        n.contains('conditioner') ||
+    // 4. BATH SOAPS, CLAY MASKS, BODY BUTTERS & SKINCARE
+    if (_hasAnyWord(n, ['soap', 'butter', 'clay', 'scrub', 'balm', 'charcoal', 'lavender'])) {
+      if (n.contains('soap')) {
+        return const ProductVariationProfile(
+          primaryLabel: 'Botanical Variant',
+          primaryOptions: [
+            ProductColorOption(name: 'Activated Bamboo Charcoal', color: Color(0xFF2B2D2F)),
+            ProductColorOption(name: 'Tea Tree & Eucalyptus', color: Color(0xFF7D9F7B)),
+            ProductColorOption(name: 'Oatmeal & Shea Mild', color: Color(0xFFE4D6C1)),
+          ],
+          secondaryLabel: 'Weight / Pack',
+          secondaryOptions: ['100g Single Bar', '2 x 100g Twin Pack', '3-Bar Gift Set'],
+          scalePriceByTier: true,
+        );
+      }
+      if (n.contains('clay') || n.contains('mask')) {
+        return const ProductVariationProfile(
+          primaryLabel: 'Clay Formulation',
+          primaryOptions: [
+            ProductColorOption(name: 'Rose Kaolin Gentle', color: Color(0xFFD69BA4)),
+            ProductColorOption(name: 'French Green Detox', color: Color(0xFF88A387)),
+            ProductColorOption(name: 'Moroccan Rhassoul', color: Color(0xFFA77865)),
+          ],
+          secondaryLabel: 'Jar Size',
+          secondaryOptions: ['100g Glass Jar', '200g Spa Size', '100g + Silicone Brush'],
+          scalePriceByTier: true,
+        );
+      }
+      return const ProductVariationProfile(
+        primaryLabel: 'Botanical Blend',
+        primaryOptions: [
+          ProductColorOption(name: 'French Lavender', color: Color(0xFFB59EC9)),
+          ProductColorOption(name: 'Sweet Almond & Shea', color: Color(0xFFE7D3B6)),
+          ProductColorOption(name: 'Chamomile Honey', color: Color(0xFFE5BA73)),
+        ],
+        secondaryLabel: 'Container Size',
+        secondaryOptions: ['150ml Amber Jar', '250ml Full Tub'],
+        scalePriceByTier: true,
+      );
+    }
+
+    if (_hasAnyWord(n, [
+          'serum', 'cream', 'cleanser', 'toner', 'sunscreen', 'spf', 'lotion',
+          'moisturizer', 'mask', 'essence', 'oil', 'shampoo', 'conditioner',
+        ]) ||
         c.contains('beauty') ||
         c.contains('skincare')) {
       const formulaBanks = [
@@ -1527,56 +1733,146 @@ class ProductVariationGenerator {
         primaryOptions: formulaBanks[seed % formulaBanks.length],
         secondaryLabel: 'Volume',
         secondaryOptions: volumeBanks[(seed ~/ 3) % volumeBanks.length],
+        scalePriceByTier: true,
       );
     }
 
     // 5. SMARTPHONES / TABLETS / LAPTOPS / COMPUTERS
-    if (n.contains('phone') ||
-        n.contains('smartphone') ||
-        n.contains('tablet') ||
-        n.contains('ipad') ||
-        n.contains('laptop') ||
-        n.contains('macbook') ||
-        n.contains('notebook')) {
-      const finishBanks = [
-        [
-          ProductColorOption(name: 'Natural Titanium', color: Color(0xFFA5A29D)),
-          ProductColorOption(name: 'Obsidian Black', color: Color(0xFF232528)),
-          ProductColorOption(name: 'Sierra Pearl White', color: Color(0xFFF0EFEA)),
-          ProductColorOption(name: 'Desert Rose Gold', color: Color(0xFFCDA898)),
-        ],
-        [
-          ProductColorOption(name: 'Space Black', color: Color(0xFF1F2024)),
-          ProductColorOption(name: 'Starlight Silver', color: Color(0xFFE3E0D8)),
-          ProductColorOption(name: 'Midnight Sapphire', color: Color(0xFF25334A)),
-          ProductColorOption(name: 'Alpine Emerald', color: Color(0xFF3A5A4B)),
-        ],
-      ];
+    if (_hasAnyWord(n, [
+      'phone', 'smartphone', 'iphone', 'xiaomi', 'samsung', 'galaxy', 'oppo',
+      'vivo', 'redmi', 'poco', 'pixel', 'realme', 'tablet', 'ipad', 'laptop',
+      'macbook', 'notebook',
+    ])) {
+      final isXiaomi = n.contains('xiaomi');
+      final isApple = n.contains('iphone') || n.contains('macbook') || n.contains('ipad');
+      final finishOptions = isXiaomi
+          ? const [
+              ProductColorOption(name: 'Black Titanium', color: Color(0xFF232528)),
+              ProductColorOption(name: 'White Ceramic', color: Color(0xFFF0EFEA)),
+              ProductColorOption(name: 'Titanium Blue', color: Color(0xFF42546A)),
+            ]
+          : (isApple
+              ? const [
+                  ProductColorOption(name: 'Natural Titanium', color: Color(0xFFA5A29D)),
+                  ProductColorOption(name: 'Black Titanium', color: Color(0xFF1F2024)),
+                  ProductColorOption(name: 'White Titanium', color: Color(0xFFF0EFEA)),
+                  ProductColorOption(name: 'Desert Titanium', color: Color(0xFFCDA898)),
+                ]
+              : const [
+                  ProductColorOption(name: 'Obsidian Black', color: Color(0xFF232528)),
+                  ProductColorOption(name: 'Starlight Silver', color: Color(0xFFE3E0D8)),
+                  ProductColorOption(name: 'Midnight Sapphire', color: Color(0xFF25334A)),
+                  ProductColorOption(name: 'Alpine Emerald', color: Color(0xFF3A5A4B)),
+                ]);
       const storageBanks = [
-        ['8GB + 256GB', '12GB + 512GB', '16GB + 1TB Ultra'],
-        ['256GB Wi-Fi', '512GB Wi-Fi + 5G', '1TB Pro Studio'],
+        ['12GB + 256GB', '12GB + 512GB', '16GB + 1TB Ultra'],
+        ['256GB Standard', '512GB Pro Edition', '1TB Studio Edition'],
       ];
       return ProductVariationProfile(
         primaryLabel: 'Device Finish',
-        primaryOptions: finishBanks[seed % finishBanks.length],
-        secondaryLabel: 'Storage & RAM',
+        primaryOptions: finishOptions,
+        secondaryLabel: 'RAM & Storage',
         secondaryOptions: storageBanks[(seed ~/ 2) % storageBanks.length],
+        scalePriceByTier: true,
       );
     }
 
-    // 6. AUDIO / HEADPHONES / EARBUDS / CAMERAS / ELECTRONICS ACCESSORIES / APPLIANCES
+    // 6. WATCHES / JEWELRY / EARRINGS / BRACELETS / RINGS / NECKLACES / EYEWEAR
+    if (_hasAnyWord(n, [
+      'watch', 'rolex', 'submariner', 'daytona', 'datejust', 'chronograph',
+      'necklace', 'pendant', 'ring', 'earring', 'earrings', 'stud', 'bracelet',
+      'bangle', 'cuff', 'sunglass', 'sunglasses', 'eyewear',
+    ])) {
+      final isWatch = _hasAnyWord(n, ['watch', 'rolex', 'submariner', 'daytona', 'datejust', 'chronograph']);
+      final isBracelet = _hasAnyWord(n, ['bracelet', 'bangle', 'cuff']);
+      final isEarring = _hasAnyWord(n, ['earring', 'earrings', 'stud']);
+      final isRing = _hasAnyWord(n, ['ring']);
+      final isSilverNamed = n.contains('silver');
+
+      if (isWatch) {
+        final isSubmariner = n.contains('submariner');
+        final isDaytona = n.contains('daytona');
+        final isDatejust = n.contains('datejust');
+        return ProductVariationProfile(
+          primaryLabel: 'Dial & Bezel',
+          primaryOptions: isSubmariner
+              ? const [
+                  ProductColorOption(name: 'Oystersteel • Black Dial', color: Color(0xFF212428)),
+                  ProductColorOption(name: 'Oystersteel • Starbucks Green', color: Color(0xFF1F5438)),
+                  ProductColorOption(name: 'Rolesor Two-Tone • Blue Dial', color: Color(0xFF22427C)),
+                ]
+              : (isDaytona
+                  ? const [
+                      ProductColorOption(name: 'Panda White Dial • Cerachrom', color: Color(0xFFF3F1EA)),
+                      ProductColorOption(name: 'Oystersteel • Gloss Black', color: Color(0xFF1E1F24)),
+                      ProductColorOption(name: 'Rose Gold • Chocolate Dial', color: Color(0xFFC28E7A)),
+                    ]
+                  : const [
+                      ProductColorOption(name: 'Fluted Bezel • Champagne', color: Color(0xFFD8C28B)),
+                      ProductColorOption(name: 'Fluted Bezel • Mint Green', color: Color(0xFF6B8E78)),
+                      ProductColorOption(name: 'Smooth Bezel • Slate Blue', color: Color(0xFF3E526A)),
+                    ]),
+          secondaryLabel: 'Case Size',
+          secondaryOptions: isDaytona
+              ? const ['40mm Cosmograph']
+              : (isDatejust
+                  ? const ['36mm Classic', '41mm Modern']
+                  : const ['40mm Classic', '41mm Oystersteel']),
+        );
+      }
+
+      final metalOptions = isSilverNamed
+          ? const [
+              ProductColorOption(name: '925 Sterling Silver', color: Color(0xFFC9CED4)),
+              ProductColorOption(name: 'Brushed Satin Silver', color: Color(0xFFB1B6BC)),
+              ProductColorOption(name: 'Oxidized Vintage Silver', color: Color(0xFF6C7178)),
+            ]
+          : const [
+              ProductColorOption(name: '18K Yellow Gold Vermeil', color: Color(0xFFD4AF37)),
+              ProductColorOption(name: '925 Sterling Silver', color: Color(0xFFC9CED4)),
+              ProductColorOption(name: '18K Rose Gold', color: Color(0xFFD49A89)),
+            ];
+
+      if (isBracelet) {
+        return ProductVariationProfile(
+          primaryLabel: 'Metal Finish',
+          primaryOptions: metalOptions,
+          secondaryLabel: 'Wrist Size',
+          secondaryOptions: const ['17 cm (Small)', '19 cm (Medium)', '21 cm (Large)'],
+        );
+      }
+      if (isEarring) {
+        return ProductVariationProfile(
+          primaryLabel: 'Metal Finish',
+          primaryOptions: metalOptions,
+          secondaryLabel: 'Style / Fit',
+          secondaryOptions: const ['Classic Everyday Pair', 'Statement Atelier Pair'],
+        );
+      }
+      if (isRing) {
+        return ProductVariationProfile(
+          primaryLabel: 'Metal Finish',
+          primaryOptions: metalOptions,
+          secondaryLabel: 'Ring Size',
+          secondaryOptions: const ['US 5', 'US 6', 'US 7', 'US 8', 'US 9'],
+          hasSizeGuide: true,
+        );
+      }
+      return ProductVariationProfile(
+        primaryLabel: 'Metal Finish',
+        primaryOptions: metalOptions,
+        secondaryLabel: 'Chain Length',
+        secondaryOptions: const ['16" Choker Fit', '18" Standard Fit', '20" Layered Fit'],
+      );
+    }
+
+    // 7. AUDIO / HEADPHONES / EARBUDS / CAMERAS / ELECTRONICS ACCESSORIES / APPLIANCES
     if (c.contains('electronics') ||
-        n.contains('headphone') ||
-        n.contains('earbud') ||
-        n.contains('speaker') ||
-        n.contains('camera') ||
-        n.contains('charger') ||
-        n.contains('powerbank') ||
-        n.contains('keyboard') ||
-        n.contains('mouse') ||
-        n.contains('trimmer') ||
-        n.contains('shaver') ||
-        n.contains('dryer')) {
+        _hasAnyWord(n, [
+          'headphone', 'headphones', 'earbud', 'earbuds', 'airpods', 'speaker',
+          'camera', 'charger', 'powerbank', 'keyboard', 'mouse', 'trimmer',
+          'shaver', 'dryer',
+        ])) {
       const techColors = [
         [
           ProductColorOption(name: 'Matte Graphite', color: Color(0xFF2E3136)),
@@ -1590,42 +1886,40 @@ class ProductVariationGenerator {
         ],
       ];
       const bundleBanks = [
-        ['Standard Package', 'Pro Bundle + Travel Case', 'Deluxe + 2-Yr Care+'],
-        [' Global Warranty Unit', 'Complete Studio Kit', 'Gift Edition Box'],
+        ['Standard Unit', 'With Protective Travel Case'],
+        ['Standard Edition', 'With Complete Care Kit'],
       ];
       return ProductVariationProfile(
         primaryLabel: 'Color Finish',
         primaryOptions: techColors[seed % techColors.length],
-        secondaryLabel: 'Package Bundle',
+        secondaryLabel: 'Edition',
         secondaryOptions: bundleBanks[(seed ~/ 2) % bundleBanks.length],
       );
     }
 
-    // 7. FOOTWEAR / SHOES / SNEAKERS / HEELS / LOAFERS / SANDALS / BOOTS
-    if (n.contains('shoe') ||
-        n.contains('sneaker') ||
-        n.contains('loafer') ||
-        n.contains('heel') ||
-        n.contains('sandal') ||
-        n.contains('boot') ||
-        n.contains('mule') ||
-        n.contains('runner')) {
-      const shoeColors = [
-        [
-          ProductColorOption(name: 'Espresso Calfskin', color: Color(0xFF4B3025)),
-          ProductColorOption(name: 'Onyx Black Leather', color: Color(0xFF1F1E21)),
-          ProductColorOption(name: 'Cream Alabaster', color: Color(0xFFEDE4D7)),
-        ],
-        [
-          ProductColorOption(name: 'Triple White Leather', color: Color(0xFFF5F5F2)),
-          ProductColorOption(name: 'Ash Suede Grey', color: Color(0xFF8D8E92)),
-          ProductColorOption(name: 'Burgundy Cordovan', color: Color(0xFF5E2129)),
-        ],
-      ];
-      final isWomensShoe = c.contains('women') || n.contains('heel') || n.contains('mule');
+    // 8. FOOTWEAR / SHOES / SNEAKERS / HEELS / LOAFERS / SANDALS / BOOTS
+    if (_hasAnyWord(n, [
+          'shoe', 'shoes', 'sneaker', 'sneakers', 'loafer', 'loafers', 'heel',
+          'heels', 'sandal', 'sandals', 'boot', 'boots', 'mule', 'runner',
+          'af1', 'dunk', 'jordan', '550', '327', '9060', '2002r',
+        ]) ||
+        c.contains('shoe')) {
+      final isTripleWhite = n.contains('white') || n.contains('af1');
+      final shoeColors = isTripleWhite
+          ? const [
+              ProductColorOption(name: 'Triple White Leather', color: Color(0xFFF5F5F2)),
+              ProductColorOption(name: 'White / Sail Cream', color: Color(0xFFEDE4D7)),
+              ProductColorOption(name: 'White / Ash Grey', color: Color(0xFFD3D4D8)),
+            ]
+          : const [
+              ProductColorOption(name: 'Triple White Leather', color: Color(0xFFF5F5F2)),
+              ProductColorOption(name: 'Espresso Calfskin', color: Color(0xFF4B3025)),
+              ProductColorOption(name: 'Onyx Black Leather', color: Color(0xFF1F1E21)),
+            ];
+      final isWomensShoe = c.contains('women') || _hasAnyWord(n, ['heel', 'heels', 'mule']);
       return ProductVariationProfile(
         primaryLabel: 'Colorway',
-        primaryOptions: shoeColors[seed % shoeColors.length],
+        primaryOptions: shoeColors,
         secondaryLabel: 'Size (EU)',
         secondaryOptions: isWomensShoe
             ? const ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40']
@@ -1634,15 +1928,8 @@ class ProductVariationGenerator {
       );
     }
 
-    // 8. BAGS / TOTES / PURSES / WALLETS / LEATHER GOODS
-    if (n.contains('bag') ||
-        n.contains('tote') ||
-        n.contains('clutch') ||
-        n.contains('wallet') ||
-        n.contains('cardholder') ||
-        n.contains('backpack') ||
-        n.contains('satchel') ||
-        n.contains('crossbody')) {
+    // 9. BAGS / TOTES / PURSES / WALLETS / LEATHER GOODS
+    if (_hasAnyWord(n, ['bag', 'tote', 'clutch', 'wallet', 'cardholder', 'backpack', 'satchel', 'crossbody'])) {
       const leatherBanks = [
         [
           ProductColorOption(name: 'Cognac Tan Leather', color: Color(0xFF9A5B36)),
@@ -1657,8 +1944,8 @@ class ProductVariationGenerator {
         ],
       ];
       const bagSizes = [
-        ['Mini Crossbody (18cm)', 'Small Classic (24cm)', 'Medium Tote (32cm)'],
-        ['Gold Hardware Edition', 'Palladium Silver Hardware', 'Collector Dustbag Set'],
+        ['Mini (18cm)', 'Small Classic (24cm)', 'Medium Tote (32cm)'],
+        ['Gold Hardware', 'Silver Hardware'],
       ];
       return ProductVariationProfile(
         primaryLabel: 'Leather & Color',
@@ -1668,80 +1955,28 @@ class ProductVariationGenerator {
       );
     }
 
-    // 9. WATCHES / JEWELRY / NECKLACES / RINGS / EARRINGS / BRACELETS / SUNGLASSES
-    if (n.contains('watch') ||
-        n.contains('chronograph') ||
-        n.contains('necklace') ||
-        n.contains('pendant') ||
-        n.contains('ring') ||
-        n.contains('earring') ||
-        n.contains('bracelet') ||
-        n.contains('bangle') ||
-        n.contains('sunglass') ||
-        n.contains('eyewear')) {
-      const metalBanks = [
-        [
-          ProductColorOption(name: '18K Yellow Gold Vermeil', color: Color(0xFFD4AF37)),
-          ProductColorOption(name: '925 Sterling Silver', color: Color(0xFFC9CED4)),
-          ProductColorOption(name: '18K Rose Gold', color: Color(0xFFD49A89)),
-        ],
-        [
-          ProductColorOption(name: 'Two-Tone Gold & Steel', color: Color(0xFFC7B27C)),
-          ProductColorOption(name: 'Mother of Pearl & Gold', color: Color(0xFFEEE8DC)),
-          ProductColorOption(name: 'Onyx Dial & Rose Gold', color: Color(0xFF2B2628)),
-        ],
-      ];
-      final isWatch = n.contains('watch') || n.contains('chronograph');
-      final isRing = n.contains('ring');
-      return ProductVariationProfile(
-        primaryLabel: 'Metal Finish',
-        primaryOptions: metalBanks[seed % metalBanks.length],
-        secondaryLabel: isWatch ? 'Case Diameter' : (isRing ? 'Ring Size' : 'Chain / Fit'),
-        secondaryOptions: isWatch
-            ? const ['36mm Classic', '40mm Executive', '42mm Chronograph']
-            : (isRing
-                ? const ['US 5', 'US 6', 'US 7', 'US 8']
-                : const ['16" Petite Fit', '18" Standard Fit', 'Gift Box + Polishing Kit']),
-      );
-    }
-
-    // 10. WOMEN'S & MEN'S APPAREL / CLOTHING / DRESSES / SHIRTS / JACKETS / PANTS
-    if (c.contains('women') ||
-        c.contains('men') ||
-        n.contains('dress') ||
-        n.contains('shirt') ||
-        n.contains('blouse') ||
-        n.contains('top') ||
-        n.contains('jacket') ||
-        n.contains('coat') ||
-        n.contains('blazer') ||
-        n.contains('trouser') ||
-        n.contains('pant') ||
-        n.contains('skirt') ||
-        n.contains('cardigan') ||
-        n.contains('sweater') ||
-        n.contains('polo') ||
-        n.contains('hoodie') ||
-        n.contains('silk') ||
-        n.contains('linen')) {
+    // 10. WOMEN'S & MEN'S APPAREL / CLOTHING / TEES / HOODIES / DRESSES / SHIRTS
+    if (_hasAnyWord(n, [
+          'tee', 't-shirt', 'shirt', 'blouse', 'top', 'dress', 'jacket', 'coat',
+          'blazer', 'trouser', 'trousers', 'pant', 'pants', 'skirt', 'cardigan',
+          'sweater', 'polo', 'hoodie', 'pullover', 'jersey', 'shorts', 'jeans',
+          'silk', 'linen',
+        ]) ||
+        c.contains('clothing') ||
+        c.contains('women') ||
+        c.contains('men')) {
       const fabricBanks = [
+        [
+          ProductColorOption(name: 'Classic Black', color: Color(0xFF1E1E22)),
+          ProductColorOption(name: 'Ivory White', color: Color(0xFFF6F4EE)),
+          ProductColorOption(name: 'Charcoal Slate', color: Color(0xFF3E424B)),
+          ProductColorOption(name: 'Midnight Navy', color: Color(0xFF222D42)),
+        ],
         [
           ProductColorOption(name: 'Champagne Ecru', color: Color(0xFFEADBC8)),
           ProductColorOption(name: 'Dusty Rose Blush', color: Color(0xFFD6A2A8)),
-          ProductColorOption(name: 'Midnight Navy', color: Color(0xFF222D42)),
-          ProductColorOption(name: 'Sage Olive', color: Color(0xFF83967E)),
-        ],
-        [
-          ProductColorOption(name: 'Crisp Oxford Blue', color: Color(0xFF9EB9D4)),
-          ProductColorOption(name: 'Ivory White', color: Color(0xFFF6F4EE)),
-          ProductColorOption(name: 'Charcoal Slate', color: Color(0xFF3E424B)),
-          ProductColorOption(name: 'Camel Sand', color: Color(0xFFC6A47E)),
-        ],
-        [
           ProductColorOption(name: 'Mulberry Wine', color: Color(0xFF66293B)),
-          ProductColorOption(name: 'Espresso Brown', color: Color(0xFF4A352A)),
-          ProductColorOption(name: 'Pearl Grey', color: Color(0xFFC4C6CA)),
-          ProductColorOption(name: 'Classic Black', color: Color(0xFF1E1E22)),
+          ProductColorOption(name: 'Sage Olive', color: Color(0xFF83967E)),
         ],
       ];
       return ProductVariationProfile(
@@ -1755,17 +1990,7 @@ class ProductVariationGenerator {
 
     // 11. HOME & LIVING / DECOR / CANDLES / BEDDING / KITCHEN
     if (c.contains('home') ||
-        n.contains('candle') ||
-        n.contains('diffuser') ||
-        n.contains('lamp') ||
-        n.contains('vase') ||
-        n.contains('pillow') ||
-        n.contains('bed') ||
-        n.contains('sheet') ||
-        n.contains('towel') ||
-        n.contains('coffee') ||
-        n.contains('mug') ||
-        n.contains('organizer')) {
+        _hasAnyWord(n, ['candle', 'diffuser', 'lamp', 'vase', 'pillow', 'bed', 'sheet', 'towel', 'coffee', 'mug', 'organizer'])) {
       const homeColors = [
         [
           ProductColorOption(name: 'Warm Travertine Beige', color: Color(0xFFD9CABB)),
@@ -1779,52 +2004,45 @@ class ProductVariationGenerator {
         ],
       ];
       const homeSizes = [
-        ['Single Piece', 'Duo Set (2 pcs)', 'Complete Suite (4 pcs)'],
-        ['Medium Studio Size', 'Large Statement Size', 'Luxury Gift Boxed'],
+        ['Single Piece', 'Duo Set (2 pcs)'],
+        ['Medium Studio Size', 'Large Statement Size'],
       ];
       return ProductVariationProfile(
         primaryLabel: 'Finish / Tone',
         primaryOptions: homeColors[seed % homeColors.length],
-        secondaryLabel: 'Set / Dimension',
+        secondaryLabel: 'Edition',
         secondaryOptions: homeSizes[(seed ~/ 2) % homeSizes.length],
       );
     }
 
-    // 12. SPORTS & OUTDOORS / FITNESS / YOGA / BOTTLE
+    // 12. SPORTS & OUTDOORS / FITNESS / YOGA / BOTTLE / BASKETBALL
     if (c.contains('sport') ||
-        n.contains('yoga') ||
-        n.contains('dumbbell') ||
-        n.contains('fitness') ||
-        n.contains('gym') ||
-        n.contains('bottle') ||
-        n.contains('tumbler') ||
-        n.contains('racket') ||
-        n.contains('ball')) {
-      const sportColors = [
-        [
-          ProductColorOption(name: 'Matcha Forest', color: Color(0xFF567A5A)),
-          ProductColorOption(name: 'Cobalt Velocity', color: Color(0xFF28559A)),
-          ProductColorOption(name: 'Stealth Carbon', color: Color(0xFF24272B)),
-        ],
-        [
-          ProductColorOption(name: 'Sunset Coral', color: Color(0xFFE06352)),
-          ProductColorOption(name: 'Glacier Mint', color: Color(0xFF93C9C0)),
-          ProductColorOption(name: 'Sandstone Dune', color: Color(0xFFCDBBA7)),
-        ],
-      ];
-      const sportSpecs = [
-        ['Standard Pro Fit', 'Heavy-Duty Training', 'Pro Kit + Carry Strap'],
-        ['750ml Insulated', '1000ml Adventure', 'Duo Pack + Brush'],
-      ];
+        _hasAnyWord(n, ['yoga', 'dumbbell', 'fitness', 'gym', 'bottle', 'tumbler', 'racket', 'ball', 'basketball'])) {
+      final isBottle = _hasAnyWord(n, ['bottle', 'tumbler']);
+      final isBasketball = n.contains('basketball');
       return ProductVariationProfile(
         primaryLabel: 'Colorway',
-        primaryOptions: sportColors[seed % sportColors.length],
-        secondaryLabel: 'Spec / Capacity',
-        secondaryOptions: sportSpecs[(seed ~/ 2) % sportSpecs.length],
+        primaryOptions: isBasketball
+            ? const [
+                ProductColorOption(name: 'Official Leather Orange', color: Color(0xFFD2692C)),
+                ProductColorOption(name: 'Indoor Midnight Black', color: Color(0xFF24272B)),
+              ]
+            : const [
+                ProductColorOption(name: 'Matcha Forest', color: Color(0xFF567A5A)),
+                ProductColorOption(name: 'Cobalt Velocity', color: Color(0xFF28559A)),
+                ProductColorOption(name: 'Stealth Carbon', color: Color(0xFF24272B)),
+              ],
+        secondaryLabel: isBottle ? 'Capacity' : 'Specification',
+        secondaryOptions: isBottle
+            ? const ['500ml Insulated', '750ml Classic', '1000ml Adventure']
+            : (isBasketball
+                ? const ['Size 7 (Official Men)', 'Size 6 (Women / Youth)']
+                : const ['Standard Fit', 'Pro Heavy-Duty']),
+        scalePriceByTier: isBottle,
       );
     }
 
-    // 13. FALLBACK LUXURY CURATION (Still unique per product seed!)
+    // 13. FALLBACK CURATION
     const bespokeColorBanks = [
       [
         ProductColorOption(name: 'Atelier Plum', color: Color(0xFF4B2039)),
@@ -1832,25 +2050,16 @@ class ProductVariationGenerator {
         ProductColorOption(name: 'Rose Gold Vermeil', color: Color(0xFFC98A82)),
       ],
       [
-        ProductColorOption(name: 'Venetian Terracotta', color: Color(0xFFB85B45)),
         ProductColorOption(name: 'Alabaster Pearl', color: Color(0xFFF1ECE4)),
-        ProductColorOption(name: 'Midnight Espresso', color: Color(0xFF342622)),
-      ],
-      [
-        ProductColorOption(name: 'Imperial Emerald', color: Color(0xFF254D3E)),
-        ProductColorOption(name: 'Warm Cashmere', color: Color(0xFFD5C2B2)),
         ProductColorOption(name: 'Obsidian Onyx', color: Color(0xFF222126)),
+        ProductColorOption(name: 'Venetian Terracotta', color: Color(0xFFB85B45)),
       ],
-    ];
-    const bespokeOptionBanks = [
-      ['Boutique Regular', 'Deluxe Edition', 'Collector Gift Set'],
-      ['Single Atelier Piece', 'Curated Duo Set', 'VIP Monogrammed Box'],
     ];
     return ProductVariationProfile(
-      primaryLabel: 'Finish / Edition',
+      primaryLabel: 'Finish / Tone',
       primaryOptions: bespokeColorBanks[seed % bespokeColorBanks.length],
-      secondaryLabel: 'Presentation',
-      secondaryOptions: bespokeOptionBanks[(seed ~/ 3) % bespokeOptionBanks.length],
+      secondaryLabel: 'Edition',
+      secondaryOptions: const ['Standard Edition', 'Gift Boxed'],
     );
   }
 }

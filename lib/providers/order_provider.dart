@@ -78,7 +78,10 @@ class OrderProvider with ChangeNotifier {
 
   int get returnRefundOrdersCount => _orders.where((o) {
         final norm = o.normalizedWebStatus;
-        return norm == 'returned' || norm == 'return_requested';
+        return norm == 'returned' ||
+            norm == 'return_requested' ||
+            o.hasReturnRequest ||
+            o.refundStatus == 'refunded';
       }).length;
 
   int get totalActiveOrdersCount =>
@@ -177,7 +180,11 @@ class OrderProvider with ChangeNotifier {
       final addr = (meta['address']?.isNotEmpty == true)
           ? meta['address']!
           : o.deliveryAddress;
-      final returnStatus = meta['return_status'];
+      final hasServerReturnDecision = (o.returnStatus != null && o.returnStatus!.isNotEmpty) ||
+          o.normalizedWebStatus == 'returned' ||
+          o.normalizedWebStatus == 'return_requested' ||
+          o.refundStatus == 'refunded';
+      final returnStatus = hasServerReturnDecision ? null : meta['return_status'];
       final effectiveStatus =
           (returnStatus != null && returnStatus.isNotEmpty && o.normalizedWebStatus == 'delivered')
               ? returnStatus
@@ -188,9 +195,9 @@ class OrderProvider with ChangeNotifier {
       final returnDisputeStatus =
           (o.returnDisputeStatus != null && o.returnDisputeStatus!.isNotEmpty)
               ? o.returnDisputeStatus
-              : meta['return_dispute_status'];
+              : (hasServerReturnDecision ? null : meta['return_dispute_status']);
       List<String> returnPhotos = o.returnEvidencePhotos;
-      if (returnPhotos.isEmpty && meta['return_photos']?.isNotEmpty == true) {
+      if (returnPhotos.isEmpty && !hasServerReturnDecision && meta['return_photos']?.isNotEmpty == true) {
         try {
           final decoded = jsonDecode(meta['return_photos']!) as List<dynamic>;
           returnPhotos = decoded.map((e) => e.toString()).toList();
@@ -241,6 +248,12 @@ class OrderProvider with ChangeNotifier {
         isDisputed: o.isDisputed,
         returnRejectionReason: o.returnRejectionReason,
         returnDisputeStatus: returnDisputeStatus,
+        returnStatus: o.returnStatus,
+        preferredSolution: o.preferredSolution,
+        returnReviewNote: o.returnReviewNote,
+        refundStatus: o.refundStatus,
+        refundAmount: o.refundAmount,
+        refundedAt: o.refundedAt,
         returnEvidencePhotos: returnPhotos,
         returnReason: returnReason,
         paymentProofPath: proof,
@@ -380,7 +393,10 @@ class OrderProvider with ChangeNotifier {
       if (normStatus.isNotEmpty && normStatus != 'all') {
         final orderNorm = order.normalizedWebStatus;
         if (normStatus == 'returned' || normStatus == 'return_requested') {
-          if (orderNorm != 'returned' && orderNorm != 'return_requested') {
+          if (orderNorm != 'returned' &&
+              orderNorm != 'return_requested' &&
+              !order.hasReturnRequest &&
+              order.refundStatus != 'refunded') {
             return false;
           }
         } else if (normStatus == 'packed') {
@@ -491,6 +507,9 @@ class OrderProvider with ChangeNotifier {
                     'product_id': resolveProductId(ci.product),
                     'quantity': ci.quantity,
                     'price': ci.unitPrice,
+                    if (ci.selectedVariantId != null) 'variant_id': ci.selectedVariantId,
+                    'variant_name': ci.selectedVariantName,
+                    'variation': ci.variationLabel,
                   })
               .toList(),
         );
@@ -693,14 +712,46 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  Future<void> escalateReturnDispute(String orderId, {String? disputeNotes}) async {
+  void _replaceOrderInMemory(OrderModel updated) {
+    final idx = _orders.indexWhere((o) => o.id == updated.id);
+    if (idx != -1) {
+      _orders[idx] = updated;
+    } else {
+      _orders.insert(0, updated);
+    }
+    _saveOrders();
+    notifyListeners();
+  }
+
+  Future<({bool success, String? message})> escalateReturnDispute(
+    String orderId, {
+    String? disputeNotes,
+  }) async {
     final order = getOrderById(orderId);
-    if (order == null) return;
+    if (order == null) {
+      return (success: false, message: 'Order not found.');
+    }
+
     if (ApiConfig.useLiveApi) {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('lumora_auth_token');
-      await ApiService().escalateDispute(orderId: orderId, disputeNotes: disputeNotes, token: token);
+      final apiRes = await ApiService().escalateDispute(
+        orderId: orderId,
+        disputeNotes: disputeNotes,
+        token: token,
+      );
+      if (!apiRes.success) {
+        return (
+          success: false,
+          message: apiRes.message ?? 'Could not escalate dispute to Lumora Admin.',
+        );
+      }
+      if (apiRes.order != null) {
+        _replaceOrderInMemory(apiRes.order!);
+        return (success: true, message: apiRes.message);
+      }
     }
+
     order.isDisputed = true;
     order.returnDisputeStatus = 'under_arbitration';
     order.statusHistory.add(
@@ -712,9 +763,10 @@ class OrderProvider with ChangeNotifier {
     );
     _saveOrders();
     notifyListeners();
+    return (success: true, message: 'Dispute escalated to Lumora Admin for official review.');
   }
 
-  Future<void> requestReturnRefund(
+  Future<({bool success, String? message})> requestReturnRefund(
     String orderId, {
     required String reason,
     String? reasonCode,
@@ -723,16 +775,42 @@ class OrderProvider with ChangeNotifier {
     List<String> photos = const [],
   }) async {
     final order = getOrderById(orderId);
-    if (order != null) {
-      order.returnReason = reason;
-      order.returnEvidencePhotos = photos;
-      order.returnDisputeStatus = 'pending_seller_review';
-    }
     final cleanDetails = details?.trim() ?? '';
     final note =
         'Buyer submitted a return/refund request ($reason): ${cleanDetails.isNotEmpty ? cleanDetails : solution} (${photos.length} evidence file(s) attached). Awaiting seller review.';
 
     final prefs = await SharedPreferences.getInstance();
+
+    if (ApiConfig.useLiveApi) {
+      final token = prefs.getString('lumora_auth_token');
+      final apiRes = await ApiService().requestReturnRefund(
+        orderId: orderId,
+        reason: reasonCode ?? reason,
+        solution: solution,
+        details: cleanDetails,
+        photos: photos,
+        token: token,
+      );
+      if (!apiRes.success) {
+        return (
+          success: false,
+          message: apiRes.message ?? 'Could not submit return/refund request.',
+        );
+      }
+
+      if (apiRes.order != null) {
+        _replaceOrderInMemory(apiRes.order!);
+        return (success: true, message: apiRes.message);
+      }
+    }
+
+    if (order != null) {
+      order.returnReason = reason;
+      order.returnEvidencePhotos = photos;
+      order.returnDisputeStatus = 'pending_seller_review';
+      order.returnStatus = 'pending';
+    }
+
     _loadPaymentMetaFromPrefs(prefs);
     final existingMeta = Map<String, String>.from(_orderPaymentMeta[orderId] ?? {});
     existingMeta['return_status'] = 'return_requested';
@@ -745,21 +823,15 @@ class OrderProvider with ChangeNotifier {
     _orderPaymentMeta[orderId] = existingMeta;
     await _savePaymentMetaToPrefs(prefs);
 
-    if (ApiConfig.useLiveApi) {
-      final token = prefs.getString('lumora_auth_token');
-      await ApiService().requestReturnRefund(
-        orderId: orderId,
-        reason: reasonCode ?? reason,
-        solution: solution,
-        details: cleanDetails,
-        photos: photos,
-        token: token,
-      );
-    }
     updateOrderStatus(
       orderId,
       'return_requested',
       notes: note,
+    );
+
+    return (
+      success: true,
+      message: 'Your return/refund request has been submitted and is awaiting seller review.',
     );
   }
 

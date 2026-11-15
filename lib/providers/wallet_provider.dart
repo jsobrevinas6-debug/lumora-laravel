@@ -12,6 +12,8 @@ class WalletProvider extends ChangeNotifier {
     _loadFromPrefs();
   }
 
+  Future<void> reload() => _loadFromPrefs();
+
   List<SavedPaymentMethod> get methods => List.unmodifiable(_methods);
 
   SavedPaymentMethod? get defaultMethod {

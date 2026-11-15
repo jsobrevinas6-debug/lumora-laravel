@@ -63,6 +63,53 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
+  @visibleForTesting
+  static http.Client? testHttpClient;
+
+  Future<http.Response> _httpGet(
+    Uri uri,
+    Map<String, String> headers, {
+    Duration? timeout,
+  }) {
+    final client = testHttpClient;
+    final fut = client != null ? client.get(uri, headers: headers) : http.get(uri, headers: headers);
+    return fut.timeout(timeout ?? ApiConfig.timeout);
+  }
+
+  Future<http.Response> _httpPost(
+    Uri uri,
+    Map<String, String> headers, {
+    Object? body,
+    Duration? timeout,
+  }) {
+    final client = testHttpClient;
+    final fut = client != null
+        ? client.post(uri, headers: headers, body: body)
+        : http.post(uri, headers: headers, body: body);
+    return fut.timeout(timeout ?? ApiConfig.timeout);
+  }
+
+  Future<http.Response> _httpDelete(
+    Uri uri,
+    Map<String, String> headers, {
+    Object? body,
+    Duration? timeout,
+  }) {
+    final client = testHttpClient;
+    final fut = client != null
+        ? client.delete(uri, headers: headers, body: body)
+        : http.delete(uri, headers: headers, body: body);
+    return fut.timeout(timeout ?? ApiConfig.timeout);
+  }
+
+  dynamic _tryDecodeJson(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Headers helper
   Map<String, String> _headers({String? token}) {
     return {
@@ -1020,8 +1067,21 @@ class ApiService {
     return 'other';
   }
 
+  OrderModel? _parseOrderData(dynamic decoded) {
+    if (decoded is Map) {
+      final rawData = decoded['data'];
+      if (rawData is Map<String, dynamic>) {
+        return OrderModel.fromJson(rawData);
+      }
+      if (rawData is Map) {
+        return OrderModel.fromJson(Map<String, dynamic>.from(rawData));
+      }
+    }
+    return null;
+  }
+
   /// 8. Return & Refund Request (1:1 Web Parity: Buyer/OrderController@requestReturn)
-  Future<bool> requestReturnRefund({
+  Future<({bool success, String? message, OrderModel? order})> requestReturnRefund({
     required String orderId,
     required String reason,
     required String solution,
@@ -1035,94 +1095,141 @@ class ApiService {
         ? details.trim()
         : '${details?.trim() ?? ''} — Buyer requested return/refund ($reason).'.trim();
 
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/return'),
-      );
-      request.headers.addAll(await _buyerHeaders(token: tok, jsonContent: false));
-      request.fields['reason'] = reasonCode;
-      request.fields['details'] = effectiveDetails;
-      request.fields['description'] = effectiveDetails;
-      request.fields['preferred_solution'] = solution;
+    final hasLocalFiles = !kIsWeb && photos.any((p) => !p.startsWith('data:image') && File(p).existsSync());
 
-      for (int i = 0; i < photos.length && i < 5; i++) {
-        final photo = photos[i];
-        if (photo.startsWith('data:image')) {
-          final rawBase64 = photo.split(',').last.replaceAll(RegExp(r'\s+'), '');
-          final bytes = base64Decode(rawBase64);
-          String ext = 'jpg';
-          if (bytes.length >= 4 &&
-              bytes[0] == 0x89 &&
-              bytes[1] == 0x50 &&
-              bytes[2] == 0x4E &&
-              bytes[3] == 0x47) {
-            ext = 'png';
+    if (hasLocalFiles && testHttpClient == null) {
+      try {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/return'),
+        );
+        request.headers.addAll(await _buyerHeaders(token: tok, jsonContent: false));
+        request.fields['reason'] = reasonCode;
+        request.fields['details'] = effectiveDetails;
+        request.fields['description'] = effectiveDetails;
+        request.fields['preferred_solution'] = solution;
+
+        for (int i = 0; i < photos.length && i < 5; i++) {
+          final photo = photos[i];
+          if (photo.startsWith('data:image')) {
+            final rawBase64 = photo.split(',').last.replaceAll(RegExp(r'\s+'), '');
+            final bytes = base64Decode(rawBase64);
+            String ext = 'jpg';
+            if (bytes.length >= 4 &&
+                bytes[0] == 0x89 &&
+                bytes[1] == 0x50 &&
+                bytes[2] == 0x4E &&
+                bytes[3] == 0x47) {
+              ext = 'png';
+            }
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'evidence[]',
+                bytes,
+                filename: 'return_evidence_${i + 1}.$ext',
+              ),
+            );
+          } else if (File(photo).existsSync()) {
+            request.files.add(await http.MultipartFile.fromPath('evidence[]', photo));
           }
-          request.files.add(
-            http.MultipartFile.fromBytes(
-              'evidence[]',
-              bytes,
-              filename: 'return_evidence_${i + 1}.$ext',
-            ),
-          );
-        } else if (File(photo).existsSync()) {
-          request.files.add(await http.MultipartFile.fromPath('evidence[]', photo));
         }
-      }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 20));
-      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
-        return true;
+        final streamed = await request.send().timeout(const Duration(seconds: 25));
+        final responseBody = await streamed.stream.bytesToString();
+        final decoded = _tryDecodeJson(responseBody);
+
+        if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+          return (
+            success: true,
+            message: (decoded is Map ? decoded['message']?.toString() : null) ??
+                'Return/refund request submitted for seller review.',
+            order: _parseOrderData(decoded),
+          );
+        }
+
+        if (streamed.statusCode >= 400 && streamed.statusCode < 500) {
+          return (
+            success: false,
+            message: _extractApiError(decoded, 'Could not submit return/refund request.'),
+            order: null,
+          );
+        }
+      } catch (e) {
+        debugPrint('ApiService.requestReturnRefund multipart error: $e');
       }
-    } catch (e) {
-      debugPrint('ApiService.requestReturnRefund multipart error: $e');
     }
 
     try {
-      final response = await http
-          .post(
-            Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/return'),
-            headers: await _buyerHeaders(token: tok),
-            body: jsonEncode({
-              'reason': reasonCode,
-              'details': effectiveDetails,
-              'preferred_solution': solution,
-              'description': effectiveDetails,
-              'evidence_photos': photos,
-            }),
-          )
-          .timeout(ApiConfig.timeout);
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/return'),
+        await _buyerHeaders(token: tok),
+        body: jsonEncode({
+          'reason': reasonCode,
+          'details': effectiveDetails,
+          'preferred_solution': solution,
+          'description': effectiveDetails,
+          'evidence_photos': photos,
+        }),
+        timeout: const Duration(seconds: 25),
+      );
+      final decoded = _tryDecodeJson(response.body);
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              'Return/refund request submitted for seller review.',
+          order: _parseOrderData(decoded),
+        );
+      }
+
+      return (
+        success: false,
+        message: _extractApiError(decoded, 'Could not submit return/refund request.'),
+        order: null,
+      );
     } catch (e) {
       debugPrint('ApiService.requestReturnRefund error: $e');
-      return false;
+      return (success: false, message: 'Network error: $e', order: null);
     }
   }
 
   /// 9. Escalate Return Dispute to Admin (Web Parity: Buyer/DisputeController@store)
-  Future<bool> escalateDispute({
+  Future<({bool success, String? message, OrderModel? order})> escalateDispute({
     required String orderId,
     String? disputeNotes,
     String? token,
   }) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/dispute'),
-            headers: await _buyerHeaders(token: token),
-            body: jsonEncode({
-              'dispute_notes': disputeNotes,
-              'escalated_at': DateTime.now().toIso8601String(),
-            }),
-          )
-          .timeout(ApiConfig.timeout);
+      final tok = token ?? await _getToken();
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/orders/$orderId/dispute'),
+        await _buyerHeaders(token: tok),
+        body: jsonEncode({
+          'dispute_notes': disputeNotes,
+          'escalated_at': DateTime.now().toIso8601String(),
+        }),
+        timeout: ApiConfig.timeout,
+      );
+      final decoded = _tryDecodeJson(response.body);
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              'Dispute escalated to Lumora Admin for official review.',
+          order: _parseOrderData(decoded),
+        );
+      }
+
+      return (
+        success: false,
+        message: _extractApiError(decoded, 'Could not escalate dispute to Lumora Admin.'),
+        order: null,
+      );
     } catch (e) {
       debugPrint('ApiService.escalateDispute error: $e');
-      return false;
+      return (success: false, message: 'Network error: $e', order: null);
     }
   }
 
@@ -1250,13 +1357,39 @@ class ApiService {
     }
   }
 
+  String _extractApiError(dynamic decoded, String fallback) {
+    if (decoded is Map<String, dynamic>) {
+      final errors = decoded['errors'];
+      if (errors is Map && errors.isNotEmpty) {
+        for (final val in errors.values) {
+          if (val is List && val.isNotEmpty) {
+            return val.first.toString();
+          }
+          if (val != null && val.toString().trim().isNotEmpty) {
+            return val.toString();
+          }
+        }
+      }
+      final msg = decoded['message']?.toString();
+      if (msg != null && msg.trim().isNotEmpty) return msg.trim();
+    }
+    return fallback;
+  }
+
   /// 10.7. Update Buyer Profile
-  Future<bool> updateProfile({
+  Future<({bool success, String? message, Map<String, dynamic>? user})> updateProfile({
     required Map<String, dynamic> data,
     String? token,
   }) async {
     try {
       final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (
+          success: false,
+          message: 'Please sign in again to save profile changes.',
+          user: null,
+        );
+      }
       final response = await http
           .put(
             Uri.parse('${ApiConfig.baseUrl}/auth/profile'),
@@ -1265,10 +1398,92 @@ class ApiService {
           )
           .timeout(ApiConfig.timeout);
 
-      return response.statusCode == 200;
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        final userMap = decoded is Map<String, dynamic> && decoded['user'] is Map<String, dynamic>
+            ? decoded['user'] as Map<String, dynamic>
+            : null;
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              'Profile updated successfully.',
+          user: userMap,
+        );
+      }
+      return (
+        success: false,
+        message: _extractApiError(decoded, 'Unable to update profile (HTTP ${response.statusCode}).'),
+        user: null,
+      );
     } catch (e) {
       debugPrint('ApiService.updateProfile error: $e');
-      return false;
+      return (success: false, message: 'Network error: $e', user: null);
+    }
+  }
+
+  /// 10.7b. Upload, Update, or Remove Buyer Avatar
+  Future<({bool success, String? avatarUrl, String? message, Map<String, dynamic>? user})>
+      updateAvatar({
+    required String avatarData,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, avatarUrl: null, message: 'Session expired.', user: null);
+      }
+
+      final trimmed = avatarData.trim();
+      final http.Response response = trimmed.isEmpty
+          ? await _httpDelete(
+              Uri.parse('${ApiConfig.baseUrl}/auth/avatar'),
+              _headers(token: tok),
+            )
+          : await _httpPost(
+              Uri.parse('${ApiConfig.baseUrl}/auth/avatar'),
+              _headers(token: tok),
+              body: jsonEncode({'avatar_data': trimmed}),
+              timeout: const Duration(seconds: 25),
+            );
+
+      final decoded = _tryDecodeJson(response.body);
+
+      if (response.statusCode == 200) {
+        final userMap = decoded is Map<String, dynamic> && decoded['user'] is Map<String, dynamic>
+            ? decoded['user'] as Map<String, dynamic>
+            : (decoded is Map && decoded['user'] is Map
+                ? Map<String, dynamic>.from(decoded['user'] as Map)
+                : null);
+        final rawAvatar = decoded is Map ? (decoded['avatar_url'] ?? decoded['avatar']) : null;
+        final resolvedUrl = trimmed.isEmpty
+            ? null
+            : (rawAvatar?.toString() ?? userMap?['avatar']?.toString());
+        return (
+          success: true,
+          avatarUrl: resolvedUrl,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              (trimmed.isEmpty ? 'Profile photo removed.' : 'Profile photo updated.'),
+          user: userMap,
+        );
+      }
+      final fallbackMsg = response.statusCode == 404
+          ? 'Profile photo endpoint (/api/auth/avatar) was not found on ${ApiConfig.baseUrl}. Please deploy the updated Laravel backend.'
+          : 'Could not update avatar.';
+      return (
+        success: false,
+        avatarUrl: null,
+        message: response.statusCode == 404
+            ? fallbackMsg
+            : _extractApiError(decoded, fallbackMsg),
+        user: null,
+      );
+    } catch (e) {
+      debugPrint('ApiService.updateAvatar error: $e');
+      return (success: false, avatarUrl: null, message: 'Network error: $e', user: null);
     }
   }
 
@@ -1280,6 +1495,9 @@ class ApiService {
   }) async {
     try {
       final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, message: 'Please sign in again to change your password.');
+      }
       final response = await http
           .put(
             Uri.parse('${ApiConfig.baseUrl}/auth/profile/password'),
@@ -1287,18 +1505,146 @@ class ApiService {
             body: jsonEncode({
               'current_password': currentPassword,
               'new_password': newPassword,
+              'new_password_confirmation': newPassword,
             }),
           )
           .timeout(ApiConfig.timeout);
 
-      final decoded = jsonDecode(response.body);
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {}
       if (response.statusCode == 200) {
-        return (success: true, message: decoded['message']?.toString() ?? 'Password updated successfully.');
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              'Password updated successfully.',
+        );
       } else {
-        return (success: false, message: decoded['message']?.toString() ?? 'Failed to update password.');
+        return (
+          success: false,
+          message: _extractApiError(decoded, 'Failed to update password.'),
+        );
       }
     } catch (e) {
       debugPrint('ApiService.updatePassword error: $e');
+      return (success: false, message: 'Network error: $e');
+    }
+  }
+
+  /// 10.9. Delete Account Permanently (with server-side password re-verification)
+  Future<({bool success, String? message})> deleteProfile({
+    String? password,
+    String? confirmText,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, message: 'Session expired.');
+      }
+      final response = await http
+          .delete(
+            Uri.parse('${ApiConfig.baseUrl}/auth/profile'),
+            headers: _headers(token: tok),
+            body: jsonEncode({
+              if (password != null && password.isNotEmpty) 'password': password,
+              if (confirmText != null && confirmText.isNotEmpty) 'confirm_text': confirmText,
+            }),
+          )
+          .timeout(ApiConfig.timeout);
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ??
+              'Account permanently deleted.',
+        );
+      }
+      return (
+        success: false,
+        message: _extractApiError(decoded, 'Unable to delete account (HTTP ${response.statusCode}).'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.deleteProfile error: $e');
+      return (success: false, message: 'Network error: $e');
+    }
+  }
+
+  /// 10.10. Fetch Active Sanctum Device Sessions
+  Future<({bool success, List<Map<String, dynamic>> sessions, String? message})> fetchSessions({
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, sessions: const <Map<String, dynamic>>[], message: 'Not signed in.');
+      }
+      final response = await _httpGet(
+        Uri.parse('${ApiConfig.baseUrl}/auth/sessions'),
+        _headers(token: tok),
+      );
+
+      final decoded = _tryDecodeJson(response.body);
+      final rawSessions = decoded is Map ? (decoded['data'] ?? decoded['sessions']) : null;
+
+      if (response.statusCode == 200 && rawSessions is List) {
+        final list = rawSessions
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        return (success: true, sessions: list, message: null);
+      }
+      return (
+        success: false,
+        sessions: const <Map<String, dynamic>>[],
+        message: _extractApiError(decoded, 'Unable to load active sessions.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.fetchSessions error: $e');
+      return (success: false, sessions: const <Map<String, dynamic>>[], message: 'Network error: $e');
+    }
+  }
+
+  /// 10.11. Revoke a specific session ID or 'others'
+  Future<({bool success, String? message})> revokeSession({
+    required String idOrOthers,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, message: 'Not signed in.');
+      }
+      final response = await http
+          .delete(
+            Uri.parse('${ApiConfig.baseUrl}/auth/sessions/$idOrOthers'),
+            headers: _headers(token: tok),
+          )
+          .timeout(ApiConfig.timeout);
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        return (
+          success: true,
+          message: (decoded is Map ? decoded['message']?.toString() : null) ?? 'Session revoked.',
+        );
+      }
+      return (
+        success: false,
+        message: _extractApiError(decoded, 'Could not revoke session.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.revokeSession error: $e');
       return (success: false, message: 'Network error: $e');
     }
   }
@@ -1361,17 +1707,24 @@ class ApiService {
     final gallery = (json['images'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
     final imagePath = json['image_path']?.toString() ?? (gallery.isNotEmpty ? gallery.first : null);
     final sellerName = json['seller_name']?.toString() ?? 'LUMORA Official Store';
-    final rawCategory = (json['category_id'] ?? json['category_name'] ?? 'Luxury').toString();
+    final productName = json['name']?.toString() ?? '';
+    final rawCategory = (json['category_id'] ?? json['category_name'] ?? '').toString().trim();
+    final parsedVariants = (json['variants'] as List?)
+            ?.whereType<Map>()
+            .map((v) => ProductVariant.fromJson(Map<String, dynamic>.from(v)))
+            .where((v) => v.name.isNotEmpty)
+            .toList() ??
+        const <ProductVariant>[];
 
     return Product(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
+      name: productName,
       brand: sellerName,
       price: (json['price'] != null) ? double.tryParse(json['price'].toString()) ?? 0.0 : 0.0,
       originalPrice: json['original_price'] != null
           ? double.tryParse(json['original_price'].toString())
           : null,
-      category: _mapToDepartment(rawCategory),
+      category: _mapToDepartment(rawCategory, productName: productName),
       description: json['description']?.toString() ?? '',
       rating: (json['rating'] != null) ? double.tryParse(json['rating'].toString()) ?? 4.8 : 4.8,
       reviewsCount: int.tryParse(json['reviews_count']?.toString() ?? '0') ?? 0,
@@ -1379,6 +1732,8 @@ class ApiService {
       discountLabel: json['discount_label']?.toString(),
       isFlashDeal: json['is_flash_deal'] == 1 || json['is_flash_deal'] == true,
       stock: int.tryParse(json['stock']?.toString() ?? '25') ?? 25,
+      variantType: json['variant_type']?.toString(),
+      variants: parsedVariants,
       imagePath: imagePath,
       galleryImages: gallery,
       sellerId: json['seller_id']?.toString() ?? 'store_lumora_official',
@@ -1389,8 +1744,8 @@ class ApiService {
   }
 
   /// Maps Laravel leaf category slugs/labels to the mobile app's top-level departments.
-  String _mapToDepartment(String raw) {
-    final s = raw.toLowerCase();
+  String _mapToDepartment(String raw, {String productName = ''}) {
+    final s = raw.toLowerCase().trim();
     if (s.startsWith('womens-') || s == 'women') return 'Women';
     if (s.startsWith('mens-') || s == 'men' || s == 'shavers-trimmers') return 'Men';
     if (const {
@@ -1411,6 +1766,375 @@ class ApiService {
     if (const {'sports', 'sports-outdoors', 'running', 'basketball', 'football', 'hiking', 'fitness'}.contains(s)) {
       return 'Sports';
     }
+    if (s.isEmpty || s == 'luxury' || s == 'general' || s == 'uncategorized') {
+      final n = productName.toLowerCase();
+      if (RegExp(r'\b(soap|clay|mask|butter|serum|lotion|cream|cleanser|perfume)\b').hasMatch(n)) {
+        return 'Beauty';
+      }
+      if (RegExp(r'\b(phone|xiaomi|iphone|airpods|laptop|charger|camera|earbuds)\b').hasMatch(n)) {
+        return 'Electronics';
+      }
+      if (RegExp(r'\b(basketball|football|yoga|dumbbell|fitness)\b').hasMatch(n)) {
+        return 'Sports';
+      }
+    }
     return raw.isEmpty ? 'Luxury' : raw;
+  }
+
+  /// 11. Fetch Buyer Seller Conversations & Support Summary
+  Future<({
+    bool success,
+    List<ConversationThread> conversations,
+    ConversationThread? supportConversation,
+    int totalUnread,
+    String? message,
+  })> fetchConversations({String? token}) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (
+          success: false,
+          conversations: const <ConversationThread>[],
+          supportConversation: null,
+          totalUnread: 0,
+          message: 'Not signed in.',
+        );
+      }
+
+      final response = await _httpGet(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/chats'),
+        _headers(token: tok),
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if (response.statusCode == 200 && decoded is Map) {
+        final rawList = (decoded['conversations'] as List?) ?? const [];
+        final threads = rawList
+            .whereType<Map>()
+            .map((e) => ConversationThread.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        final rawSupport = decoded['support_conversation'];
+        final supportThread = rawSupport is Map
+            ? ConversationThread.fromJson(Map<String, dynamic>.from(rawSupport))
+            : null;
+        final unread = (decoded['total_unread'] as num?)?.toInt() ?? 0;
+        return (
+          success: true,
+          conversations: threads,
+          supportConversation: supportThread,
+          totalUnread: unread,
+          message: null,
+        );
+      }
+
+      return (
+        success: false,
+        conversations: const <ConversationThread>[],
+        supportConversation: null,
+        totalUnread: 0,
+        message: _extractApiError(decoded, 'Unable to load conversations.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.fetchConversations error: $e');
+      return (
+        success: false,
+        conversations: const <ConversationThread>[],
+        supportConversation: null,
+        totalUnread: 0,
+        message: 'Network error: $e',
+      );
+    }
+  }
+
+  /// 11.2. Start or Resume a Seller Conversation
+  Future<({bool success, ConversationThread? conversation, String? message})>
+      startSellerConversation({
+    String? sellerId,
+    String? sellerName,
+    int? productId,
+    String? initialMessage,
+    String? attachmentData,
+    String? attachmentName,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, conversation: null, message: 'Not signed in.');
+      }
+
+      final payload = <String, dynamic>{
+        if (sellerId != null && sellerId.trim().isNotEmpty) 'seller_id': sellerId.trim(),
+        if (sellerName != null && sellerName.trim().isNotEmpty) 'seller_name': sellerName.trim(),
+        'product_id': ?productId,
+        if (initialMessage != null && initialMessage.trim().isNotEmpty)
+          'message': initialMessage.trim(),
+        if (attachmentData != null && attachmentData.trim().isNotEmpty)
+          'attachment_data': attachmentData.trim(),
+        if (attachmentName != null && attachmentName.trim().isNotEmpty)
+          'attachment_name': attachmentName.trim(),
+      };
+
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/chats/start'),
+        _headers(token: tok),
+        body: jsonEncode(payload),
+        timeout: attachmentData != null ? const Duration(seconds: 25) : ApiConfig.timeout,
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decoded is Map &&
+          decoded['conversation'] is Map) {
+        final conv = ConversationThread.fromJson(
+          Map<String, dynamic>.from(decoded['conversation'] as Map),
+        );
+        return (success: true, conversation: conv, message: null);
+      }
+
+      return (
+        success: false,
+        conversation: null,
+        message: _extractApiError(decoded, 'Unable to open store conversation.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.startSellerConversation error: $e');
+      return (success: false, conversation: null, message: 'Network error: $e');
+    }
+  }
+
+  /// 11.3. Fetch Full Seller Conversation History
+  Future<({bool success, ConversationThread? conversation, String? message})>
+      fetchConversationMessages({
+    required String conversationId,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, conversation: null, message: 'Not signed in.');
+      }
+
+      final response = await _httpGet(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/chats/$conversationId'),
+        _headers(token: tok),
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if (response.statusCode == 200 && decoded is Map && decoded['conversation'] is Map) {
+        return (
+          success: true,
+          conversation: ConversationThread.fromJson(
+            Map<String, dynamic>.from(decoded['conversation'] as Map),
+          ),
+          message: null,
+        );
+      }
+
+      return (
+        success: false,
+        conversation: null,
+        message: _extractApiError(decoded, 'Unable to load conversation messages.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.fetchConversationMessages error: $e');
+      return (success: false, conversation: null, message: 'Network error: $e');
+    }
+  }
+
+  /// 11.4. Send Message / Attachment to Seller
+  Future<({
+    bool success,
+    ChatMessage? messageItem,
+    ConversationThread? conversation,
+    String? message,
+  })> sendSellerMessage({
+    required String conversationId,
+    required String body,
+    String? attachmentData,
+    String? attachmentName,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (
+          success: false,
+          messageItem: null,
+          conversation: null,
+          message: 'Not signed in.',
+        );
+      }
+
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/chats/$conversationId/messages'),
+        _headers(token: tok),
+        body: jsonEncode({
+          'message': body,
+          if (attachmentData != null && attachmentData.trim().isNotEmpty)
+            'attachment_data': attachmentData.trim(),
+          if (attachmentName != null && attachmentName.trim().isNotEmpty)
+            'attachment_name': attachmentName.trim(),
+        }),
+        timeout: attachmentData != null ? const Duration(seconds: 25) : ApiConfig.timeout,
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && decoded is Map) {
+        final item = decoded['message_item'] is Map
+            ? ChatMessage.fromJson(Map<String, dynamic>.from(decoded['message_item'] as Map))
+            : null;
+        final conv = decoded['conversation'] is Map
+            ? ConversationThread.fromJson(Map<String, dynamic>.from(decoded['conversation'] as Map))
+            : null;
+        return (success: true, messageItem: item, conversation: conv, message: null);
+      }
+
+      return (
+        success: false,
+        messageItem: null,
+        conversation: null,
+        message: _extractApiError(decoded, 'Failed to send message.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.sendSellerMessage error: $e');
+      return (
+        success: false,
+        messageItem: null,
+        conversation: null,
+        message: 'Network error: $e',
+      );
+    }
+  }
+
+  /// 11.5. Mark Seller Conversation Read
+  Future<bool> markConversationRead({
+    required String conversationId,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) return false;
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/buyer/chats/$conversationId/read'),
+        _headers(token: tok),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 11.6. Fetch Lumora Support Concierge Chat
+  Future<({bool success, ConversationThread? conversation, String? message})>
+      fetchSupportConversation({String? token}) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (success: false, conversation: null, message: 'Not signed in.');
+      }
+
+      final response = await _httpGet(
+        Uri.parse('${ApiConfig.baseUrl}/support/chat'),
+        _headers(token: tok),
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if (response.statusCode == 200 && decoded is Map && decoded['conversation'] is Map) {
+        return (
+          success: true,
+          conversation: ConversationThread.fromJson(
+            Map<String, dynamic>.from(decoded['conversation'] as Map),
+          ),
+          message: null,
+        );
+      }
+
+      return (
+        success: false,
+        conversation: null,
+        message: _extractApiError(decoded, 'Unable to load Support concierge chat.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.fetchSupportConversation error: $e');
+      return (success: false, conversation: null, message: 'Network error: $e');
+    }
+  }
+
+  /// 11.7. Send Message / Attachment to Lumora Support Concierge (+ Gemini Bot)
+  Future<({
+    bool success,
+    ChatMessage? userMessage,
+    ChatMessage? botMessage,
+    ConversationThread? conversation,
+    String? message,
+  })> sendSupportMessage({
+    required String body,
+    String? attachmentData,
+    String? attachmentName,
+    String? token,
+  }) async {
+    try {
+      final tok = token ?? await _getToken();
+      if (tok == null || tok.isEmpty) {
+        return (
+          success: false,
+          userMessage: null,
+          botMessage: null,
+          conversation: null,
+          message: 'Not signed in.',
+        );
+      }
+
+      final response = await _httpPost(
+        Uri.parse('${ApiConfig.baseUrl}/support/chat/send'),
+        _headers(token: tok),
+        body: jsonEncode({
+          'message': body,
+          if (attachmentData != null && attachmentData.trim().isNotEmpty)
+            'attachment_data': attachmentData.trim(),
+          if (attachmentName != null && attachmentName.trim().isNotEmpty)
+            'attachment_name': attachmentName.trim(),
+        }),
+        timeout: const Duration(seconds: 25),
+      );
+      final decoded = _tryDecodeJson(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && decoded is Map) {
+        final userMsg = decoded['message_item'] is Map
+            ? ChatMessage.fromJson(Map<String, dynamic>.from(decoded['message_item'] as Map))
+            : null;
+        final botMsg = decoded['bot_message'] is Map
+            ? ChatMessage.fromJson(Map<String, dynamic>.from(decoded['bot_message'] as Map))
+            : null;
+        final conv = decoded['conversation'] is Map
+            ? ConversationThread.fromJson(Map<String, dynamic>.from(decoded['conversation'] as Map))
+            : null;
+        return (
+          success: true,
+          userMessage: userMsg,
+          botMessage: botMsg,
+          conversation: conv,
+          message: null,
+        );
+      }
+
+      return (
+        success: false,
+        userMessage: null,
+        botMessage: null,
+        conversation: null,
+        message: _extractApiError(decoded, 'Failed to contact Lumora Support.'),
+      );
+    } catch (e) {
+      debugPrint('ApiService.sendSupportMessage error: $e');
+      return (
+        success: false,
+        userMessage: null,
+        botMessage: null,
+        conversation: null,
+        message: 'Network error: $e',
+      );
+    }
   }
 }

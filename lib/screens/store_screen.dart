@@ -26,6 +26,22 @@ class _StoreScreenState extends State<StoreScreen> {
   String _selectedCategory = 'All';
   String _selectedSubcategory = 'All Products';
 
+  @override
+  void initState() {
+    super.initState();
+    MockData.catalogVersion.addListener(_onCatalogUpdated);
+  }
+
+  void _onCatalogUpdated() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    MockData.catalogVersion.removeListener(_onCatalogUpdated);
+    super.dispose();
+  }
+
   static const Map<String, List<String>> _storeCategoryTree = {
     'All': ['All Products', 'Best Sellers', 'New Arrivals'],
     'Beauty': ['All Beauty', 'Skincare & Serums', 'Fragrance', 'Makeup & Lipsticks'],
@@ -115,8 +131,19 @@ class _StoreScreenState extends State<StoreScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F1EC),
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AppColors.plum,
+        backgroundColor: AppColors.cream,
+        onRefresh: () async {
+          HapticService.selection();
+          await MockData.syncFromApi();
+          if (mounted) setState(() {});
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
           // App Bar with Cover Banner
           SliverAppBar(
             expandedHeight: 200,
@@ -411,6 +438,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => ChatScreen(
+                                      sellerId: widget.shop.id,
                                       sellerName: widget.shop.name,
                                       sellerRole: 'Merchant',
                                     ),
@@ -555,9 +583,12 @@ class _StoreScreenState extends State<StoreScreen> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.62,
+                  mainAxisExtent: LumoraGridMetrics.productCardExtent(
+                    context,
+                    horizontalPadding: 32,
+                  ),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 14,
                 ),
@@ -574,6 +605,7 @@ class _StoreScreenState extends State<StoreScreen> {
               ),
             ),
         ],
+      ),
       ),
     );
   }

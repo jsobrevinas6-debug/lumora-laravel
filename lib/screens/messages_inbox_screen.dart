@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../models/models.dart';
+import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
@@ -18,6 +19,20 @@ class MessagesInboxScreen extends StatefulWidget {
 class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final chat = Provider.of<ChatProvider>(context, listen: false);
+      chat.syncWithAuth(auth.currentUser?.email, token: auth.authToken);
+      if (auth.isLoggedIn && (auth.authToken?.isNotEmpty ?? false)) {
+        chat.refreshFromServer(token: auth.authToken);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -128,11 +143,16 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    onTap: () {
+                    onTap: () async {
                       HapticService.selection();
-                      Navigator.of(context).push(
+                      await Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const ChatScreen()),
                       );
+                      if (!context.mounted) return;
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      if (auth.isLoggedIn) {
+                        await chatProvider.refreshFromServer(token: auth.authToken);
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.all(14),
@@ -212,6 +232,24 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
                               ],
                             ),
                           ),
+                          if ((chatProvider.supportThread?.unreadCount ?? 0) > 0) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.gold,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                '${chatProvider.supportThread!.unreadCount}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.plum,
+                                ),
+                              ),
+                            ),
+                          ],
                           const Icon(Icons.chevron_right, color: Colors.white70),
                         ],
                       ),
@@ -223,34 +261,61 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
 
                 // Seller Conversations List
                 Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                  child: RefreshIndicator(
+                    color: AppColors.plum,
+                    backgroundColor: AppColors.cream,
+                    onRefresh: () async {
+                      HapticService.selection();
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      await chatProvider.syncWithAuth(
+                        auth.currentUser?.email,
+                        token: auth.authToken,
+                      );
+                      await chatProvider.refreshFromServer(token: auth.authToken);
+                    },
+                    child: filtered.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
                             children: [
-                              const Icon(Icons.chat_bubble_outline, size: 42, color: AppColors.muted),
-                              const SizedBox(height: 10),
-                              Text(
-                                'No seller conversations found',
-                                style: AppTextStyles.heading(size: 16, color: AppColors.plum),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Visit any boutique or product page to chat with a seller.',
-                                style: AppTextStyles.body(size: 12, color: AppColors.muted),
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.55,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.chat_bubble_outline, size: 42, color: AppColors.muted),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'No seller conversations found',
+                                        style: AppTextStyles.heading(size: 16, color: AppColors.plum),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Visit any boutique or product page to chat with a seller.',
+                                        style: AppTextStyles.body(size: 12, color: AppColors.muted),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, index) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final thread = filtered[index];
+                              return _buildThreadCard(context, chatProvider, thread);
+                            },
                           ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, index) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final thread = filtered[index];
-                            return _buildThreadCard(context, chatProvider, thread);
-                          },
-                        ),
+                  ),
                 ),
               ],
             ),
@@ -268,18 +333,25 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
     final hasUnread = thread.unreadCount > 0;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {
+      onTap: () async {
         HapticService.selection();
         chatProvider.markThreadRead(thread.id);
-        Navigator.of(context).push(
+        await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => ChatScreen(
+              conversationId: thread.id,
+              sellerId: thread.sellerId,
               sellerName: thread.sellerName,
               sellerRole: thread.sellerRole,
               productContext: thread.productContext,
             ),
           ),
         );
+        if (!context.mounted) return;
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        if (auth.isLoggedIn) {
+          await chatProvider.refreshFromServer(token: auth.authToken);
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(14),

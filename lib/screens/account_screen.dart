@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,11 +13,13 @@ import '../providers/wallet_provider.dart';
 import '../providers/wishlist_provider.dart';
 import '../providers/follow_provider.dart';
 import '../services/address_service.dart';
+import '../services/api_service.dart';
 import '../services/haptic_service.dart';
 import '../services/native_photo_picker.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_modal.dart';
 import '../widgets/cards.dart';
+import '../widgets/luxury_date_picker.dart';
 import '../widgets/luxury_snackbar.dart';
 import '../widgets/order_tracking_modal.dart';
 import '../widgets/notification_center_modal.dart';
@@ -42,70 +45,99 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _rewardReminders = true;
   bool _hasViewedVouchers = false;
 
+  Future<void> _handleRefresh(BuildContext context, AuthProvider auth) async {
+    HapticService.selection();
+    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+    await Future.wait([
+      MockData.syncFromApi(),
+      auth.refreshSession(),
+      orderProvider.refreshOrders(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final wishlist = Provider.of<WishlistProvider>(context);
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 90),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(auth),
-                const SizedBox(height: 14),
-                _buildVipBanner(context, auth),
-                const SizedBox(height: 18),
-                _buildProfileCard(context, auth),
-                const SizedBox(height: 18),
-                _buildOrderTracker(context, auth),
-                const SizedBox(height: 24),
-                _buildActivitySection(context, auth, wishlist),
-                const SizedBox(height: 24),
-                _buildSupportSection(context),
-                const SizedBox(height: 24),
-                if (auth.isLoggedIn) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFD46A6A), width: 1.5),
-                        foregroundColor: const Color(0xFFD46A6A),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+    return ValueListenableBuilder<bool>(
+      valueListenable: LumoraAppearanceController.highContrastMode,
+      builder: (context, highContrast, _) {
+        final secondaryInk = AppColors.secondaryInk(highContrast: highContrast);
+        final cardBorder = AppColors.cardBorder(highContrast: highContrast);
+
+        return Scaffold(
+          body: Container(
+            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+            child: SafeArea(
+              child: RefreshIndicator(
+                color: AppColors.plum,
+                backgroundColor: AppColors.cream,
+                onRefresh: () => _handleRefresh(context, auth),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 90),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(auth),
+                      const SizedBox(height: 14),
+                      _buildVipBanner(context, auth),
+                      const SizedBox(height: 18),
+                      _buildProfileCard(
+                        context,
+                        auth,
+                        secondaryInk: secondaryInk,
+                        cardBorder: cardBorder,
                       ),
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: Text(
-                        'Log Out',
-                        style: AppTextStyles.body(
-                          size: 13.5,
-                          weight: FontWeight.w700,
-                          color: const Color(0xFFD46A6A),
+                      const SizedBox(height: 18),
+                      _buildOrderTracker(context, auth),
+                      const SizedBox(height: 24),
+                      _buildActivitySection(context, auth, wishlist),
+                      const SizedBox(height: 24),
+                      _buildSupportSection(context),
+                      const SizedBox(height: 24),
+                      if (auth.isLoggedIn) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: AppColors.dangerBg,
+                              side: const BorderSide(color: AppColors.danger, width: 1.4),
+                              foregroundColor: AppColors.danger,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            icon: const Icon(Icons.logout, size: 18),
+                            label: Text(
+                              'Log Out',
+                              style: AppTextStyles.body(
+                                size: 13.5,
+                                weight: FontWeight.w700,
+                                color: AppColors.danger,
+                              ),
+                            ),
+                            onPressed: () => _confirmLogout(context, auth),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Center(
+                        child: Text(
+                          'Lumora Luxury v1.0.0 (Build 1)',
+                          style: AppTextStyles.body(size: 11.5, color: secondaryInk),
                         ),
                       ),
-                      onPressed: () => _confirmLogout(context, auth),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Center(
-                  child: Text(
-                    'Lumora Luxury v1.0.0 (Build 1)',
-                    style: AppTextStyles.body(size: 11.5, color: AppColors.muted),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -133,16 +165,13 @@ class _AccountScreenState extends State<AccountScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE8D7F1), Color(0xFFD6C0EC)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: AppColors.vipBannerGradient,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.45)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF7B1FA2).withValues(alpha: 0.12),
-              blurRadius: 10,
+              color: AppColors.plum.withValues(alpha: 0.2),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -152,13 +181,13 @@ class _AccountScreenState extends State<AccountScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF6A1B9A),
+                color: AppColors.goldSoft,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(
                 'VIP',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.plumDeep,
                   fontWeight: FontWeight.w900,
                   fontSize: 11,
                   letterSpacing: 0.5,
@@ -170,48 +199,56 @@ class _AccountScreenState extends State<AccountScreen> {
               child: RichText(
                 text: TextSpan(
                   style: const TextStyle(
-                    color: Color(0xFF4A148C),
+                    color: Colors.white,
                     fontSize: 11.5,
                     fontFamily: 'Inter',
-                    height: 1.3,
+                    height: 1.35,
                   ),
                   children: [
                     const TextSpan(
-                      text: 'Enjoy 1-year of Unlimited Free Shipping to all Sold by Lumora items for ',
+                      text: 'Enjoy 1-year of Unlimited Free Shipping on Sold by Lumora items for ',
                     ),
                     const TextSpan(
                       text: 'Php 500.00 ',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.goldSoft,
+                      ),
                     ),
                     TextSpan(
                       text: '750.00!',
                       style: TextStyle(
                         decoration: TextDecoration.lineThrough,
-                        color: const Color(0xFF4A148C).withValues(alpha: 0.65),
+                        color: Colors.white.withValues(alpha: 0.78),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF6A1B9A)),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.goldSoft),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, AuthProvider auth) {
+  Widget _buildProfileCard(
+    BuildContext context,
+    AuthProvider auth, {
+    required Color secondaryInk,
+    required Color cardBorder,
+  }) {
     if (!auth.isLoggedIn) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.cream,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.line),
+          border: Border.all(color: cardBorder),
           boxShadow: [
             BoxShadow(
-              color: AppColors.plum.withValues(alpha: 0.04),
+              color: AppColors.plum.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -225,11 +262,11 @@ class _AccountScreenState extends State<AccountScreen> {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: AppColors.blush1,
+                    color: AppColors.blush2,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.line),
+                    border: Border.all(color: cardBorder),
                   ),
-                  child: const Icon(Icons.person_outline, color: AppColors.muted, size: 28),
+                  child: Icon(Icons.person_outline, color: AppColors.plum, size: 28),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -247,7 +284,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Log in to start buying & saving items',
-                        style: AppTextStyles.body(size: 11.5, color: AppColors.muted),
+                        style: AppTextStyles.body(size: 11.5, color: secondaryInk),
                       ),
                     ],
                   ),
@@ -323,10 +360,10 @@ class _AccountScreenState extends State<AccountScreen> {
         decoration: BoxDecoration(
           color: AppColors.cream,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.line),
+          border: Border.all(color: cardBorder),
           boxShadow: [
             BoxShadow(
-              color: AppColors.plum.withValues(alpha: 0.04),
+              color: AppColors.plum.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -361,17 +398,18 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.orange.withValues(alpha: 0.15),
+                          color: AppColors.goldSoft.withValues(alpha: 0.45),
                           borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: AppColors.gold.withValues(alpha: 0.7)),
                         ),
                         child: Text(
                           'MEMBER',
                           style: AppTextStyles.body(
                             size: 9.5,
                             weight: FontWeight.w800,
-                            color: AppColors.orange,
+                            color: AppColors.plum,
                           ),
                         ),
                       ),
@@ -382,12 +420,12 @@ class _AccountScreenState extends State<AccountScreen> {
                     user?.email ?? '',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.body(size: 12, color: AppColors.muted),
+                    style: AppTextStyles.body(size: 12, color: secondaryInk),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.edit_outlined, size: 18, color: AppColors.muted),
+            Icon(Icons.edit_outlined, size: 18, color: secondaryInk),
           ],
         ),
       ),
@@ -407,7 +445,7 @@ class _AccountScreenState extends State<AccountScreen> {
       decoration: BoxDecoration(
         color: AppColors.cream,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: AppColors.cardBorder()),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,48 +453,49 @@ class _AccountScreenState extends State<AccountScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(
-                    'Order Updates',
-                    style: AppTextStyles.body(
-                      size: 16,
-                      weight: FontWeight.w700,
-                      color: AppColors.ink,
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Order Updates',
+                      style: AppTextStyles.body(
+                        size: 16,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
                     ),
-                  ),
-                  Consumer<OrderProvider>(
-                    builder: (context, orderProvider, _) {
-                      final activeCount = orderProvider.totalActiveOrdersCount;
-                      final showNewBadge = auth.isLoggedIn && (activeCount > 0 || orderProvider.activeInTransitOrder != null);
-                      if (!showNewBadge) return const SizedBox.shrink();
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(99),
-                              border: Border.all(color: const Color(0xFFA5D6A7)),
-                            ),
-                            child: Text(
-                              activeCount > 0 ? '$activeCount ACTIVE' : 'NEW',
-                              style: const TextStyle(
-                                color: Color(0xFF2E7D32),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.4,
-                              ),
+                    Consumer<OrderProvider>(
+                      builder: (context, orderProvider, _) {
+                        final activeCount = orderProvider.totalActiveOrdersCount;
+                        final showNewBadge = auth.isLoggedIn &&
+                            (activeCount > 0 || orderProvider.activeInTransitOrder != null);
+                        if (!showNewBadge) return const SizedBox.shrink();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.emeraldBg,
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(color: AppColors.emeraldBorder),
+                          ),
+                          child: Text(
+                            activeCount > 0 ? '$activeCount ACTIVE' : 'NEW',
+                            style: const TextStyle(
+                              color: AppColors.emeraldText,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
                             ),
                           ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   if (!auth.isLoggedIn) {
@@ -466,6 +505,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   }
                 },
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'My Orders',
@@ -502,82 +542,85 @@ class _AccountScreenState extends State<AccountScreen> {
               }
 
               return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: statuses.map((s) {
                   final label = s['label'] as String;
                   final count = countForLabel(label);
-                  return GestureDetector(
-                    onTap: () {
-                      if (!auth.isLoggedIn) {
-                        AuthModal.show(context, actionName: 'view your order status and track purchases');
-                      } else {
-                        _showOrdersModal(context, s['status'] as String);
-                      }
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: const BoxDecoration(
-                                color: AppColors.blush1,
-                                shape: BoxShape.circle,
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (!auth.isLoggedIn) {
+                          AuthModal.show(context, actionName: 'view your order status and track purchases');
+                        } else {
+                          _showOrdersModal(context, s['status'] as String);
+                        }
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.blush1,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  s['icon'] as IconData,
+                                  size: 22,
+                                  color: AppColors.ink,
+                                ),
                               ),
-                              child: Icon(
-                                s['icon'] as IconData,
-                                size: 22,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                            if (count > 0)
-                              Positioned(
-                                top: -3,
-                                right: -3,
-                                child: Container(
-                                  constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: label == 'Delivered'
-                                        ? const Color(0xFF2E7D32)
-                                        : AppColors.rose,
-                                    borderRadius: BorderRadius.circular(99),
-                                    border: Border.all(color: AppColors.cream, width: 1.5),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.15),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 1),
+                              if (count > 0)
+                                Positioned(
+                                  top: -3,
+                                  right: -3,
+                                  child: Container(
+                                    constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: label == 'Delivered' ? AppColors.green : AppColors.rose,
+                                      borderRadius: BorderRadius.circular(99),
+                                      border: Border.all(color: AppColors.cream, width: 1.5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      count > 99 ? '99+' : '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.0,
                                       ),
-                                    ],
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    count > 99 ? '99+' : '$count',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      height: 1.0,
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          label,
-                          style: AppTextStyles.body(
-                            size: 11.5,
-                            weight: count > 0 ? FontWeight.w700 : FontWeight.w500,
-                            color: count > 0 ? AppColors.plum : AppColors.ink,
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.body(
+                              size: 11.5,
+                              weight: count > 0 ? FontWeight.w700 : FontWeight.w500,
+                              color: count > 0 ? AppColors.plum : AppColors.ink,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),
@@ -605,13 +648,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF1F8E9), Color(0xFFE8F5E9)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppColors.emeraldBg,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFC8E6C9)),
+                    border: Border.all(color: AppColors.emeraldBorder),
                   ),
                   child: Row(
                     children: [
@@ -620,13 +659,13 @@ class _AccountScreenState extends State<AccountScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFA5D6A7)),
+                          border: Border.all(color: AppColors.emeraldBorder),
                         ),
                         child: Icon(
                           (hasActive && activeOrder.hasActiveRider)
                               ? Icons.navigation_outlined
                               : Icons.inventory_2_outlined,
-                          color: const Color(0xFF388E3C),
+                          color: AppColors.emeraldText,
                           size: 20,
                         ),
                       ),
@@ -640,14 +679,14 @@ class _AccountScreenState extends State<AccountScreen> {
                                   : "Sign in to track orders and receive real-time delivery updates."),
                           style: AppTextStyles.body(
                             size: 11.5,
-                            weight: hasActive ? FontWeight.w600 : FontWeight.w400,
-                            color: const Color(0xFF2E7D32),
+                            weight: hasActive ? FontWeight.w600 : FontWeight.w500,
+                            color: AppColors.emeraldText,
                             height: 1.35,
                           ),
                         ),
                       ),
                       if (hasActive)
-                        const Icon(Icons.chevron_right, size: 18, color: Color(0xFF388E3C)),
+                        const Icon(Icons.chevron_right, size: 18, color: AppColors.emeraldText),
                     ],
                   ),
                 ),
@@ -794,6 +833,8 @@ class _AccountScreenState extends State<AccountScreen> {
       },
     ];
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -811,17 +852,17 @@ class _AccountScreenState extends State<AccountScreen> {
           decoration: BoxDecoration(
             color: AppColors.cream,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.line),
+            border: Border.all(color: AppColors.cardBorder()),
           ),
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: activityItems.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 2.8,
+              mainAxisExtent: (52.0 * textScale).ceilToDouble(),
             ),
             itemBuilder: (context, idx) {
               final it = activityItems[idx];
@@ -837,6 +878,8 @@ class _AccountScreenState extends State<AccountScreen> {
                       Expanded(
                         child: Text(
                           it['title'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.body(
                             size: 13,
                             weight: FontWeight.w600,
@@ -939,7 +982,7 @@ class _AccountScreenState extends State<AccountScreen> {
           style: AppTextStyles.body(
             size: 13,
             weight: FontWeight.w700,
-            color: AppColors.muted,
+            color: AppColors.secondaryInk(),
           ),
         ),
         const SizedBox(height: 8),
@@ -947,7 +990,7 @@ class _AccountScreenState extends State<AccountScreen> {
           color: AppColors.cream,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.line),
+            side: BorderSide(color: AppColors.cardBorder()),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -972,14 +1015,14 @@ class _AccountScreenState extends State<AccountScreen> {
                             item.subtitle!,
                             style: AppTextStyles.body(
                               size: 11,
-                              color: AppColors.orange,
+                              color: AppColors.mutedReadable,
                             ),
                           )
                         : null,
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right,
                       size: 18,
-                      color: AppColors.muted,
+                      color: AppColors.secondaryInk(),
                     ),
                     onTap: item.onTap,
                     dense: true,
@@ -1253,12 +1296,16 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   // MODAL 2B: Complete Profile & Account Settings (`ProfileController.php` Parity)
-  void _showProfileDetailsModal(BuildContext context, AuthProvider auth) {
+  void _showProfileDetailsModal(
+    BuildContext context,
+    AuthProvider auth, {
+    String initialTab = 'Profile Info',
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const _ProfileSettingsModalContent(),
+      builder: (ctx) => _ProfileSettingsModalContent(initialTab: initialTab),
     );
   }
 
@@ -1274,12 +1321,13 @@ class _AccountScreenState extends State<AccountScreen> {
 
   // MODAL 4: Notifications & Preferences Modal
   void _showNotificationsModal(BuildContext context) {
+    final parentContext = context;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Material(
+        builder: (sheetCtx, setModalState) => Material(
           color: AppColors.cream,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           child: Padding(
@@ -1299,18 +1347,18 @@ class _AccountScreenState extends State<AccountScreen> {
                   const SizedBox(height: 16),
                   Text('Preferences & Settings', style: AppTextStyles.heading(size: 20, weight: FontWeight.w700, color: AppColors.plum)),
                   const SizedBox(height: 4),
-                  Text('Manage notifications, storage, and privacy controls', style: AppTextStyles.body(size: 11.5, color: AppColors.muted)),
+                  Text('Manage notifications, contrast, storage, and security controls', style: AppTextStyles.body(size: 11.5, color: AppColors.muted)),
                   const SizedBox(height: 16),
 
                   // Open Notification Center Button
                   GestureDetector(
                     onTap: () {
                       Navigator.of(ctx).pop();
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final auth = Provider.of<AuthProvider>(parentContext, listen: false);
                       if (!auth.isLoggedIn) {
-                        AuthModal.show(context, actionName: 'access your notifications');
+                        AuthModal.show(parentContext, actionName: 'access your notifications');
                       } else {
-                        NotificationCenterModal.show(context);
+                        NotificationCenterModal.show(parentContext);
                       }
                     },
                     child: Container(
@@ -1346,6 +1394,30 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  Text('Appearance & Readability', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w700, color: AppColors.ink)),
+                  const SizedBox(height: 4),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: LumoraAppearanceController.highContrastMode,
+                    builder: (_, highContrast, _) => SwitchListTile(
+                      activeThumbColor: AppColors.plum,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('High-Contrast Comfort Mode', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600)),
+                      subtitle: Text(
+                        'Darker secondary ink and stronger borders across Account screens',
+                        style: AppTextStyles.body(size: 11, color: AppColors.secondaryInk(highContrast: highContrast)),
+                      ),
+                      value: highContrast,
+                      onChanged: (val) async {
+                        HapticService.selection();
+                        await LumoraAppearanceController.setHighContrast(val);
+                        setModalState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(color: AppColors.line),
+                  const SizedBox(height: 8),
 
                   Text('Push Alerts', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w700, color: AppColors.ink)),
                   const SizedBox(height: 6),
@@ -1429,76 +1501,72 @@ class _AccountScreenState extends State<AccountScreen> {
                   const Divider(color: AppColors.line),
                   const SizedBox(height: 8),
 
-                  // Apple App Store Guideline 5.1.1: Account Deletion
+                  // Security & Privacy + Account Deletion (Apple App Store Guideline 5.1.1)
                   Text('Security & Privacy', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w700, color: AppColors.ink)),
                   const SizedBox(height: 8),
                   Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
+                    builder: (_, auth, _) {
                       if (!auth.isLoggedIn) {
                         return const SizedBox.shrink();
                       }
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (dlgCtx) => AlertDialog(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              backgroundColor: AppColors.cream,
-                              title: Text('Delete Account', style: AppTextStyles.heading(size: 18, weight: FontWeight.w700, color: Colors.redAccent)),
-                              content: Text(
-                                'Are you sure you want to permanently delete your Lumora account? All profile details, order histories, and saved payment options will be completely wiped from this device.',
-                                style: AppTextStyles.body(size: 12.5, color: AppColors.ink, height: 1.4),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(dlgCtx).pop(),
-                                  child: Text('Cancel', style: AppTextStyles.body(size: 13, color: AppColors.muted)),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                      return Column(
+                        children: [
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              HapticService.selection();
+                              Navigator.of(ctx).pop();
+                              _showProfileDetailsModal(parentContext, auth, initialTab: 'Sessions');
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.devices_outlined, size: 20, color: AppColors.plum),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Active Devices & Sessions', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600)),
+                                        Text('Inspect signed-in devices & revoke remote sessions', style: AppTextStyles.body(size: 11, color: AppColors.muted)),
+                                      ],
+                                    ),
                                   ),
-                                  onPressed: () {
-                                    Navigator.of(dlgCtx).pop();
-                                    Navigator.of(ctx).pop();
-                                    auth.logout();
-                                    Provider.of<WishlistProvider>(context, listen: false).clearWishlist();
-                                    Provider.of<CartProvider>(context, listen: false).clearCart();
-                                    HapticService.selection();
-                                    LuxurySnackBar.show(
-                                      context,
-                                      message: 'Your account and data have been completely deleted.',
-                                      icon: Icons.delete_forever_outlined,
-                                      iconColor: Colors.redAccent,
-                                    );
-                                  },
-                                  child: const Text('Delete Permanently'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Delete Lumora Account', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600, color: Colors.redAccent)),
-                                    Text('Permanently wipe account data (Apple App Store Guideline 5.1.1 compliant)', style: AppTextStyles.body(size: 11, color: AppColors.muted)),
-                                  ],
-                                ),
+                                  const Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              HapticService.selection();
+                              Navigator.of(ctx).pop();
+                              _showProfileDetailsModal(parentContext, auth, initialTab: 'Delete Account');
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.delete_outline, size: 20, color: AppColors.danger),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Delete Lumora Account', style: AppTextStyles.body(size: 12.5, weight: FontWeight.w600, color: AppColors.danger)),
+                                        Text('Verify password to permanently delete account data', style: AppTextStyles.body(size: 11, color: AppColors.muted)),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right, size: 18, color: AppColors.danger),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -2428,11 +2496,11 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
 
     Color statusBadgeColor = AppColors.plum;
     if (isDelivered) {
-      statusBadgeColor = const Color(0xFF5A8A6E);
+      statusBadgeColor = AppColors.green;
     } else if (normStatus == 'out_for_delivery') {
       statusBadgeColor = AppColors.orange;
     } else if (normStatus == 'cancelled' || normStatus == 'returned') {
-      statusBadgeColor = const Color(0xFFD46A6A);
+      statusBadgeColor = AppColors.danger;
     }
 
     return Container(
@@ -2514,9 +2582,10 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
                   color: AppColors.blush1,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Image.asset(
+                child: buildLumoraImage(
                   firstImage,
                   fit: BoxFit.cover,
+                  cacheWidth: 180,
                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.shopping_bag_outlined, color: AppColors.plum),
                 ),
               ),
@@ -2529,6 +2598,22 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.body(size: 13, weight: FontWeight.w600),
+                    ),
+                    Builder(
+                      builder: (_) {
+                        final varLabel =
+                            (firstItem?.variation ?? firstItem?.variantName ?? '').trim();
+                        if (varLabel.isEmpty) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            varLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.body(size: 11, color: AppColors.mutedReadable),
+                          ),
+                        );
+                      },
                     ),
                     if (order.items.length > 1)
                       Padding(
@@ -2617,87 +2702,123 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
           ],
 
           // Return & Dispute Status Banner (BUY-RET-005 & Website Parity)
-          if (order.status == 'returned' ||
+          if (order.hasReturnRequest ||
+              order.status == 'returned' ||
               order.normalizedWebStatus == 'return_requested' ||
-              order.returnDisputeStatus != null) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: order.isDisputed
-                    ? const Color(0xFFFFF3CD)
-                    : (order.returnRejectionReason != null ? const Color(0xFFFFEBEE) : const Color(0xFFE8F5E9)),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: order.isDisputed
-                      ? const Color(0xFFFFEEBA)
-                      : (order.returnRejectionReason != null ? const Color(0xFFEF9A9A) : const Color(0xFFA5D6A7)),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              order.returnDisputeStatus != null ||
+              order.refundStatus == 'refunded') ...[
+            Builder(
+              builder: (context) {
+                final isApproved = order.isReturnApproved;
+                final isRefunded = order.refundStatus == 'refunded' || order.paymentStatus == 'refunded';
+                final isDenied = order.isReturnDenied && !isApproved;
+                final isArbitration = order.isDisputed || order.returnDisputeStatus == 'under_arbitration';
+                final canEscalate = !isApproved &&
+                    !isArbitration &&
+                    order.returnDisputeStatus != 'resolved_approved' &&
+                    order.returnDisputeStatus != 'resolved_denied' &&
+                    (order.normalizedWebStatus == 'return_requested' || order.returnStatus == 'pending' || isDenied);
+
+                final Color bgColor = isApproved
+                    ? const Color(0xFFE8F5E9)
+                    : (isArbitration
+                        ? const Color(0xFFFFF3CD)
+                        : (isDenied ? const Color(0xFFFFEBEE) : const Color(0xFFF3E5F5)));
+                final Color borderColor = isApproved
+                    ? const Color(0xFFA5D6A7)
+                    : (isArbitration
+                        ? const Color(0xFFFFEEBA)
+                        : (isDenied ? const Color(0xFFEF9A9A) : const Color(0xFFCE93D8)));
+                final Color textColor = isApproved
+                    ? const Color(0xFF2E7D32)
+                    : (isArbitration
+                        ? const Color(0xFF856404)
+                        : (isDenied ? Colors.redAccent : AppColors.plum));
+                final IconData bannerIcon = isApproved
+                    ? Icons.check_circle_outline
+                    : (isArbitration
+                        ? Icons.gavel_outlined
+                        : (isDenied ? Icons.cancel_outlined : Icons.assignment_return_outlined));
+
+                String bannerTitle;
+                if (isApproved) {
+                  final amt = order.refundAmount ?? order.totalAmount;
+                  bannerTitle = isRefunded
+                      ? 'Return Approved • Refunded ₱${amt.toStringAsFixed(2)}'
+                      : 'Return Approved • Logistics Pickup Dispatched';
+                } else if (isArbitration) {
+                  bannerTitle = 'Dispute in Arbitration: Lumora Admin Reviewing';
+                } else if (isDenied) {
+                  final note = order.returnRejectionReason ?? order.returnReviewNote ?? 'Denied after review';
+                  bannerTitle = 'Return Request Denied: $note';
+                } else {
+                  bannerTitle = 'Return Request Submitted: Awaiting Seller Review';
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        order.isDisputed
-                            ? Icons.gavel_outlined
-                            : (order.returnRejectionReason != null ? Icons.cancel_outlined : Icons.assignment_return_outlined),
-                        size: 16,
-                        color: order.isDisputed
-                            ? const Color(0xFF856404)
-                            : (order.returnRejectionReason != null ? Colors.redAccent : const Color(0xFF2E7D32)),
+                      Row(
+                        children: [
+                          Icon(bannerIcon, size: 16, color: textColor),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              bannerTitle,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          order.isDisputed
-                              ? 'Dispute in Arbitration: Lumora Admin Reviewing'
-                              : (order.returnRejectionReason != null
-                                  ? 'Seller Rejected Return: ${order.returnRejectionReason}'
-                                  : 'Return Request Submitted: Pending Seller Review'),
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: order.isDisputed
-                                ? const Color(0xFF856404)
-                                : (order.returnRejectionReason != null ? Colors.redAccent : const Color(0xFF2E7D32)),
+                      if (canEscalate) ...[
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 32,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.plum),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: EdgeInsets.zero,
+                            ),
+                            icon: const Icon(Icons.gavel_outlined, size: 14, color: AppColors.plum),
+                            label: const Text(
+                              'Escalate Dispute to Lumora Admin',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.plum),
+                            ),
+                            onPressed: () async {
+                              HapticService.selection();
+                              final res = await orderProvider.escalateReturnDispute(order.id);
+                              if (!context.mounted) return;
+                              LuxurySnackBar.show(
+                                context,
+                                message: res.message ??
+                                    (res.success
+                                        ? 'Dispute escalated to Lumora Admin for official review.'
+                                        : 'Could not escalate dispute.'),
+                                icon: res.success ? Icons.gavel_outlined : Icons.error_outline,
+                                iconColor: res.success ? AppColors.gold : AppColors.danger,
+                              );
+                            },
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  if (!order.isDisputed) ...[
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 32,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.plum),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: EdgeInsets.zero,
-                        ),
-                        icon: const Icon(Icons.gavel_outlined, size: 14, color: AppColors.plum),
-                        label: const Text(
-                          'Escalate Dispute to Lumora Admin',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.plum),
-                        ),
-                        onPressed: () {
-                          HapticService.selection();
-                          orderProvider.escalateReturnDispute(order.id);
-                          LuxurySnackBar.show(
-                            context,
-                            message: 'Dispute escalated to Lumora Admin for official review.',
-                            icon: Icons.gavel_outlined,
-                            iconColor: AppColors.gold,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                );
+              },
             ),
           ],
 
@@ -2706,76 +2827,108 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
           const SizedBox(height: 10),
 
           // Action Buttons: Track Live on Google Maps, Confirm Received, Cancel, Write Review
-          Row(
-            children: [
-              if (isDelivered) ...[
-                Expanded(
-                  child: ElevatedButton.icon(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 340;
+              if (isDelivered) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.plum,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.star_outline_rounded, size: 14),
+                        label: const Text(
+                          'Write Review',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          showLuxuryReviewDialog(
+                            context,
+                            firstTitle,
+                            productId: firstItem?.productId,
+                          );
+                        },
+                      ),
+                    ),
+                    if (!order.hasReturnRequest) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: order.isWithinReturnWindow ? AppColors.rose : AppColors.muted,
+                              width: 1.0,
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                          ),
+                          icon: Icon(
+                            Icons.assignment_return_outlined,
+                            size: 14,
+                            color: order.isWithinReturnWindow ? AppColors.rose : AppColors.muted,
+                          ),
+                          label: Text(
+                            order.isWithinReturnWindow ? 'Return/Refund' : 'Window Closed',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: order.isWithinReturnWindow ? AppColors.rose : AppColors.muted,
+                            ),
+                          ),
+                          onPressed: order.isWithinReturnWindow
+                              ? () => _showReturnRefundModal(context, order, orderProvider)
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              }
+
+              final List<Widget> actionWidgets = [];
+              if (isInTransit || isCancelable) {
+                actionWidgets.add(
+                  ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.plum,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.star_outline_rounded, size: 14),
-                    label: const Text(
-                      'Write Review',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    icon: Icon(
+                      order.hasActiveRider ? Icons.navigation_outlined : Icons.receipt_long_outlined,
+                      size: 14,
                     ),
-                    onPressed: () {
-                      showLuxuryReviewDialog(
-                        context,
-                        firstTitle,
-                        productId: firstItem?.productId,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.rose, width: 1.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                    ),
-                    icon: const Icon(Icons.assignment_return_outlined, size: 14, color: AppColors.rose),
-                    label: const Text(
-                      'Return/Refund',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.rose),
-                    ),
-                    onPressed: () => _showReturnRefundModal(context, order, orderProvider),
-                  ),
-                ),
-              ] else if (isInTransit || isCancelable)
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.plum,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      elevation: 0,
-                    ),
-                    icon: Icon(order.hasActiveRider ? Icons.navigation_outlined : Icons.receipt_long_outlined, size: 14),
                     label: Text(
                       order.hasActiveRider ? 'Track on Map' : 'Track Order Status',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                     ),
                     onPressed: () {
                       OrderTrackingModal.show(context, order: order);
                     },
                   ),
-                ),
-              if (isInTransit) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
+                );
+              }
+              if (isInTransit) {
+                actionWidgets.add(
+                  OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF2E7D32), width: 1.2),
+                      side: const BorderSide(color: AppColors.green, width: 1.2),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     ),
                     onPressed: () {
                       HapticService.selection();
@@ -2784,27 +2937,66 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
                         context,
                         message: 'Order marked as Delivered! You can now review this item.',
                         icon: Icons.check_circle_outline,
-                        iconColor: const Color(0xFF2E7D32),
+                        iconColor: AppColors.green,
                       );
                     },
                     child: const Text(
                       'Order Received',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.green),
                     ),
                   ),
-                ),
-              ],
-              if (isCancelable) ...[
-                const SizedBox(width: 8),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                );
+              }
+              if (isCancelable) {
+                actionWidgets.add(
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    onPressed: () => _showCancelOrderModal(context, order, orderProvider),
+                    child: const Text(
+                      'Cancel',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.danger),
+                    ),
                   ),
-                  onPressed: () => _showCancelOrderModal(context, order, orderProvider),
-                  child: const Text('Cancel', style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
-                ),
-              ],
-            ],
+                );
+              }
+
+              if (actionWidgets.isEmpty) return const SizedBox.shrink();
+              if (narrow && actionWidgets.length > 1) {
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                );
+              }
+              if (actionWidgets.length == 2 && !isCancelable) {
+                return Row(
+                  children: [
+                    Expanded(child: actionWidgets[0]),
+                    const SizedBox(width: 8),
+                    Expanded(child: actionWidgets[1]),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: actionWidgets.first),
+                  for (int i = 1; i < actionWidgets.length; i++) ...[
+                    const SizedBox(width: 8),
+                    if (isCancelable && i == actionWidgets.length - 1)
+                      actionWidgets[i]
+                    else
+                      Expanded(child: actionWidgets[i]),
+                  ],
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 8),
@@ -3566,6 +3758,7 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
     final remarksCtrl = TextEditingController();
     final List<String> evidencePhotos = [];
     String? formError;
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -3845,43 +4038,66 @@ class _OrdersModalContentState extends State<_OrdersModalContent> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
-                        onPressed: () {
-                          final details = remarksCtrl.text.trim();
-                          if (details.length < 10) {
-                            HapticService.selection();
-                            setModalState(() => formError = 'Please provide at least 10 characters explaining the return/refund reason.');
-                            return;
-                          }
-                          if (evidencePhotos.isEmpty) {
-                            HapticService.selection();
-                            setModalState(() => formError = 'Please upload at least 1 supporting photo as evidence.');
-                            return;
-                          }
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final details = remarksCtrl.text.trim();
+                                if (details.length < 10) {
+                                  HapticService.selection();
+                                  setModalState(() => formError = 'Please provide at least 10 characters explaining the return/refund reason.');
+                                  return;
+                                }
+                                if (evidencePhotos.isEmpty) {
+                                  HapticService.selection();
+                                  setModalState(() => formError = 'Please upload at least 1 supporting photo as evidence.');
+                                  return;
+                                }
 
-                          final reasonLabel = websiteReasons
-                                  .where((r) => r['code'] == selectedReasonCode)
-                                  .map((r) => r['label']!)
-                                  .firstOrNull ??
-                              'Other';
+                                final reasonLabel = websiteReasons
+                                        .where((r) => r['code'] == selectedReasonCode)
+                                        .map((r) => r['label']!)
+                                        .firstOrNull ??
+                                    'Other';
 
-                          HapticService.success();
-                          orderProvider.requestReturnRefund(
-                            order.id,
-                            reason: reasonLabel,
-                            reasonCode: selectedReasonCode,
-                            solution: selectedSolution,
-                            details: details,
-                            photos: evidencePhotos,
-                          );
-                          Navigator.of(ctx).pop();
-                          LuxurySnackBar.show(
-                            context,
-                            message: 'Your return/refund request has been submitted and is awaiting seller review.',
-                            icon: Icons.assignment_return_outlined,
-                            iconColor: AppColors.flowGold,
-                          );
-                        },
-                        child: const Text('Submit Return / Refund Request', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                setModalState(() {
+                                  isSubmitting = true;
+                                  formError = null;
+                                });
+
+                                final res = await orderProvider.requestReturnRefund(
+                                  order.id,
+                                  reason: reasonLabel,
+                                  reasonCode: selectedReasonCode,
+                                  solution: selectedSolution,
+                                  details: details,
+                                  photos: evidencePhotos,
+                                );
+
+                                if (!ctx.mounted) return;
+                                if (!res.success) {
+                                  HapticService.selection();
+                                  setModalState(() {
+                                    isSubmitting = false;
+                                    formError = res.message ?? 'Could not submit return/refund request.';
+                                  });
+                                  return;
+                                }
+
+                                HapticService.success();
+                                Navigator.of(ctx).pop();
+                                if (!context.mounted) return;
+                                LuxurySnackBar.show(
+                                  context,
+                                  message: res.message ??
+                                      'Your return/refund request has been submitted and is awaiting seller review.',
+                                  icon: Icons.assignment_return_outlined,
+                                  iconColor: AppColors.flowGold,
+                                );
+                              },
+                        child: Text(
+                          isSubmitting ? 'Submitting...' : 'Submit Return / Refund Request',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
@@ -4665,21 +4881,23 @@ class _AddressesModalContentState extends State<_AddressesModalContent> {
 // ============================================================================
 
 class _ProfileSettingsModalContent extends StatefulWidget {
-  const _ProfileSettingsModalContent();
+  final String initialTab;
+
+  const _ProfileSettingsModalContent({this.initialTab = 'Profile Info'});
 
   @override
   State<_ProfileSettingsModalContent> createState() => _ProfileSettingsModalContentState();
 }
 
 class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalContent> {
-  String _selectedTab = 'Profile Info'; // 'Profile Info' | 'Password' | 'Delete Account'
+  late String _selectedTab; // 'Profile Info' | 'Password' | 'Sessions' | 'Delete Account'
 
   late TextEditingController _firstNameCtrl;
   late TextEditingController _lastNameCtrl;
   late TextEditingController _miCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _contactCtrl;
-  late TextEditingController _dobCtrl;
+  late String _dobIso;
   String _selectedSex = 'Female';
 
   final TextEditingController _currPassCtrl = TextEditingController();
@@ -4687,29 +4905,58 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
   final TextEditingController _confPassCtrl = TextEditingController();
   final TextEditingController _deletePassCtrl = TextEditingController();
 
+  bool _isSavingProfile = false;
+  bool _isUpdatingPassword = false;
+  bool _isDeletingAccount = false;
+
+  bool _obscureCurrPass = true;
+  bool _obscureNewPass = true;
+  bool _obscureConfPass = true;
+  bool _obscureDeletePass = true;
+
+  List<Map<String, dynamic>> _sessions = const [];
+  bool _loadingSessions = false;
+  bool _sessionsLoaded = false;
+  String? _sessionsError;
+  String? _revokingSessionKey;
+
+  void _onPasswordDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
-    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+    _selectedTab = widget.initialTab;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final user = auth.currentUser;
     _firstNameCtrl = TextEditingController(text: user?.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: user?.lastName ?? '');
     _miCtrl = TextEditingController(text: user?.middleInitial ?? '');
     _emailCtrl = TextEditingController(text: user?.email ?? '');
     _contactCtrl = TextEditingController(text: user?.contactNumber ?? '+63 917 892 4101');
-    _dobCtrl = TextEditingController(text: user?.dateOfBirth ?? '2001-05-15');
+    final parsedDob = LumoraDatePicker.tryParse(user?.dateOfBirth) ?? DateTime(2001, 5, 15);
+    _dobIso = LumoraDatePicker.formatIso(parsedDob);
     _selectedSex = (user?.sex == 'Male' || user?.sex == 'Female' || user?.sex == 'Other')
         ? user!.sex!
         : 'Female';
+
+    _newPassCtrl.addListener(_onPasswordDraftChanged);
+    if (_selectedTab == 'Sessions') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadSessions(auth);
+      });
+    }
   }
 
   @override
   void dispose() {
+    _newPassCtrl.removeListener(_onPasswordDraftChanged);
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _miCtrl.dispose();
     _emailCtrl.dispose();
     _contactCtrl.dispose();
-    _dobCtrl.dispose();
     _currPassCtrl.dispose();
     _newPassCtrl.dispose();
     _confPassCtrl.dispose();
@@ -4717,11 +4964,31 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
     super.dispose();
   }
 
+  Future<void> _loadSessions(AuthProvider auth, {bool force = false}) async {
+    if (_loadingSessions) return;
+    if (_sessionsLoaded && !force) return;
+    setState(() {
+      _loadingSessions = true;
+      _sessionsError = null;
+    });
+    final res = await auth.fetchActiveSessions();
+    if (!mounted) return;
+    setState(() {
+      _loadingSessions = false;
+      _sessionsLoaded = res.success;
+      if (res.success) {
+        _sessions = res.sessions;
+      } else {
+        _sessionsError = res.message ?? 'Unable to load active sessions.';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.currentUser;
-    final tabs = ['Profile Info', 'Password', 'Delete Account'];
+    final tabs = ['Profile Info', 'Password', 'Sessions', 'Delete Account'];
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final screenHeight = MediaQuery.sizeOf(context).height;
@@ -4761,7 +5028,7 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Manage your personal details, password & account security',
+                          'Manage personal details, password, sessions & account security',
                           style: AppTextStyles.body(size: 11.5, color: AppColors.muted),
                         ),
                       ],
@@ -4788,17 +5055,20 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                         onTap: () {
                           HapticService.selection();
                           setState(() => _selectedTab = tab);
+                          if (tab == 'Sessions') {
+                            _loadSessions(auth);
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? (isDanger ? Colors.redAccent : AppColors.plum)
+                                ? (isDanger ? AppColors.danger : AppColors.plum)
                                 : AppColors.blush1,
                             borderRadius: BorderRadius.circular(99),
                             border: Border.all(
                               color: isSelected
-                                  ? (isDanger ? Colors.redAccent : AppColors.plum)
+                                  ? (isDanger ? AppColors.danger : AppColors.plum)
                                   : AppColors.line,
                             ),
                           ),
@@ -4809,7 +5079,7 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                               weight: isSelected ? FontWeight.w700 : FontWeight.w500,
                               color: isSelected
                                   ? Colors.white
-                                  : (isDanger ? Colors.redAccent : AppColors.ink),
+                                  : (isDanger ? AppColors.danger : AppColors.ink),
                             ),
                           ),
                         ),
@@ -4834,9 +5104,11 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                     ),
                     child: _selectedTab == 'Profile Info'
                         ? _buildProfileInfoForm(context, auth, user)
-                        : (_selectedTab == 'Password'
+                        : _selectedTab == 'Password'
                             ? _buildPasswordForm(context, auth)
-                            : _buildDeleteAccountForm(context, auth)),
+                            : _selectedTab == 'Sessions'
+                                ? _buildSessionsTab(context, auth)
+                                : _buildDeleteAccountForm(context, auth),
                   ),
                 ),
               ),
@@ -4844,6 +5116,110 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBirthdaySelector(BuildContext context) {
+    final parsed = LumoraDatePicker.tryParse(_dobIso);
+    final friendlyText = parsed != null ? LumoraDatePicker.formatFriendly(parsed) : 'Select Birthday';
+    final age = parsed != null ? LumoraDatePicker.computeAge(parsed) : null;
+    final ageValid = age != null && age >= 18;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Date of Birth *', style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            HapticService.selection();
+            final picked = await LumoraDatePicker.show(
+              context,
+              initialDate: parsed,
+              minimumAge: 18,
+              title: 'Select Date of Birth',
+            );
+            if (picked != null && mounted) {
+              setState(() => _dobIso = LumoraDatePicker.formatIso(picked));
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: (parsed != null && !ageValid) ? AppColors.danger : AppColors.line,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.cake_outlined, size: 17, color: AppColors.plum),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    friendlyText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.body(size: 13, weight: FontWeight.w600, color: AppColors.ink),
+                  ),
+                ),
+                if (age != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ageValid ? AppColors.emeraldBg : AppColors.dangerBg,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '$age yrs',
+                      style: AppTextStyles.body(
+                        size: 10,
+                        weight: FontWeight.w700,
+                        color: ageValid ? AppColors.emeraldText : AppColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 4),
+                const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSexSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sex', style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedSex,
+              items: ['Female', 'Male', 'Other']
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s, style: AppTextStyles.body(size: 13))))
+                  .toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedSex = val);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -4856,18 +5232,18 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
             margin: const EdgeInsets.only(bottom: 14),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
+              color: AppColors.emeraldBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFA5D6A7)),
+              border: Border.all(color: AppColors.emeraldBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.verified_user_outlined, size: 18, color: Color(0xFF2E7D32)),
+                const Icon(Icons.verified_user_outlined, size: 18, color: AppColors.emeraldText),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Linked with Google (${user?.email ?? ''}) • Email Verified',
-                    style: AppTextStyles.body(size: 11.5, weight: FontWeight.w600, color: const Color(0xFF2E7D32)),
+                    style: AppTextStyles.body(size: 11.5, weight: FontWeight.w600, color: AppColors.emeraldText),
                   ),
                 ),
               ],
@@ -4925,7 +5301,7 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
         _buildTextField('Last Name *', _lastNameCtrl, hint: 'Dela Cruz / Peñaflor'),
         const SizedBox(height: 12),
         _buildTextField(
-          'Email Address * (Changing resets verification)',
+          'Email Address * (OTP verification required to change)',
           _emailCtrl,
           hint: 'name@example.com',
           keyboardType: TextInputType.emailAddress,
@@ -4943,42 +5319,27 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
           ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 340) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Sex', style: AppTextStyles.body(size: 12, weight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.line),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: _selectedSex,
-                        items: ['Female', 'Male', 'Other']
-                            .map((s) => DropdownMenuItem(value: s, child: Text(s, style: AppTextStyles.body(size: 13))))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedSex = val);
-                        },
-                      ),
-                    ),
-                  ),
+                  _buildSexSelector(),
+                  const SizedBox(height: 12),
+                  _buildBirthdaySelector(context),
                 ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildTextField('Date of Birth (YYYY-MM-DD)', _dobCtrl, hint: '2001-05-15'),
-            ),
-          ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: _buildSexSelector()),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: _buildBirthdaySelector(context)),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 14),
         Container(
@@ -5017,155 +5378,170 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: () async {
-              final fName = _firstNameCtrl.text.trim();
-              final lName = _lastNameCtrl.text.trim();
-              final fNameErr = AuthProvider.validatePersonName(fName, fieldLabel: 'First name');
-              if (fNameErr != null) {
-                LuxurySnackBar.show(
-                  context,
-                  message: fNameErr,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
-              final lNameErr = AuthProvider.validatePersonName(lName, fieldLabel: 'Last name');
-              if (lNameErr != null) {
-                LuxurySnackBar.show(
-                  context,
-                  message: lNameErr,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
-              final miErr = AuthProvider.validatePersonName(
-                _miCtrl.text,
-                fieldLabel: 'M.I.',
-                requiredField: false,
-              );
-              if (miErr != null) {
-                LuxurySnackBar.show(
-                  context,
-                  message: miErr,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
+            onPressed: _isSavingProfile
+                ? null
+                : () async {
+                    final fName = _firstNameCtrl.text.trim();
+                    final lName = _lastNameCtrl.text.trim();
+                    final fNameErr = AuthProvider.validatePersonName(fName, fieldLabel: 'First name');
+                    if (fNameErr != null) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: fNameErr,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
+                    final lNameErr = AuthProvider.validatePersonName(lName, fieldLabel: 'Last name');
+                    if (lNameErr != null) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: lNameErr,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
+                    final miErr = AuthProvider.validatePersonName(
+                      _miCtrl.text,
+                      fieldLabel: 'M.I.',
+                      requiredField: false,
+                    );
+                    if (miErr != null) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: miErr,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              final newEmail = _emailCtrl.text.trim();
-              final newPhone = _contactCtrl.text.trim();
+                    final parsedDob = LumoraDatePicker.tryParse(_dobIso);
+                    if (parsedDob == null || LumoraDatePicker.computeAge(parsedDob) < 18) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'Please select a valid Date of Birth (must be at least 18 years old).',
+                        icon: Icons.cake_outlined,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              if (newEmail.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(newEmail)) {
-                LuxurySnackBar.show(
-                  context,
-                  message: 'Please enter a valid email address.',
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
+                    final newEmail = _emailCtrl.text.trim();
+                    final newPhone = _contactCtrl.text.trim();
 
-              final phoneErr = AuthProvider.validatePhoneNumber(newPhone);
-              if (phoneErr != null) {
-                LuxurySnackBar.show(
-                  context,
-                  message: phoneErr,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
+                    if (newEmail.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(newEmail)) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'Please enter a valid email address.',
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              final normalizedNewPhone = AuthProvider.normalizePhoneNumber(newPhone);
-              final emailChanged = user != null && newEmail.toLowerCase() != user.email.toLowerCase();
-              final phoneChanged = user != null &&
-                  (user.contactNumber == null ||
-                      AuthProvider.normalizePhoneNumber(user.contactNumber!) != normalizedNewPhone);
+                    final phoneErr = AuthProvider.validatePhoneNumber(newPhone);
+                    if (phoneErr != null) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: phoneErr,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              // Check duplicates BEFORE dispatching OTP (BUY-ACCT-008, BUY-ACCT-009)
-              if (emailChanged && auth.isEmailRegistered(newEmail)) {
-                LuxurySnackBar.show(
-                  context,
-                  message: 'This email is already in use by another account.',
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
-              if (phoneChanged && auth.isPhoneRegistered(normalizedNewPhone)) {
-                LuxurySnackBar.show(
-                  context,
-                  message: 'This mobile number is already in use by another account.',
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
+                    final normalizedNewPhone = AuthProvider.normalizePhoneNumber(newPhone);
+                    final emailChanged = user != null && newEmail.toLowerCase() != user.email.toLowerCase();
+                    final phoneChanged = user != null &&
+                        (user.contactNumber == null ||
+                            AuthProvider.normalizePhoneNumber(user.contactNumber!) != normalizedNewPhone);
 
-              void doSave() async {
-                final res = await auth.updateProfile(
-                  firstName: fName,
-                  lastName: lName,
-                  middleInitial: _miCtrl.text,
-                  email: newEmail,
-                  contactNumber: normalizedNewPhone,
-                  sex: _selectedSex,
-                  dateOfBirth: _dobCtrl.text,
-                );
-                if (!context.mounted) return;
-                final ok = res['success'] == true;
-                final msg = (res['message'] ?? '').toString();
-                if (ok) {
-                  HapticService.selection();
-                  LuxurySnackBar.show(context, message: msg, icon: Icons.check_circle_outline);
-                  Navigator.of(context).pop();
-                } else {
-                  LuxurySnackBar.show(
-                    context,
-                    message: msg,
-                    icon: Icons.error_outline,
-                    iconColor: Colors.redAccent,
-                  );
-                }
-              }
+                    if (emailChanged && auth.isEmailRegistered(newEmail)) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'This email is already in use by another account.',
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
+                    if (phoneChanged && auth.isPhoneRegistered(normalizedNewPhone)) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'This mobile number is already in use by another account.',
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              if (emailChanged) {
-                _showOtpChallengeDialog(
-                  context: context,
-                  targetLabel: 'New Email Address',
-                  targetValue: newEmail,
-                  onVerified: () {
+                    Future<void> doSave({String? emailOtpCode}) async {
+                      if (mounted) setState(() => _isSavingProfile = true);
+                      final res = await auth.updateProfile(
+                        firstName: fName,
+                        lastName: lName,
+                        middleInitial: _miCtrl.text,
+                        email: newEmail,
+                        contactNumber: normalizedNewPhone,
+                        sex: _selectedSex,
+                        dateOfBirth: _dobIso,
+                        otpCode: emailOtpCode,
+                      );
+                      if (!context.mounted) return;
+                      if (mounted) {
+                        setState(() => _isSavingProfile = false);
+                      }
+                      final ok = res['success'] == true;
+                      final msg = (res['message'] ?? '').toString();
+                      if (ok) {
+                        HapticService.selection();
+                        LuxurySnackBar.show(context, message: msg, icon: Icons.check_circle_outline);
+                        Navigator.of(context).pop();
+                      } else {
+                        LuxurySnackBar.show(
+                          context,
+                          message: msg,
+                          icon: Icons.error_outline,
+                          iconColor: AppColors.danger,
+                        );
+                      }
+                    }
+
+                    if (emailChanged) {
+                      _showOtpChallengeDialog(
+                        context: context,
+                        targetLabel: 'New Email Address',
+                        targetValue: newEmail,
+                        otpType: 'email_change',
+                        onVerified: (emailCode) => doSave(emailOtpCode: emailCode),
+                      );
+                      return;
+                    }
+
                     if (phoneChanged) {
                       _showOtpChallengeDialog(
                         context: context,
                         targetLabel: 'New Mobile Number',
                         targetValue: normalizedNewPhone,
-                        onVerified: doSave,
+                        otpEmail: user.email,
+                        otpType: 'phone_change',
+                        onVerified: (phoneCode) => doSave(emailOtpCode: phoneCode),
                       );
-                    } else {
-                      doSave();
+                      return;
                     }
+
+                    await doSave();
                   },
-                );
-                return;
-              }
-
-              if (phoneChanged) {
-                _showOtpChallengeDialog(
-                  context: context,
-                  targetLabel: 'New Mobile Number',
-                  targetValue: normalizedNewPhone,
-                  onVerified: doSave,
-                );
-                return;
-              }
-
-              doSave();
-            },
-            child: const Text('Save Profile Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: _isSavingProfile
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Save Profile Changes', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -5196,14 +5572,16 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                   HapticService.selection();
                   final dataUri = await pickNativeImage(fromCamera: true);
                   if (dataUri != null && dataUri.isNotEmpty) {
-                    await auth.updateAvatar(dataUri);
-                    if (context.mounted) {
-                      LuxurySnackBar.show(
-                        context,
-                        message: 'Camera photo set as profile picture!',
-                        icon: Icons.check_circle_outline,
-                      );
-                    }
+                    final res = await auth.updateAvatar(dataUri);
+                    if (!context.mounted) return;
+                    LuxurySnackBar.show(
+                      context,
+                      message: res.success
+                          ? 'Camera photo set as profile picture!'
+                          : (res.message ?? 'Could not update profile picture.'),
+                      icon: res.success ? Icons.check_circle_outline : Icons.error_outline,
+                      iconColor: res.success ? AppColors.green : AppColors.danger,
+                    );
                   }
                 },
               ),
@@ -5216,33 +5594,37 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
                   HapticService.selection();
                   final dataUri = await pickNativeImage(fromCamera: false);
                   if (dataUri != null && dataUri.isNotEmpty) {
-                    await auth.updateAvatar(dataUri);
-                    if (context.mounted) {
-                      LuxurySnackBar.show(
-                        context,
-                        message: 'Photo uploaded from device storage & set as profile picture!',
-                        icon: Icons.check_circle_outline,
-                      );
-                    }
+                    final res = await auth.updateAvatar(dataUri);
+                    if (!context.mounted) return;
+                    LuxurySnackBar.show(
+                      context,
+                      message: res.success
+                          ? 'Photo uploaded & set as profile picture!'
+                          : (res.message ?? 'Could not update profile picture.'),
+                      icon: res.success ? Icons.check_circle_outline : Icons.error_outline,
+                      iconColor: res.success ? AppColors.green : AppColors.danger,
+                    );
                   }
                 },
               ),
               if (hasAvatar)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  title: const Text('Remove Profile Photo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: Colors.redAccent)),
+                  leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                  title: const Text('Remove Profile Photo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: AppColors.danger)),
                   subtitle: const Text('Reset back to your initials', style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
                   onTap: () async {
                     Navigator.of(ctx).pop();
                     HapticService.selection();
-                    await auth.updateAvatar('');
-                    if (context.mounted) {
-                      LuxurySnackBar.show(
-                        context,
-                        message: 'Profile photo removed.',
-                        icon: Icons.info_outline,
-                      );
-                    }
+                    final res = await auth.updateAvatar('');
+                    if (!context.mounted) return;
+                    LuxurySnackBar.show(
+                      context,
+                      message: res.success
+                          ? 'Profile photo removed.'
+                          : (res.message ?? 'Could not remove profile photo.'),
+                      icon: res.success ? Icons.info_outline : Icons.error_outline,
+                      iconColor: res.success ? AppColors.plum : AppColors.danger,
+                    );
                   },
                 ),
             ],
@@ -5256,75 +5638,115 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
     required BuildContext context,
     required String targetLabel,
     required String targetValue,
-    required VoidCallback onVerified,
+    String? otpEmail,
+    required String otpType,
+    required ValueChanged<String> onVerified,
   }) {
-    final otpCtrl = TextEditingController();
-    String? otpError;
-
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (dlgCtx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
-          backgroundColor: AppColors.cream,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              const Icon(Icons.security, color: AppColors.plum, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Verify $targetLabel', style: AppTextStyles.heading(size: 17, weight: FontWeight.w700)),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'A 6-digit verification code has been dispatched to $targetValue. Enter it below to confirm this update.',
-                style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: otpCtrl,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  hintText: '123456',
-                  filled: true,
-                  fillColor: Colors.white,
-                  counterText: '',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.line)),
+      barrierDismissible: false,
+      builder: (_) => _ProfileOtpChallengeDialog(
+        targetLabel: targetLabel,
+        targetValue: targetValue,
+        otpEmail: otpEmail,
+        otpType: otpType,
+        onVerified: onVerified,
+      ),
+    );
+  }
+
+  Widget _buildPasswordStrengthIndicator(String password) {
+    final hasLen = password.length >= 8;
+    final hasUpper = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLower = RegExp(r'[a-z]').hasMatch(password);
+    final hasDigit = RegExp(r'\d').hasMatch(password);
+    final hasSpecial = RegExp(r'[@$!%*?&#^()_\-+=\[\]{}|\\:;"<>,./~`]').hasMatch(password);
+    final metCount = [hasLen, hasUpper, hasLower, hasDigit, hasSpecial].where((e) => e).length;
+
+    final Color barColor = metCount <= 2
+        ? AppColors.danger
+        : metCount <= 4
+            ? AppColors.amberText
+            : AppColors.green;
+    final String label = password.isEmpty
+        ? 'Enter a new password'
+        : metCount <= 2
+            ? 'Weak'
+            : metCount <= 4
+                ? 'Good — complete all rules below'
+                : 'Strong Luxury-Grade Password';
+
+    Widget ruleRow(String text, bool met) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            Icon(
+              met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              size: 14,
+              color: met ? AppColors.green : AppColors.muted,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                style: AppTextStyles.body(
+                  size: 11,
+                  weight: met ? FontWeight.w600 : FontWeight.w400,
+                  color: met ? AppColors.emeraldText : AppColors.muted,
                 ),
               ),
-              if (otpError != null) ...[
-                const SizedBox(height: 6),
-                Text(otpError!, style: const TextStyle(fontSize: 11.5, color: Colors.redAccent, fontWeight: FontWeight.w600)),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dlgCtx).pop(),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.plum, foregroundColor: Colors.white),
-              onPressed: () {
-                final code = otpCtrl.text.trim();
-                if (code.length != 6) {
-                  setDlgState(() => otpError = 'Please enter a valid 6-digit verification code.');
-                  return;
-                }
-                Navigator.of(dlgCtx).pop();
-                onVerified();
-              },
-              child: const Text('Confirm'),
             ),
           ],
         ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.blush1,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Password Strength:',
+                style: AppTextStyles.body(size: 11, weight: FontWeight.w600, color: AppColors.ink),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body(size: 11, weight: FontWeight.w700, color: barColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: password.isEmpty ? 0.0 : (metCount / 5).clamp(0.15, 1.0),
+              minHeight: 6,
+              backgroundColor: AppColors.line,
+              color: barColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ruleRow('At least 8 characters', hasLen),
+          ruleRow('Uppercase letter (A-Z)', hasUpper),
+          ruleRow('Lowercase letter (a-z)', hasLower),
+          ruleRow('Number (0-9)', hasDigit),
+          ruleRow('Special symbol (@\$!%*?&#...)', hasSpecial),
+        ],
       ),
     );
   }
@@ -5334,15 +5756,52 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Ensure your account is using a long, random password to stay secure.',
+          'Ensure your account uses a strong, unique password to protect orders & wallet activity.',
           style: AppTextStyles.body(size: 12, color: AppColors.muted),
         ),
         const SizedBox(height: 14),
-        _buildTextField('Current Password *', _currPassCtrl, obscure: true),
+        _buildTextField(
+          'Current Password *',
+          _currPassCtrl,
+          obscure: _obscureCurrPass,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscureCurrPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              size: 19,
+              color: AppColors.muted,
+            ),
+            onPressed: () => setState(() => _obscureCurrPass = !_obscureCurrPass),
+          ),
+        ),
         const SizedBox(height: 12),
-        _buildTextField('New Password (min. 8 characters) *', _newPassCtrl, obscure: true),
+        _buildTextField(
+          'New Password (min. 8 characters) *',
+          _newPassCtrl,
+          obscure: _obscureNewPass,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscureNewPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              size: 19,
+              color: AppColors.muted,
+            ),
+            onPressed: () => setState(() => _obscureNewPass = !_obscureNewPass),
+          ),
+        ),
+        _buildPasswordStrengthIndicator(_newPassCtrl.text),
         const SizedBox(height: 12),
-        _buildTextField('Confirm New Password *', _confPassCtrl, obscure: true),
+        _buildTextField(
+          'Confirm New Password *',
+          _confPassCtrl,
+          obscure: _obscureConfPass,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscureConfPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              size: 19,
+              color: AppColors.muted,
+            ),
+            onPressed: () => setState(() => _obscureConfPass = !_obscureConfPass),
+          ),
+        ),
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
@@ -5353,112 +5812,397 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: () async {
-              final newPass = _newPassCtrl.text;
-              final pwdErr = AuthProvider.validatePassword(newPass);
-              if (pwdErr != null) {
-                LuxurySnackBar.show(
-                  context,
-                  message: pwdErr,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-                return;
-              }
+            onPressed: _isUpdatingPassword
+                ? null
+                : () async {
+                    final newPass = _newPassCtrl.text;
+                    final pwdErr = AuthProvider.validatePassword(newPass);
+                    if (pwdErr != null) {
+                      LuxurySnackBar.show(
+                        context,
+                        message: pwdErr,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
 
-              final res = await auth.updatePassword(
-                currentPassword: _currPassCtrl.text,
-                newPassword: newPass,
-                confirmPassword: _confPassCtrl.text,
-              );
-              if (!context.mounted) return;
-              final ok = res['success'] == true;
-              final msg = (res['message'] ?? '').toString();
-              if (ok) {
-                HapticService.selection();
-                LuxurySnackBar.show(
-                  context,
-                  message: 'Password updated! Active sessions on other devices have been terminated.',
-                  icon: Icons.lock_outline,
-                  iconColor: const Color(0xFF2E7D32),
-                );
-                Navigator.of(context).pop();
-              } else {
-                LuxurySnackBar.show(
-                  context,
-                  message: msg,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-              }
-            },
-            child: const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
+                    setState(() => _isUpdatingPassword = true);
+                    final res = await auth.updatePassword(
+                      currentPassword: _currPassCtrl.text,
+                      newPassword: newPass,
+                      confirmPassword: _confPassCtrl.text,
+                    );
+                    if (!context.mounted) return;
+                    setState(() => _isUpdatingPassword = false);
+                    final ok = res['success'] == true;
+                    final msg = (res['message'] ?? '').toString();
+                    if (ok) {
+                      HapticService.selection();
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'Password updated! Active sessions on other devices have been signed out.',
+                        icon: Icons.lock_outline,
+                        iconColor: AppColors.green,
+                      );
+                      Navigator.of(context).pop();
+                    } else {
+                      LuxurySnackBar.show(
+                        context,
+                        message: msg,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                    }
+                  },
+            child: _isUpdatingPassword
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ),
       ],
     );
   }
 
+  String _formatSessionTimestamp(dynamic raw) {
+    final dt = raw == null ? null : DateTime.tryParse(raw.toString())?.toLocal();
+    if (dt == null) return 'Recent activity';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • $hh:$mm';
+  }
+
+  Widget _buildSessionsTab(BuildContext context, AuthProvider auth) {
+    final hasOtherSessions = _sessions.any((s) => s['is_current'] != true);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Signed-In Devices & Tokens',
+                style: AppTextStyles.body(size: 13.5, weight: FontWeight.w700, color: AppColors.ink),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _loadingSessions ? null : () => _loadSessions(auth, force: true),
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.plum),
+              label: const Text('Refresh', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.plum)),
+            ),
+          ],
+        ),
+        Text(
+          'Manage active devices logged into your Lumora buyer account. Revoke unfamiliar tokens immediately.',
+          style: AppTextStyles.body(size: 11.5, color: AppColors.muted),
+        ),
+        const SizedBox(height: 14),
+        if (_loadingSessions)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: CircularProgressIndicator(color: AppColors.plum),
+            ),
+          )
+        else if (_sessionsError != null)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.dangerBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.dangerBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: AppColors.danger, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _sessionsError!,
+                    style: AppTextStyles.body(size: 12, color: AppColors.danger),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (_sessions.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.blush1,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Text(
+              'No active device tokens reported yet.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body(size: 12, color: AppColors.muted),
+            ),
+          )
+        else ...[
+          if (hasOtherSessions) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppColors.dangerBg,
+                  side: const BorderSide(color: AppColors.dangerBorder),
+                  foregroundColor: AppColors.danger,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                ),
+                icon: const Icon(Icons.logout_rounded, size: 17),
+                label: Text(
+                  _revokingSessionKey == 'others' ? 'Signing Out Other Devices...' : 'Sign Out All Other Devices',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                ),
+                onPressed: _revokingSessionKey != null
+                    ? null
+                    : () async {
+                        setState(() => _revokingSessionKey = 'others');
+                        final res = await auth.revokeSession('others');
+                        if (!context.mounted) return;
+                        setState(() => _revokingSessionKey = null);
+                        LuxurySnackBar.show(
+                          context,
+                          message: res.message ?? (res.success ? 'Signed out of other sessions.' : 'Failed to revoke sessions.'),
+                          icon: res.success ? Icons.verified_user_outlined : Icons.error_outline,
+                          iconColor: res.success ? AppColors.green : AppColors.danger,
+                        );
+                        if (res.success) {
+                          _loadSessions(auth, force: true);
+                        }
+                      },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          ..._sessions.map((session) {
+            final isCurrent = session['is_current'] == true;
+            final sessionId = (session['id'] ?? '').toString();
+            final deviceLabel = (session['device'] ?? session['name'] ?? 'Lumora Mobile Session').toString();
+            final lastUsed = _formatSessionTimestamp(session['last_used_at'] ?? session['created_at']);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isCurrent ? AppColors.emeraldBorder : AppColors.line,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: isCurrent ? AppColors.emeraldBg : AppColors.blush1,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.smartphone_rounded,
+                      size: 18,
+                      color: isCurrent ? AppColors.emeraldText : AppColors.plum,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                deviceLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.body(size: 13, weight: FontWeight.w700, color: AppColors.ink),
+                              ),
+                            ),
+                            if (isCurrent) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.emeraldBg,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: const Text(
+                                  'THIS DEVICE',
+                                  style: TextStyle(
+                                    color: AppColors.emeraldText,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          lastUsed,
+                          style: AppTextStyles.body(size: 11, color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isCurrent && sessionId.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                      onPressed: _revokingSessionKey != null
+                          ? null
+                          : () async {
+                              setState(() => _revokingSessionKey = sessionId);
+                              final res = await auth.revokeSession(sessionId);
+                              if (!context.mounted) return;
+                              setState(() => _revokingSessionKey = null);
+                              LuxurySnackBar.show(
+                                context,
+                                message: res.message ?? (res.success ? 'Session revoked.' : 'Could not revoke session.'),
+                                icon: res.success ? Icons.check_circle_outline : Icons.error_outline,
+                                iconColor: res.success ? AppColors.green : AppColors.danger,
+                              );
+                              if (res.success) {
+                                _loadSessions(auth, force: true);
+                              }
+                            },
+                      child: _revokingSessionKey == sessionId
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.danger),
+                            )
+                          : const Text('Revoke', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
   Widget _buildDeleteAccountForm(BuildContext context, AuthProvider auth) {
+    final isGoogle = auth.currentUser?.isGoogleAccount == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF3F3),
+            color: AppColors.dangerBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+            border: Border.all(color: AppColors.dangerBorder),
           ),
           child: Text(
-            'Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.',
-            style: AppTextStyles.body(size: 12, color: Colors.redAccent.shade700, height: 1.4),
+            isGoogle
+                ? 'Once your account is deleted, all profile details, orders, and tokens are permanently removed. Type DELETE below to confirm.'
+                : 'Once your account is deleted, all of its resources and data will be permanently deleted. Enter your current password to confirm.',
+            style: AppTextStyles.body(size: 12, color: AppColors.danger, height: 1.4),
           ),
         ),
         const SizedBox(height: 16),
-        _buildTextField(
-          'Current Password *',
-          _deletePassCtrl,
-          obscure: true,
-          hint: 'Enter your password to confirm deletion',
-        ),
+        if (isGoogle)
+          _buildTextField(
+            'Type DELETE to Confirm *',
+            _deletePassCtrl,
+            obscure: false,
+            hint: 'DELETE',
+          )
+        else
+          _buildTextField(
+            'Current Password *',
+            _deletePassCtrl,
+            obscure: _obscureDeletePass,
+            hint: 'Enter your password to confirm deletion',
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureDeletePass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                size: 19,
+                color: AppColors.muted,
+              ),
+              onPressed: () => setState(() => _obscureDeletePass = !_obscureDeletePass),
+            ),
+          ),
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            icon: const Icon(Icons.delete_forever_outlined, size: 18),
-            label: const Text('Delete Account Permanently', style: TextStyle(fontWeight: FontWeight.w700)),
-            onPressed: () async {
-              final res = await auth.deleteAccount(password: _deletePassCtrl.text);
-              if (!context.mounted) return;
-              final ok = res['success'] == true;
-              final msg = (res['message'] ?? '').toString();
-              if (ok) {
-                Provider.of<WishlistProvider>(context, listen: false).clearWishlist();
-                Provider.of<CartProvider>(context, listen: false).clearCart();
-                HapticService.selection();
-                Navigator.of(context).pop();
-                LuxurySnackBar.show(
-                  context,
-                  message: msg,
-                  icon: Icons.delete_forever_outlined,
-                  iconColor: Colors.redAccent,
-                );
-              } else {
-                LuxurySnackBar.show(
-                  context,
-                  message: msg,
-                  icon: Icons.error_outline,
-                  iconColor: Colors.redAccent,
-                );
-              }
-            },
+            icon: _isDeletingAccount
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.delete_forever_outlined, size: 18),
+            label: Text(
+              _isDeletingAccount ? 'Deleting Account...' : 'Delete Account Permanently',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            onPressed: _isDeletingAccount
+                ? null
+                : () async {
+                    if (isGoogle && _deletePassCtrl.text.trim().toUpperCase() != 'DELETE') {
+                      LuxurySnackBar.show(
+                        context,
+                        message: 'Please type DELETE to confirm permanent account deletion.',
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                      return;
+                    }
+                    setState(() => _isDeletingAccount = true);
+                    final res = await auth.deleteAccount(
+                      password: isGoogle ? '' : _deletePassCtrl.text,
+                      confirmText: isGoogle ? _deletePassCtrl.text.trim().toUpperCase() : null,
+                    );
+                    if (!context.mounted) return;
+                    setState(() => _isDeletingAccount = false);
+                    final ok = res['success'] == true;
+                    final msg = (res['message'] ?? '').toString();
+                    if (ok) {
+                      Provider.of<WishlistProvider>(context, listen: false).clearWishlist();
+                      Provider.of<CartProvider>(context, listen: false).clearCart();
+                      HapticService.selection();
+                      Navigator.of(context).pop();
+                      LuxurySnackBar.show(
+                        context,
+                        message: msg,
+                        icon: Icons.delete_forever_outlined,
+                        iconColor: AppColors.danger,
+                      );
+                    } else {
+                      LuxurySnackBar.show(
+                        context,
+                        message: msg,
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.danger,
+                      );
+                    }
+                  },
           ),
         ),
       ],
@@ -5473,6 +6217,7 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
     TextInputType? keyboardType,
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
+    Widget? suffixIcon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -5490,6 +6235,7 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
             counterText: '',
             hintText: hint,
             hintStyle: AppTextStyles.body(size: 12, color: AppColors.muted),
+            suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
@@ -5502,6 +6248,226 @@ class _ProfileSettingsModalContentState extends State<_ProfileSettingsModalConte
               borderSide: const BorderSide(color: AppColors.line),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileOtpChallengeDialog extends StatefulWidget {
+  final String targetLabel;
+  final String targetValue;
+  final String? otpEmail;
+  final String otpType;
+  final ValueChanged<String> onVerified;
+
+  const _ProfileOtpChallengeDialog({
+    required this.targetLabel,
+    required this.targetValue,
+    this.otpEmail,
+    required this.otpType,
+    required this.onVerified,
+  });
+
+  @override
+  State<_ProfileOtpChallengeDialog> createState() => _ProfileOtpChallengeDialogState();
+}
+
+class _ProfileOtpChallengeDialogState extends State<_ProfileOtpChallengeDialog> {
+  final TextEditingController _otpCtrl = TextEditingController();
+  Timer? _cooldownTimer;
+  int _resendSeconds = 0;
+  bool _sending = false;
+  bool _verifying = false;
+  String? _statusNote;
+  String? _otpError;
+
+  String get _otpTargetEmail =>
+      (widget.otpEmail != null && widget.otpEmail!.trim().isNotEmpty)
+          ? widget.otpEmail!.trim()
+          : widget.targetValue;
+
+  bool get _usesLiveEmailOtp =>
+      ApiConfig.useLiveApi &&
+      (widget.otpType == 'email_change' || widget.otpType == 'phone_change');
+
+  @override
+  void initState() {
+    super.initState();
+    if (_usesLiveEmailOtp) {
+      _dispatchOtp();
+    } else {
+      _statusNote = 'Enter a 6-digit verification code for ${widget.targetValue}.';
+    }
+  }
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    _otpCtrl.dispose();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() => _resendSeconds = 60);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+      } else {
+        setState(() => _resendSeconds--);
+      }
+    });
+  }
+
+  Future<void> _dispatchOtp() async {
+    if (_sending) return;
+    final deliveryEmail = _otpTargetEmail;
+    final changeNote = widget.otpType == 'phone_change'
+        ? ' to authorize changing your mobile number to ${widget.targetValue}'
+        : '';
+    setState(() {
+      _sending = true;
+      _otpError = null;
+      _statusNote = 'Dispatching 6-digit security code to $deliveryEmail$changeNote...';
+    });
+    final res = await ApiService().requestOtp(
+      target: deliveryEmail,
+      type: widget.otpType,
+    );
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      if (res['success'] == true) {
+        _statusNote = 'A 6-digit verification code was sent to $deliveryEmail$changeNote.';
+      } else {
+        _otpError = res['message']?.toString() ?? 'Could not send verification code.';
+      }
+    });
+    if (res['success'] == true) {
+      _startCooldown();
+    }
+  }
+
+  Future<void> _confirmOtp() async {
+    final code = _otpCtrl.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      setState(() => _otpError = 'Please enter a valid 6-digit numeric code.');
+      return;
+    }
+
+    if (_usesLiveEmailOtp) {
+      setState(() {
+        _verifying = true;
+        _otpError = null;
+      });
+      final verifyRes = await ApiService().verifyOtp(
+        target: _otpTargetEmail,
+        code: code,
+        type: widget.otpType,
+      );
+      if (!mounted) return;
+      setState(() => _verifying = false);
+      if (verifyRes['success'] != true) {
+        setState(() => _otpError = verifyRes['message']?.toString() ?? 'Invalid or expired code.');
+        return;
+      }
+    }
+
+    Navigator.of(context).pop();
+    widget.onVerified(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.cream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.security, color: AppColors.plum, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Verify ${widget.targetLabel}',
+              style: AppTextStyles.heading(size: 17, weight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _statusNote ?? 'Enter the 6-digit verification code sent to ${widget.targetValue}.',
+            style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _otpCtrl,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              hintText: '000000',
+              filled: true,
+              fillColor: Colors.white,
+              counterText: '',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.line),
+              ),
+            ),
+          ),
+          if (_usesLiveEmailOtp) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: (_sending || _resendSeconds > 0) ? null : _dispatchOtp,
+                child: Text(
+                  _sending
+                      ? 'Sending...'
+                      : _resendSeconds > 0
+                          ? 'Resend code in ${_resendSeconds}s'
+                          : 'Resend Verification Code',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.plum),
+                ),
+              ),
+            ),
+          ],
+          if (_otpError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _otpError!,
+              style: const TextStyle(fontSize: 11.5, color: AppColors.danger, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _verifying ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.plum, foregroundColor: Colors.white),
+          onPressed: _verifying ? null : _confirmOtp,
+          child: _verifying
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Verify & Confirm'),
         ),
       ],
     );
@@ -6482,14 +7448,19 @@ Widget _buildAvatarCircle({
         height: size,
         fit: BoxFit.cover,
       );
-    } else if (avatar.startsWith('http')) {
-      imageWidget = Image.network(
-        avatar,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-      );
+    } else {
+      final resolvedUrl = avatar.startsWith('/')
+          ? '${ApiConfig.baseUrl.replaceFirst(RegExp(r'/api/?$'), '')}$avatar'
+          : avatar;
+      if (resolvedUrl.startsWith('http')) {
+        imageWidget = Image.network(
+          resolvedUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        );
+      }
     }
   }
 
@@ -6526,6 +7497,9 @@ ImageProvider _buildPhotoProvider(String src) {
   if (src.startsWith('data:image/')) {
     final base64Str = src.split(',').last;
     return MemoryImage(base64Decode(base64Str));
+  }
+  if (src.startsWith('/')) {
+    return NetworkImage('${ApiConfig.baseUrl.replaceFirst(RegExp(r'/api/?$'), '')}$src');
   }
   if (src.startsWith('http')) {
     return NetworkImage(src);

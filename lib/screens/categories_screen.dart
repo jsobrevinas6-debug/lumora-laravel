@@ -43,6 +43,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'All';
+    MockData.catalogVersion.addListener(_onCatalogUpdated);
+  }
+
+  void _onCatalogUpdated() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -56,6 +61,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   @override
   void dispose() {
+    MockData.catalogVersion.removeListener(_onCatalogUpdated);
     _searchController.dispose();
     super.dispose();
   }
@@ -312,7 +318,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   Widget build(BuildContext context) {
     final categories = ['All', ...MockData.categories.map((c) => c.name)];
     final products = _getProcessedProducts();
-    final double headerHeight = _searchQuery.isEmpty ? 176.0 : 142.0;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3);
+    final double headerHeight = ((_searchQuery.isEmpty ? 186.0 : 150.0) * textScale).ceilToDouble();
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -320,58 +327,75 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           bottom: false,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            slivers: [
-              SliverPersistentHeader(
-                floating: true,
-                pinned: false,
-                delegate: _FoldingCategoryHeaderDelegate(
-                  height: headerHeight,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      _buildSearchBar(),
-                      if (_searchQuery.isEmpty) _buildTrendingChips(),
-                      const SizedBox(height: 8),
-                      _buildCategoryPills(categories),
-                      const SizedBox(height: 8),
-                      _buildFilterSortBar(products.length),
-                      const SizedBox(height: 6),
-                    ],
-                  ),
-                ),
+          child: RefreshIndicator(
+            color: AppColors.plum,
+            backgroundColor: AppColors.cream,
+            onRefresh: () async {
+              HapticService.selection();
+              await MockData.syncFromApi();
+              if (mounted) setState(() {});
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              if (products.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _buildNoResults(),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.64,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 14,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return ProductCard(
-                          product: products[index],
-                          heroTag: 'cat_prod_${products[index].id}',
-                        );
-                      },
-                      childCount: products.length,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverPersistentHeader(
+                  floating: true,
+                  pinned: false,
+                  delegate: _FoldingCategoryHeaderDelegate(
+                    height: headerHeight,
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          _buildSearchBar(),
+                          if (_searchQuery.isEmpty) _buildTrendingChips(),
+                          const SizedBox(height: 8),
+                          _buildCategoryPills(categories),
+                          const SizedBox(height: 8),
+                          _buildFilterSortBar(products.length),
+                          const SizedBox(height: 6),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-            ],
+                if (products.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildNoResults(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: LumoraGridMetrics.productCardExtent(
+                          context,
+                          horizontalPadding: 40,
+                        ),
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 14,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return ProductCard(
+                            product: products[index],
+                            heroTag: 'cat_prod_${products[index].id}',
+                          );
+                        },
+                        childCount: products.length,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

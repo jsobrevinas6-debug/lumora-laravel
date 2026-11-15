@@ -773,6 +773,7 @@ class AuthProvider extends ChangeNotifier {
     required String contactNumber,
     required String dateOfBirth,
     required String email,
+    String? otpCode,
   }) async {
     if (_currentUser == null) {
       return {'success': false, 'message': 'Not signed in.'};
@@ -793,13 +794,18 @@ class AuthProvider extends ChangeNotifier {
 
     final cleanEmail = email.trim().toLowerCase();
     final emailChanged = cleanEmail != _currentUser!.email.toLowerCase();
-    if (emailChanged && isEmailRegistered(cleanEmail)) {
+    if (emailChanged &&
+        _registeredUsers.any((u) => u.id != _currentUser!.id && u.email.trim().toLowerCase() == cleanEmail)) {
       return {'success': false, 'message': 'This email is already taken by another account.'};
     }
 
     final phoneChanged = _currentUser!.contactNumber == null ||
         normalizePhoneNumber(_currentUser!.contactNumber!) != normalizedPhone;
-    if (phoneChanged && isPhoneRegistered(normalizedPhone)) {
+    if (phoneChanged &&
+        _registeredUsers.any((u) =>
+            u.id != _currentUser!.id &&
+            u.contactNumber != null &&
+            normalizePhoneNumber(u.contactNumber!) == normalizedPhone)) {
       return {'success': false, 'message': 'This mobile number is already taken by another account.'};
     }
 
@@ -821,6 +827,51 @@ class AuthProvider extends ChangeNotifier {
     }
 
     final updatedFullName = '${firstName.trim()} ${lastName.trim()}'.trim();
+
+    if (ApiConfig.useLiveApi) {
+      final payload = <String, dynamic>{
+        'full_name': updatedFullName,
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
+        'middle_initial': middleInitial?.trim(),
+        'sex': sex,
+        'contact_number': normalizedPhone,
+        'date_of_birth': dateOfBirth.trim(),
+        'email': cleanEmail,
+        if (otpCode != null && otpCode.trim().isNotEmpty) 'otp_code': otpCode.trim(),
+      };
+      final apiRes = await ApiService().updateProfile(
+        data: payload,
+        token: _authToken,
+      );
+      if (!apiRes.success) {
+        return {
+          'success': false,
+          'message': apiRes.message ?? 'Could not save profile changes to server.',
+        };
+      }
+      if (apiRes.user != null) {
+        final serverUser = User.fromJson(apiRes.user!);
+        _currentUser = _currentUser!.copyWith(
+          fullName: serverUser.fullName,
+          firstName: serverUser.firstName,
+          lastName: serverUser.lastName,
+          middleInitial: serverUser.middleInitial,
+          sex: serverUser.sex,
+          contactNumber: serverUser.contactNumber,
+          dateOfBirth: serverUser.dateOfBirth,
+          age: serverUser.age ?? computedAge,
+          email: serverUser.email,
+          avatar: serverUser.avatar ?? _currentUser!.avatar,
+          emailVerified: serverUser.emailVerified,
+          emailVerifiedAt: serverUser.emailVerifiedAt,
+        );
+        await _saveUserToPrefs(_currentUser!);
+        notifyListeners();
+        return {'success': true, 'message': apiRes.message ?? 'Profile updated successfully.'};
+      }
+    }
+
     _currentUser = _currentUser!.copyWith(
       fullName: updatedFullName,
       firstName: firstName.trim(),
@@ -831,50 +882,78 @@ class AuthProvider extends ChangeNotifier {
       dateOfBirth: dateOfBirth.trim(),
       age: computedAge,
       email: cleanEmail,
-      emailVerifiedAt: emailChanged ? null : _currentUser!.emailVerifiedAt,
+      emailVerifiedAt: emailChanged ? DateTime.now() : _currentUser!.emailVerifiedAt,
     );
-
-    if (ApiConfig.useLiveApi) {
-      try {
-        await ApiService().updateProfile(
-          data: {
-            'full_name': updatedFullName,
-            'first_name': firstName.trim(),
-            'last_name': lastName.trim(),
-            'middle_initial': middleInitial?.trim(),
-            'sex': sex,
-            'contact_number': normalizedPhone,
-            'date_of_birth': dateOfBirth.trim(),
-          },
-          token: _authToken,
-        );
-      } catch (e) {
-        debugPrint('Live updateProfile sync warning: $e');
-      }
-    }
 
     await _saveUserToPrefs(_currentUser!);
     notifyListeners();
     return {'success': true, 'message': 'Profile updated successfully.'};
   }
 
-  /// PATCH /profile/avatar — Update buyer profile picture
-  Future<void> updateAvatar(String avatarSource) async {
-    if (_currentUser == null) return;
-    _currentUser = _currentUser!.copyWith(avatar: avatarSource);
+  /// POST/DELETE /auth/avatar — Upload, update, or remove buyer profile picture
+  Future<({bool success, String? message})> updateAvatar(String avatarSource) async {
+    if (_currentUser == null) {
+      return (success: false, message: 'Not signed in.');
+    }
+
+    final isRemoving = avatarSource.trim().isEmpty;
+    String resolvedAvatar = avatarSource;
+    if (ApiConfig.useLiveApi) {
+      final apiRes = await ApiService().updateAvatar(
+        avatarData: avatarSource,
+        token: _authToken,
+      );
+      if (!apiRes.success) {
+        return (
+          success: false,
+          message: apiRes.message ??
+              (isRemoving
+                  ? 'Could not remove profile picture on server.'
+                  : 'Could not upload profile picture to server.'),
+        );
+      }
+      if (!isRemoving && apiRes.avatarUrl != null && apiRes.avatarUrl!.isNotEmpty) {
+        resolvedAvatar = apiRes.avatarUrl!;
+      }
+    }
+
+    _currentUser = isRemoving
+        ? _currentUser!.copyWith(clearAvatar: true)
+        : _currentUser!.copyWith(avatar: resolvedAvatar);
     await _saveUserToPrefs(_currentUser!);
     notifyListeners();
+    return (
+      success: true,
+      message: isRemoving ? 'Profile picture removed.' : 'Profile picture updated.',
+    );
   }
 
   /// PATCH /profile/address — Update buyer shipping address
-  Future<void> updateShippingAddress({
+  Future<bool> updateShippingAddress({
     required String province,
     required String municipality,
     required String barangay,
     String? street,
     String? houseNumber,
   }) async {
-    if (_currentUser == null) return;
+    if (_currentUser == null) return false;
+    if (ApiConfig.useLiveApi) {
+      final apiRes = await ApiService().updateProfile(
+        data: {
+          'province': province.trim(),
+          'municipality': municipality.trim(),
+          'barangay': barangay.trim(),
+          'street': street?.trim(),
+          'house_number': houseNumber?.trim(),
+        },
+        token: _authToken,
+      );
+      if (!apiRes.success) {
+        debugPrint('Live updateShippingAddress failed: ${apiRes.message}');
+        return false;
+      }
+    }
+
     _currentUser = _currentUser!.copyWith(
       province: province.trim(),
       municipality: municipality.trim(),
@@ -882,24 +961,9 @@ class AuthProvider extends ChangeNotifier {
       street: street?.trim(),
       houseNumber: houseNumber?.trim(),
     );
-    if (ApiConfig.useLiveApi) {
-      try {
-        await ApiService().updateProfile(
-          data: {
-            'province': province.trim(),
-            'municipality': municipality.trim(),
-            'barangay': barangay.trim(),
-            'street': street?.trim(),
-            'house_number': houseNumber?.trim(),
-          },
-          token: _authToken,
-        );
-      } catch (e) {
-        debugPrint('Live updateShippingAddress sync warning: $e');
-      }
-    }
     await _saveUserToPrefs(_currentUser!);
     notifyListeners();
+    return true;
   }
 
   /// PUT /password — Update account password
@@ -910,6 +974,9 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     if (_currentUser == null) {
       return {'success': false, 'message': 'Not signed in.'};
+    }
+    if (currentPassword.isEmpty) {
+      return {'success': false, 'message': 'Please enter your current password.'};
     }
     if (_currentUser!.passwordHash != null &&
         _currentUser!.passwordHash!.isNotEmpty &&
@@ -944,16 +1011,36 @@ class AuthProvider extends ChangeNotifier {
     return {'success': true, 'message': 'Password updated successfully.'};
   }
 
-  /// DELETE /profile — Permanently delete buyer account after password check
-  Future<Map<String, dynamic>> deleteAccount({required String password}) async {
+  /// DELETE /profile — Permanently delete buyer account after server password check
+  Future<Map<String, dynamic>> deleteAccount({
+    required String password,
+    String? confirmText,
+  }) async {
     if (_currentUser == null) {
       return {'success': false, 'message': 'Not signed in.'};
+    }
+    if (!_currentUser!.isGoogleAccount && password.isEmpty) {
+      return {'success': false, 'message': 'Please enter your password to delete your account.'};
     }
     if (!_currentUser!.isGoogleAccount &&
         _currentUser!.passwordHash != null &&
         _currentUser!.passwordHash!.isNotEmpty &&
         _currentUser!.passwordHash != password) {
       return {'success': false, 'message': 'The password you entered is incorrect.'};
+    }
+
+    if (ApiConfig.useLiveApi) {
+      final apiRes = await ApiService().deleteProfile(
+        password: _currentUser!.isGoogleAccount ? null : password,
+        confirmText: _currentUser!.isGoogleAccount ? (confirmText ?? 'DELETE') : null,
+        token: _authToken,
+      );
+      if (!apiRes.success) {
+        return {
+          'success': false,
+          'message': apiRes.message ?? 'Account deletion rejected by server.',
+        };
+      }
     }
 
     final idToRemove = _currentUser!.id;
@@ -972,6 +1059,46 @@ class AuthProvider extends ChangeNotifier {
 
     logout();
     return {'success': true, 'message': 'Your account has been permanently deleted.'};
+  }
+
+  Future<({bool success, List<Map<String, dynamic>> sessions, String? message})>
+      fetchActiveSessions() async {
+    if (!_isLoggedIn || _currentUser == null) {
+      return (success: false, sessions: const <Map<String, dynamic>>[], message: 'Not signed in.');
+    }
+    if (!ApiConfig.useLiveApi) {
+      return (
+        success: true,
+        sessions: [
+          {
+            'id': 'local-current',
+            'device': 'This Device (Offline Preview)',
+            'last_used_at': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toIso8601String(),
+            'is_current': true,
+          }
+        ],
+        message: null,
+      );
+    }
+    return ApiService().fetchSessions(token: _authToken);
+  }
+
+  Future<({bool success, String? message})> revokeSession(String idOrOthers) async {
+    if (!ApiConfig.useLiveApi) {
+      return (success: true, message: 'Signed out of other sessions.');
+    }
+    return ApiService().revokeSession(idOrOthers: idOrOthers, token: _authToken);
+  }
+
+  Future<bool> refreshSession() async {
+    if (!_isLoggedIn || _currentUser == null || !ApiConfig.useLiveApi) return false;
+    final res = await ApiService().fetchSessions(token: _authToken);
+    if (!res.success && (res.message?.toLowerCase().contains('unauthenticated') == true)) {
+      logout();
+      return false;
+    }
+    return res.success;
   }
 
   // Log out to Guest Mode (preserves per-user persisted cart & orders for BUY-CART-008)

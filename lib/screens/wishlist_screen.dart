@@ -228,20 +228,36 @@ class WishlistScreen extends StatelessWidget {
   Widget _buildWishlistGrid(BuildContext context, WishlistProvider wishlist) {
     final savedProducts = wishlist.getWishlistItems(MockData.unifiedCatalog);
 
-    return GridView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.70,
-      ),
-      itemCount: savedProducts.length,
-      itemBuilder: (context, index) {
-        final product = savedProducts[index];
-        return _WishlistProductCard(product: product);
+    return RefreshIndicator(
+      color: AppColors.plum,
+      backgroundColor: AppColors.cream,
+      onRefresh: () async {
+        HapticService.selection();
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        await MockData.syncFromApi();
+        await wishlist.syncWithAuth(auth.currentUser?.email);
       },
+      child: GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          mainAxisExtent: LumoraGridMetrics.productCardExtent(
+            context,
+            horizontalPadding: 32,
+            extraBottomRoom: 22,
+          ),
+        ),
+        itemCount: savedProducts.length,
+        itemBuilder: (context, index) {
+          final product = savedProducts[index];
+          return _WishlistProductCard(product: product);
+        },
+      ),
     );
   }
 }

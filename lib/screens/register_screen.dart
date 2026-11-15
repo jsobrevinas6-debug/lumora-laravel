@@ -11,6 +11,7 @@ import '../services/native_photo_picker.dart';
 import '../theme/app_theme.dart';
 import '../widgets/google_account_picker_sheet.dart';
 import '../widgets/google_icon.dart';
+import '../widgets/luxury_date_picker.dart';
 import '../widgets/luxury_otp_field.dart';
 import '../widgets/luxury_snackbar.dart';
 import 'login_screen.dart';
@@ -273,36 +274,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _pickDateOfBirth() async {
+  Future<void> _pickDateOfBirth() async {
     HapticService.selection();
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await LumoraDatePicker.show(
+      context,
       initialDate: _selectedDob ?? DateTime(now.year - 20, now.month, now.day),
-      firstDate: DateTime(1930),
+      firstDate: DateTime(1930, 1, 1),
       lastDate: now.subtract(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.plum,
-              onPrimary: Colors.white,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      minimumAge: 18,
+      title: 'Date of Birth',
+      subtitle: 'Scroll Month, Day & Year or tap Quick Type',
     );
 
     if (picked != null && mounted) {
       setState(() {
         _selectedDob = picked;
-        int age = now.year - picked.year;
-        if (now.month < picked.month || (now.month == picked.month && now.day < picked.day)) {
-          age--;
-        }
-        _computedAge = age;
+        _computedAge = LumoraDatePicker.computeAge(picked, now: now);
       });
     }
   }
@@ -1206,12 +1194,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Expanded(
                                 child: Text(
                                   _selectedDob == null
-                                      ? 'Tap to select'
-                                      : '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}',
+                                      ? 'Tap to choose date'
+                                      : LumoraDatePicker.formatFriendly(_selectedDob!),
                                   style: GoogleFonts.inter(
                                     fontSize: 12.5,
-                                    color: _selectedDob == null ? const Color(0xFFB2A4A1) : AppColors.ink,
-                                    fontWeight: _selectedDob == null ? FontWeight.w400 : FontWeight.w500,
+                                    color: _selectedDob == null ? AppColors.muted : AppColors.ink,
+                                    fontWeight: _selectedDob == null ? FontWeight.w400 : FontWeight.w600,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
