@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Models\Message;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,8 +23,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
-
         View::composer('layouts.seller', function ($view) {
             $view->with('sellerUnreadChatCount', $this->unreadChatCount('seller_id'));
             $view->with('sellerPendingReturnsCount', $this->sellerPendingReturnsCount());

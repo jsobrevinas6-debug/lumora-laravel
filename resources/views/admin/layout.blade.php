@@ -73,10 +73,9 @@
     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
     <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">Users</a>
     @php
-        $pendingApplicationBadge = \Illuminate\Support\Facades\DB::table('seller_applications')->where('status', 'pending')->count()
-            + \Illuminate\Support\Facades\DB::table('users')->where('role', 'buyer')->where('approval_status', 'pending')->whereNull('approval_archived_at')->count();
+        $pendingApplicationBadge = \Illuminate\Support\Facades\DB::table('seller_applications')->where('status', 'pending')->count();
     @endphp
-    <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications*') ? 'active' : '' }}"><span>Seller / Buyer Applications</span>@if($pendingApplicationBadge)<span class="admin-ewallet-count" aria-label="{{ $pendingApplicationBadge }} applications awaiting review">{{ $pendingApplicationBadge }}</span>@endif</a>
+    <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications*') ? 'active' : '' }}"><span>Applications</span>@if($pendingApplicationBadge)<span class="admin-ewallet-count" aria-label="{{ $pendingApplicationBadge }} applications awaiting review">{{ $pendingApplicationBadge }}</span>@endif</a>
     @php $pendingProductApprovalCount = \Illuminate\Support\Facades\DB::table('products')->where('approval_status', 'pending')->count(); @endphp
     <a href="{{ route('admin.product-approval') }}" class="nav-link {{ request()->routeIs('admin.product-approval*') ? 'active' : '' }}">
         <span>Product Approval</span>

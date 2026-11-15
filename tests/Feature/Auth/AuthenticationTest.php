@@ -30,6 +30,29 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_pending_and_rejected_buyers_can_authenticate(): void
+    {
+        foreach (['pending', 'rejected'] as $status) {
+            $user = User::factory()->create(['role' => 'buyer', 'approval_status' => $status]);
+
+            $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+                ->assertRedirect(route('dashboard', absolute: false));
+
+            $this->assertAuthenticatedAs($user);
+            auth()->logout();
+        }
+    }
+
+    public function test_pending_buyer_is_not_blocked_from_checkout_orders_or_account_routes(): void
+    {
+        $user = User::factory()->create(['role' => 'buyer', 'approval_status' => 'pending']);
+
+        foreach (['/cart/checkout', '/account/orders', '/profile'] as $path) {
+            $response = $this->actingAs($user)->get($path);
+            $this->assertNotSame(403, $response->getStatusCode(), $path.' must not require buyer approval.');
+        }
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

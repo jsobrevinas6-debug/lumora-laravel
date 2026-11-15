@@ -5,7 +5,6 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
@@ -167,31 +166,29 @@ Artisan::command('google:check-oauth', function () {
     $this->call('google:check-config');
 })->purpose('Check Google OAuth configuration safely');
 
-Artisan::command('marketplace:prune-buyer-ids', function () {
-    $days = config('marketplace.id_retention_days');
-    if (! $days || $days < 1) {
-        $this->info('Buyer ID retention is disabled; no files were deleted.');
+Artisan::command('buyers:purge-ids', function () {
+    $users = \App\Models\User::query()->where('role', 'buyer')
+        ->where(function ($query) { $query->whereNotNull('id_file_path')->orWhereNotNull('buyer_id_document'); })
+        ->get(['id', 'id_file_path', 'buyer_id_document']);
+    $paths = $users->flatMap(fn ($user) => [$user->id_file_path, $user->buyer_id_document])->filter()->unique()->values();
+    $disk = Storage::disk('local');
+    $existing = $paths->filter(fn ($path) => $disk->exists($path));
+
+    $this->info($existing->count().' private buyer ID file(s) exist across '.$users->count().' buyer account(s).');
+    if (! $this->confirm('Permanently delete these files and clear ID type and file path fields?')) {
+        $this->info('No files or account data were changed.');
         return;
     }
 
-    $statuses = config('marketplace.id_retention_approved', false) ? ['rejected', 'approved'] : ['rejected'];
-    $cutoff = now()->subDays($days);
     $deleted = 0;
-    \App\Models\User::query()->where('role', 'buyer')->whereIn('approval_status', $statuses)
-        ->where('approval_reviewed_at', '<=', $cutoff)
-        ->where(function ($query) { $query->whereNotNull('id_file_path')->orWhereNotNull('buyer_id_document'); })
-        ->chunkById(100, function ($users) use (&$deleted) {
-            foreach ($users as $user) {
-                $path = $user->id_file_path ?: $user->buyer_id_document;
-                if ($path && Storage::disk('local')->exists($path)) {
-                    Storage::disk('local')->delete($path);
-                    $deleted++;
-                }
-                $user->forceFill(['id_file_path' => null, 'buyer_id_document' => null])->save();
-            }
-        });
-
-    $this->info("Deleted {$deleted} retained buyer ID file(s).");
-})->purpose('Delete buyer identity files according to configured retention');
-
-Schedule::command('marketplace:prune-buyer-ids')->daily();
+    foreach ($existing as $path) {
+        if ($disk->delete($path)) $deleted++;
+    }
+    \App\Models\User::query()->whereIn('id', $users->pluck('id'))->update([
+        'id_type' => null, 'id_file_path' => null, 'buyer_id_document' => null,
+    ]);
+    \Illuminate\Support\Facades\Log::notice('Buyer ID files purged by operator.', [
+        'files_found' => $existing->count(), 'files_deleted' => $deleted, 'buyer_accounts_cleared' => $users->count(),
+    ]);
+    $this->info("Deleted {$deleted} file(s) and cleared ID fields for {$users->count()} buyer account(s).");
+})->purpose('List and, after confirmation, permanently delete stored buyer ID files');

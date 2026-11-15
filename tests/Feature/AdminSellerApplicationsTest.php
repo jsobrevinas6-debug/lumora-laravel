@@ -53,6 +53,18 @@ class AdminSellerApplicationsTest extends TestCase
             ->assertOk()->assertSee('Approved Shop')->assertDontSee('Rejected Shop');
     }
 
+    public function test_application_page_ignores_buyer_type_filter_and_lists_only_seller_applications(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $seller = User::factory()->create(['role' => 'seller']);
+        $this->application($seller, ['business_name' => 'Seller Only Shop']);
+        User::factory()->create(['role' => 'buyer', 'approval_status' => 'pending']);
+
+        $this->actingAs($admin)->get(route('admin.applications', ['type' => 'buyer']))
+            ->assertOk()->assertSee('Seller Applications')->assertSee('Seller Only Shop')
+            ->assertDontSee('All types')->assertDontSee('Sellers')->assertDontSee('Buyers')->assertDontSee('Type');
+    }
+
     public function test_approval_activates_seller_once_and_sends_existing_approval_email(): void
     {
         Mail::fake();

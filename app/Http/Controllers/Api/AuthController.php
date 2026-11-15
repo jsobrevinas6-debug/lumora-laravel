@@ -61,13 +61,6 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if ($user->role === 'buyer' && config('marketplace.require_buyer_approval', true) && $user->approval_status !== 'approved') {
-            return response()->json([
-                'message' => $user->approval_status === 'rejected'
-                    ? 'Your application was not approved. Reason: '.($user->approval_rejection_reason ?: 'not provided').'. Contact support or sign up again with correct details.'
-                    : "Your account is still awaiting admin approval. We'll email you once it's approved.",
-            ], 403);
-        }
 
         $token = $user->createToken($credentials['device_name'] ?? 'lumora-mobile')->plainTextToken;
 
@@ -98,10 +91,6 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8'],
             'device_name' => ['nullable', 'string', 'max:100'],
-            'id_type' => ['nullable', 'string', 'max:100'],
-            'valid_id_type' => ['nullable', 'string', 'max:100'],
-            'buyer_id_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'valid_id_photo' => ['nullable', 'string'],
         ]);
 
         $email = strtolower(trim($validated['email']));
@@ -155,37 +144,8 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'buyer',
             'status' => 'active',
-            'approval_status' => config('marketplace.require_buyer_approval', true) ? 'pending' : 'approved',
-            'id_type' => $validated['id_type'] ?? ($validated['valid_id_type'] ?? null),
+            'approval_status' => 'approved',
         ];
-
-        if (config('marketplace.require_buyer_approval', true) && config('marketplace.require_buyer_id', true)) {
-            $idFile = $request->file('buyer_id_document');
-            $idPath = null;
-            if ($idFile) {
-                $idPath = $idFile->store('buyer_identity_documents', 'local');
-            } elseif ($request->filled('valid_id_photo') && str_starts_with($request->string('valid_id_photo'), 'data:image')) {
-                // Decode base64/dataURI uploaded from mobile app
-                try {
-                    $dataUri = (string) $request->input('valid_id_photo');
-                    $base64 = substr($dataUri, strpos($dataUri, ',') + 1);
-                    $decoded = base64_decode($base64);
-                    if ($decoded !== false) {
-                        $filename = 'buyer_identity_documents/'.Str::uuid().'.jpg';
-                        \Illuminate\Support\Facades\Storage::disk('local')->put($filename, $decoded);
-                        $idPath = $filename;
-                    }
-                } catch (\Throwable) {
-                    $idPath = null;
-                }
-            }
-
-            if (! $idPath) {
-                return response()->json(['message' => 'Upload a valid JPG, PNG, or PDF identity document under 5 MB.'], 422);
-            }
-            $userAttributes['buyer_id_document'] = $idPath;
-            $userAttributes['id_file_path'] = $idPath;
-        }
 
         if (Schema::hasColumn('users', 'postal_code')) {
             $userAttributes['postal_code'] = $validated['postal_code'] ?? null;
@@ -198,13 +158,6 @@ class AuthController extends Controller
         }
 
         event(new Registered($user));
-
-        if (config('marketplace.require_buyer_approval', true)) {
-            return response()->json([
-                'message' => 'Account created. Your account is awaiting admin approval. We will email you once it is approved.',
-                'user' => self::userPayload($user),
-            ], 202);
-        }
 
         $token = $user->createToken($validated['device_name'] ?? 'lumora-mobile')->plainTextToken;
 
