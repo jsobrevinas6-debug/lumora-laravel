@@ -28,7 +28,7 @@
             <button type="button" class="flow-menu-trigger left-menu-trigger" id="flowMenuTriggerLeft" aria-label="Open shop by collection" aria-expanded="false" aria-controls="flowMenuDrawer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
-            <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
+            <x-logo :href="route('shop.index')" aria-label="Lumora shop" class="storefront-brand" />
 
             <form action="{{ route('shop.index') }}" method="GET" class="search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -102,7 +102,7 @@
                         $isGoogleBuyer = $authUser->provider === 'google' && $authUser->role === 'buyer';
                     @endphp
                     <div class="account-menu-wrap" id="accountMenuWrap">
-                        <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-controls="accountDropdown">
+                        <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-haspopup="menu" aria-controls="accountDropdown">
                             <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
                             <div class="account-text">
                                 <div class="account-name">{{ $authUser->name }}</div>
@@ -111,52 +111,54 @@
                             <svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
 
-                        <div class="account-dropdown" id="accountDropdown" role="menu">
+                        <div class="account-dropdown" id="accountDropdown" role="menu" aria-labelledby="accountTrigger">
                             <div class="account-dropdown-head">
                                 <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
-                                <div>
+                                <div class="account-dropdown-user">
                                     <div class="account-dropdown-name">{{ $authUser->name }}</div>
+                                    <div class="account-dropdown-meta"><span>{{ ucfirst($authUser->role) }}</span><span aria-hidden="true">·</span><span class="account-dropdown-email">{{ $authUser->email }}</span></div>
                                 </div>
                             </div>
 
-                            <a href="{{ route('profile.edit') }}" class="account-menu-link" role="menuitem">
+                            <a href="{{ route('profile.edit') }}" class="account-menu-item account-menu-link" role="menuitem">
                                 <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
                                 <span>Profile / Settings</span>
                             </a>
+                            <div class="account-menu-divider"></div>
 
                             @if ($authUser->role === 'seller')
                                 <form method="POST" action="{{ route('switchToSeller') }}">
                                     @csrf
-                                    <button type="submit" class="account-menu-button switch-seller" role="menuitem">
+                                    <button type="submit" class="account-menu-item account-menu-button switch-seller" role="menuitem">
                                         <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h12"/><path d="m12 6 6 6-6 6"/><path d="M4 4h6M4 20h6"/></svg></span>
                                         <span>Switch to Seller Dashboard</span>
                                     </button>
                                 </form>
                             @elseif ($isGoogleBuyer)
                                 @if (! $sellerApplication)
-                                    <a href="{{ route('seller.apply') }}" class="account-menu-link" role="menuitem">
+                                    <a href="{{ route('seller.apply') }}" class="account-menu-item account-menu-link" role="menuitem">
                                         <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16"/><path d="M5 10l1.2-5h11.6L19 10"/><path d="M6 10v9h12v-9"/><path d="M9 19v-5h6v5"/></svg></span>
                                         <span>Apply as Seller</span>
                                     </a>
                                 @elseif ($sellerApplication->status === 'pending')
-                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                    <div class="account-menu-item account-menu-note" role="menuitem" aria-disabled="true" tabindex="0">
                                         <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-                                        <span>Seller Application Pending</span>
+                                        <span class="account-menu-label">Seller application</span><span class="account-pending-pill">Pending</span>
                                     </div>
                                 @elseif ($sellerApplication->status === 'rejected')
-                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                    <div class="account-menu-item account-menu-note" role="menuitem" aria-disabled="true" tabindex="0">
                                         <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg></span>
                                         <span>Seller Application Rejected</span>
                                     </div>
                                 @elseif ($sellerApplication->status === 'approved')
-                                    <div class="account-menu-note" role="menuitem" aria-disabled="true">
+                                    <div class="account-menu-item account-menu-note" role="menuitem" aria-disabled="true" tabindex="0">
                                         <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5L16 9"/></svg></span>
                                         <span>Seller Application Approved</span>
                                     </div>
                                 @endif
                             @endif
 
-                            <a href="{{ route('buyer.orders.index') }}" class="account-menu-link" role="menuitem">
+                            <a href="{{ route('buyer.orders.index') }}" class="account-menu-item account-menu-link" role="menuitem">
                                 <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg></span>
                                 <span>My Orders</span>
                             </a>
@@ -166,7 +168,7 @@
                             <div class="account-menu-divider"></div>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <button type="submit" class="account-menu-button logout-menu" role="menuitem">
+                                <button type="submit" class="account-menu-item account-menu-button logout-menu" role="menuitem">
                                     <span class="account-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 17 5 12l5-5"/><path d="M5 12h12"/><path d="M14 4h5v16h-5"/></svg></span>
                                     <span>Log out</span>
                                 </button>

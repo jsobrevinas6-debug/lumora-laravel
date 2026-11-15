@@ -117,6 +117,40 @@ function initFlowMenuInteractions() {
     });
 }
 
+function initAccountMenu() {
+    const wrapper = document.getElementById('accountMenuWrap');
+    const trigger = document.getElementById('accountTrigger');
+    const menu = document.getElementById('accountDropdown');
+
+    if (!wrapper || !trigger || !menu) return;
+
+    const setOpen = (open) => {
+        wrapper.classList.toggle('open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.addEventListener('click', () => setOpen(!wrapper.classList.contains('open')));
+
+    document.addEventListener('click', (event) => {
+        if (!wrapper.contains(event.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && wrapper.classList.contains('open')) {
+            setOpen(false);
+            trigger.focus();
+        }
+    });
+
+    menu.addEventListener('click', (event) => {
+        if (event.target.closest('a[role="menuitem"]')) setOpen(false);
+    });
+
+    menu.addEventListener('submit', () => setOpen(false));
+    window.addEventListener('pagehide', () => setOpen(false));
+}
+
 function initProfileNavigation() {
     const sidebar = document.querySelector('[data-profile-sidebar]');
     const backdrop = document.querySelector('[data-profile-backdrop]');
@@ -203,6 +237,7 @@ function initProfileNavigation() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initFlowMenuInteractions();
+    initAccountMenu();
     initFlowingMenu();
     initProfileNavigation();
 });

@@ -1071,8 +1071,6 @@
         <script>
         
 
-        const accountMenuWrap = document.getElementById('accountMenuWrap');
-        const accountTrigger = document.getElementById('accountTrigger');
         const notificationWrap = document.getElementById('notificationWrap');
         const notificationTrigger = document.getElementById('notificationTrigger');
 
@@ -1097,28 +1095,6 @@
             });
         }
 
-        if (accountMenuWrap && accountTrigger) {
-            accountTrigger.addEventListener('click', function (event) {
-                event.stopPropagation();
-                const isOpen = accountMenuWrap.classList.toggle('open');
-                accountTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            });
-
-            document.addEventListener('click', function (event) {
-                if (!accountMenuWrap.contains(event.target)) {
-                    accountMenuWrap.classList.remove('open');
-                    accountTrigger.setAttribute('aria-expanded', 'false');
-                }
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') {
-                    accountMenuWrap.classList.remove('open');
-                    accountTrigger.setAttribute('aria-expanded', 'false');
-                    accountTrigger.focus();
-                }
-            });
-        }
         </script>
 
     <script>

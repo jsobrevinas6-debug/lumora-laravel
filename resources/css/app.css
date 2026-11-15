@@ -1,4 +1,5 @@
 @import './storefront-header.css';
+@import './shop-category.css';
 
 .legal-document h2 {
     margin: 24px 0 8px;
