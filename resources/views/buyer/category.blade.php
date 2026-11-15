@@ -78,11 +78,37 @@
                             @if($stock===0)<span class="stock-badge">Sold out</span>@elseif($stock<=5)<span class="stock-badge">Only {{ $stock }} left</span>@endif
                         </a>
                         <button type="button" class="heart-button {{ $saved?'saved':'' }}" data-wishlist-url="{{ auth()->check()?route('buyer.wishlist.toggle',$product):route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" data-auth="{{ auth()->check()?'1':'0' }}" data-saved="{{ $saved?'1':'0' }}" aria-label="{{ $saved?'Remove '.$product->name.' from wishlist':'Add '.$product->name.' to wishlist' }}" aria-pressed="{{ $saved?'true':'false' }}"><svg viewBox="0 0 24 24" fill="{{ $saved?'currentColor':'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
-                        @if($stock>0)<form method="POST" action="{{ route('buyer.cart.add',['product'=>$product->id]) }}" class="lumora-cart-form quick-add-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $final }}" data-cart-product-image="{{ $product->image_url }}">@csrf<input type="hidden" name="quantity" value="1"><button class="quick-add" type="submit" aria-label="Add {{ $product->name }} to cart">+</button></form>@endif
+                        <button type="button" class="quick-view-button" data-quick-view data-description="{{ strip_tags((string) $product->description) }}" data-stock="{{ $stock }}" aria-label="Quick view {{ $product->name }}">Quick view</button>
                     </div>
-                    <a class="product-copy" href="{{ route('shop.product',['id'=>$product->id]) }}"><div class="seller-name">{{ $sellerName }}</div><div class="product-name">{{ $product->name }}</div><div class="rating">@if($reviews)★ {{ number_format($rating,1) }} <span>({{ $reviews }})</span>@else<span>No reviews yet</span>@endif</div>@if((int)$product->sales_count>0)<div class="sold-note">{{ number_format($product->sales_count) }} sold</div>@endif<div class="price-line"><span class="price">₱{{ number_format($final,2) }}</span>@if($discount>0)<span class="old-price">₱{{ number_format($price,2) }}</span>@endif</div></a>
+                    <div class="product-copy">
+                        <div class="seller-name">{{ $sellerName }}</div>
+                        <a class="product-name product-name-link" href="{{ route('shop.product',['id'=>$product->id]) }}">{{ $product->name }}</a>
+                        <div class="rating">@if($reviews)&#9733; {{ number_format($rating,1) }} <span>({{ number_format($reviews) }} {{ $reviews === 1 ? 'review' : 'reviews' }})</span>@else<span>No reviews yet</span>@endif</div>
+                        @if((int)$product->sales_count>0)<div class="sold-note">{{ number_format($product->sales_count) }} sold</div>@endif
+                        <div class="price-line"><span class="price">&#8369;{{ number_format($final,2) }}</span>@if($discount>0)<span class="old-price">&#8369;{{ number_format($price,2) }}</span>@endif</div>
+                    </div>
+                    <form method="POST" action="{{ route('buyer.cart.add',['product'=>$product->id]) }}" class="lumora-cart-form card-cart-form" data-cart-product-name="{{ $product->name }}" data-cart-product-price="{{ $final }}" data-cart-product-image="{{ $product->image_url }}">
+                        @csrf<input type="hidden" name="quantity" value="1">
+                        <button class="card-add-button" type="submit" {{ $stock < 1 ? 'disabled' : '' }}>{{ $stock < 1 ? 'Out of stock' : 'Add to Cart' }}</button>
+                    </form>
                 </article>
             @endforeach
+            </div>
+            <div class="shop-quick-view" id="shopQuickView" aria-hidden="true">
+                <section class="shop-quick-view-card" role="dialog" aria-modal="true" aria-labelledby="shopQuickViewTitle">
+                    <button type="button" class="shop-quick-view-close" data-close-quick-view aria-label="Close quick view">&times;</button>
+                    <div class="shop-quick-view-image"><img data-quick-image src="" alt=""></div>
+                    <div class="shop-quick-view-content">
+                        <p class="shop-quick-view-store" data-quick-store></p>
+                        <h2 class="shop-quick-view-title" id="shopQuickViewTitle" data-quick-title></h2>
+                        <p class="shop-quick-view-rating" data-quick-rating></p>
+                        <p class="shop-quick-view-sold" data-quick-sold></p>
+                        <p class="shop-quick-view-stock" data-quick-stock></p>
+                        <div class="shop-quick-view-price" data-quick-price></div>
+                        <p class="shop-quick-view-description" data-quick-description></p>
+                        <a class="shop-quick-view-link" data-quick-link href="#">View product</a>
+                    </div>
+                </section>
             </div>
             <div class="pagination">{{ $products->links() }}</div>
         @else
@@ -102,6 +128,69 @@ document.getElementById('sortSelect').addEventListener('change',e=>{const u=new 
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const u=new URL(location.href);u.searchParams.set('view',b.dataset.view);u.searchParams.delete('page');location.href=u}));
 document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{const u=new URL(location.href);u.searchParams.delete(b.dataset.remove);u.searchParams.delete('page');location.href=u}));
 document.querySelectorAll('.heart-button').forEach(b=>b.addEventListener('click',async()=>{if(b.dataset.auth!=='1'){location.href=b.dataset.wishlistUrl;return}b.disabled=true;try{const r=await fetch(b.dataset.wishlistUrl,{method:'POST',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content,'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});const d=await r.json();if(!r.ok)throw new Error(d.message||'Could not update wishlist.');b.dataset.saved=d.saved?'1':'0';b.classList.toggle('saved',d.saved);b.setAttribute('aria-pressed',d.saved?'true':'false');b.setAttribute('aria-label',(d.saved?'Remove ':'Add ')+b.closest('.product-card').querySelector('.product-name').textContent+' '+(d.saved?'from':'to')+' wishlist');b.querySelector('svg').setAttribute('fill',d.saved?'currentColor':'none');document.querySelectorAll('[data-wishlist-count]').forEach(el=>{el.textContent=d.count||0;el.hidden=Number(d.count||0)<1});notify(d.message)}catch(e){notify(e.message)}finally{b.disabled=false}}));
+})();
+</script>
+<script>
+(() => {
+    const modal = document.getElementById('shopQuickView');
+    if (!modal) return;
+
+    const image = modal.querySelector('[data-quick-image]');
+    const store = modal.querySelector('[data-quick-store]');
+    const title = modal.querySelector('[data-quick-title]');
+    const rating = modal.querySelector('[data-quick-rating]');
+    const sold = modal.querySelector('[data-quick-sold]');
+    const stock = modal.querySelector('[data-quick-stock]');
+    const price = modal.querySelector('[data-quick-price]');
+    const description = modal.querySelector('[data-quick-description]');
+    const link = modal.querySelector('[data-quick-link]');
+    let lastTrigger = null;
+
+    const close = () => {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        lastTrigger?.focus();
+    };
+
+    document.querySelectorAll('[data-quick-view]').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            const card = trigger.closest('.product-card');
+            if (!card) return;
+            const productImage = card.querySelector('.product-image img');
+            const priceLine = card.querySelector('.price-line');
+            lastTrigger = trigger;
+            image.src = productImage?.currentSrc || productImage?.src || '';
+            image.alt = productImage?.alt || '';
+            store.textContent = card.querySelector('.seller-name')?.textContent.trim() || '';
+            title.textContent = card.querySelector('.product-name')?.textContent.trim() || '';
+            rating.textContent = card.querySelector('.rating')?.textContent.trim() || 'No reviews yet';
+            sold.textContent = card.querySelector('.sold-note')?.textContent.trim() || '';
+            const quantity = Number(trigger.dataset.stock || 0);
+            stock.textContent = quantity === 0 ? 'Sold out' : (quantity <= 5 ? `Only ${quantity} left` : 'In stock');
+            price.replaceChildren();
+            if (priceLine) {
+                priceLine.querySelectorAll('.price, .old-price').forEach((part) => {
+                    const copied = document.createElement(part.classList.contains('old-price') ? 'del' : 'span');
+                    copied.textContent = part.textContent.trim();
+                    price.append(copied);
+                });
+            }
+            description.textContent = trigger.dataset.description || '';
+            description.hidden = !description.textContent;
+            link.href = card.querySelector('.product-image')?.href || '#';
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            modal.querySelector('[data-close-quick-view]').focus();
+        });
+    });
+
+    modal.querySelectorAll('[data-close-quick-view]').forEach((button) => button.addEventListener('click', close));
+    modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) close();
+    });
 })();
 </script>
 </body></html>
