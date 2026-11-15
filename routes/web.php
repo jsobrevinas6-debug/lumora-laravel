@@ -22,6 +22,7 @@ use App\Http\Controllers\Buyer\CustomerCareController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\Seller\ProfileController as SellerProfileController;
 use App\Http\Controllers\Buyer\ShopController;
+use App\Http\Controllers\Buyer\NotificationController as BuyerNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ShopController::class, 'index'])->name('home');
@@ -196,6 +197,11 @@ Route::post('/cart/add/{product}', [CartController::class, 'add'])
 
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('/account/notifications/{notification}/read', [BuyerNotificationController::class, 'markRead'])
+        ->name('buyer.notifications.read');
+    Route::post('/account/notifications/read-all', [BuyerNotificationController::class, 'markAllRead'])
+        ->name('buyer.notifications.read-all');
+
     // This route intentionally stays outside the seller. group so its name is switchToSeller.
     // AccountModeController performs the seller-role check.
     Route::post('/switch-to-seller', [AccountModeController::class, 'switchToSeller'])

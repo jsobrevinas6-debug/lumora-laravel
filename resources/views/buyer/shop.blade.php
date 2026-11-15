@@ -74,6 +74,24 @@
             background:var(--cream); border:1px solid var(--line); position:relative;
         }
         .icon-btn svg{ width:18px; height:18px; color:var(--plum); }
+        .notification-wrap{position:relative}
+        .notification-trigger .badge{width:auto;min-width:16px;padding:0 4px;border-radius:999px}
+        .notification-dropdown{display:none;position:absolute;top:calc(100% + 12px);right:-54px;width:min(360px,calc(100vw - 32px));padding:14px;background:var(--cream);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(61,27,61,.16);z-index:50}
+        .notification-wrap.open .notification-dropdown{display:block}
+        .notification-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 2px 10px;border-bottom:1px solid var(--line)}
+        .notification-head strong{font-size:14px;color:var(--plum)}
+        .notification-head form{margin:0}
+        .notification-mark-all{padding:0;border:0;background:transparent;color:var(--rose);font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+        .notification-list{max-height:330px;overflow:auto}
+        .notification-item{display:flex;align-items:flex-start;gap:9px;padding:11px 4px;border-bottom:1px solid var(--line)}
+        .notification-item:last-child{border-bottom:0}
+        .notification-item.unread{background:linear-gradient(90deg,rgba(243,216,222,.35),transparent);margin:0 -6px;padding-left:10px;padding-right:10px;border-radius:8px}
+        .notification-item form{margin:0;flex:1}
+        .notification-open{display:block;width:100%;padding:0;border:0;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+        .notification-message{display:block;font-size:12px;line-height:1.5}
+        .notification-time{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+        .notification-unread-dot{width:7px;height:7px;flex:0 0 7px;margin-top:5px;border-radius:50%;background:var(--orange)}
+        .notification-empty{margin:0;padding:20px 4px;color:var(--muted);font-size:12px;text-align:center}
         .badge{
             position:absolute; top:-4px; right:-4px;
             background:var(--orange); color:#fff; font-size:10px; font-weight:600;
@@ -703,6 +721,47 @@
             </form>
 
             <div class="nav-actions">
+                @auth
+                    @php
+                        $headerNotifications = Auth::user()->notifications()->latest()->limit(8)->get();
+                        $unreadNotificationCount = Auth::user()->unreadNotifications()->count();
+                    @endphp
+                    <div class="notification-wrap" id="notificationWrap">
+                        <button type="button" class="icon-btn notification-trigger" id="notificationTrigger" aria-label="Notifications{{ $unreadNotificationCount ? ', '.$unreadNotificationCount.' unread' : '' }}" aria-expanded="false" aria-controls="notificationDropdown">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                            @if ($unreadNotificationCount > 0)<span class="badge">{{ $unreadNotificationCount > 9 ? '9+' : $unreadNotificationCount }}</span>@endif
+                        </button>
+                        <div class="notification-dropdown" id="notificationDropdown" aria-label="Notifications">
+                            <div class="notification-head">
+                                <strong>Notifications</strong>
+                                @if ($unreadNotificationCount > 0)
+                                    <form method="POST" action="{{ route('buyer.notifications.read-all') }}">@csrf<button type="submit" class="notification-mark-all">Mark all as read</button></form>
+                                @endif
+                            </div>
+                            <div class="notification-list">
+                                @forelse ($headerNotifications as $notification)
+                                    @php $notificationMessage = data_get($notification->data, 'message', 'You have a new update from Lumora.'); @endphp
+                                    <div class="notification-item {{ $notification->read_at ? '' : 'unread' }}">
+                                        @unless ($notification->read_at)<span class="notification-unread-dot" aria-label="Unread"></span>@endunless
+                                        <form method="POST" action="{{ route('buyer.notifications.read', $notification->id) }}">
+                                            @csrf
+                                            <button type="submit" class="notification-open">
+                                                <span class="notification-message">{{ $notificationMessage }}</span>
+                                                <span class="notification-time">{{ $notification->created_at->diffForHumans() }}</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                @empty
+                                    <p class="notification-empty">You’re all caught up.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <a href="{{ route('login') }}" class="icon-btn" aria-label="Sign in to view notifications">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                    </a>
+                @endauth
                 <a href="#" class="icon-btn" aria-label="Wishlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                 </a>
@@ -1228,6 +1287,29 @@
 
         const accountMenuWrap = document.getElementById('accountMenuWrap');
         const accountTrigger = document.getElementById('accountTrigger');
+        const notificationWrap = document.getElementById('notificationWrap');
+        const notificationTrigger = document.getElementById('notificationTrigger');
+
+        if (notificationWrap && notificationTrigger) {
+            notificationTrigger.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const isOpen = notificationWrap.classList.toggle('open');
+                notificationTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            document.addEventListener('click', function (event) {
+                if (!notificationWrap.contains(event.target)) {
+                    notificationWrap.classList.remove('open');
+                    notificationTrigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && notificationWrap.classList.contains('open')) {
+                    notificationWrap.classList.remove('open');
+                    notificationTrigger.setAttribute('aria-expanded', 'false');
+                    notificationTrigger.focus();
+                }
+            });
+        }
 
         if (accountMenuWrap && accountTrigger) {
             accountTrigger.addEventListener('click', function (event) {
