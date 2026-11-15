@@ -1,0 +1,235 @@
+/* Shared storefront header: loaded by app.css on all storefront and account pages. */
+.topbar .topbar-inner {
+    min-width: 0;
+}
+
+.topbar svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+}
+
+.topbar .topbar-inner > * svg {
+    width: 18px;
+    height: 18px;
+}
+
+.topbar .icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.topbar .search {
+    min-width: 160px;
+}
+
+.topbar .nav-actions {
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+}
+
+.topbar .account-menu-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.topbar .account-trigger {
+    display: flex;
+    min-width: 0;
+    max-width: 252px;
+    align-items: center;
+    gap: 9px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.topbar .account-trigger > .avatar {
+    position: relative;
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--plum, #3d1b3d);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.topbar .account-trigger > .avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+}
+
+.topbar .account-text {
+    display: block;
+    min-width: 0;
+    max-width: 160px;
+    flex: 0 1 160px;
+}
+
+.topbar .account-name {
+    display: block;
+    max-width: 160px;
+    overflow: hidden;
+    color: var(--ink, #3a2e30);
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar .account-mode {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: var(--muted, #8a7b7e);
+    font-size: 11px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar .account-chevron {
+    display: block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    color: var(--muted, #8a7b7e);
+    transition: transform .18s ease;
+}
+
+.topbar .account-menu-wrap.open .account-chevron {
+    transform: rotate(180deg);
+}
+
+.topbar .account-dropdown {
+    display: none;
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 258px;
+    padding: 8px;
+    border: 1px solid var(--line, #ebddd8);
+    border-radius: 16px;
+    background: var(--cream, #fffdfb);
+    box-shadow: 0 14px 34px rgba(61, 27, 61, .16);
+}
+
+.topbar .account-menu-wrap.open .account-dropdown {
+    display: block;
+}
+
+.topbar .account-dropdown-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    padding: 10px;
+    border-bottom: 1px solid var(--line, #ebddd8);
+}
+
+.topbar .account-dropdown-head > .avatar {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--plum, #3d1b3d);
+    color: #fff;
+}
+
+.topbar .account-dropdown-head > .avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+}
+
+.topbar .account-dropdown-name {
+    color: var(--ink, #3a2e30);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.topbar .account-menu-link,
+.topbar .account-menu-button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink, #3a2e30);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.topbar .account-menu-link:hover,
+.topbar .account-menu-button:hover {
+    background: #fbefea;
+    color: var(--plum, #3d1b3d);
+}
+
+.topbar .account-menu-icon {
+    display: inline-flex;
+    width: 18px;
+    flex: 0 0 18px;
+    align-items: center;
+    justify-content: center;
+}
+
+.topbar .account-menu-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+@media (max-width: 900px) {
+    .topbar .search {
+        min-width: 120px;
+    }
+
+    .topbar .account-text {
+        max-width: 132px;
+        flex-basis: 132px;
+    }
+}
+
+@media (max-width: 767px) {
+    .topbar .account-text,
+    .topbar .account-chevron {
+        display: none;
+    }
+
+    .topbar .account-trigger {
+        width: 38px;
+        max-width: 38px;
+        justify-content: center;
+        gap: 0;
+    }
+
+    .topbar .search {
+        min-width: 0;
+    }
+}

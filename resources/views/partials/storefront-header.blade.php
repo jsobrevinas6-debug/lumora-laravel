@@ -104,9 +104,9 @@
                     <div class="account-menu-wrap" id="accountMenuWrap">
                         <button type="button" class="account-trigger" id="accountTrigger" aria-expanded="false" aria-controls="accountDropdown">
                             <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
-                            <div>
+                            <div class="account-text">
                                 <div class="account-name">{{ $authUser->name }}</div>
-                                <div class="account-mode">Shopping as Buyer <span class="buyer-badge">Buyer</span></div>
+                                <div class="account-mode">Shopping as Buyer</div>
                             </div>
                             <svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
@@ -116,7 +116,7 @@
                                 <div class="avatar">@if ($authUser->avatar)<img src="{{ $authUser->avatar }}" alt="">@else{{ strtoupper(substr($authUser->name,0,1)) }}@endif</div>
                                 <div>
                                     <div class="account-dropdown-name">{{ $authUser->name }}</div>
-                                    <div class="account-mode">Currently shopping as <span class="buyer-badge">Buyer</span></div>
+                                    <div class="account-mode">Currently shopping as Buyer</div>
                                 </div>
                             </div>
 

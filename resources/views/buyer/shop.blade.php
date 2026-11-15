@@ -104,14 +104,6 @@
         }
         .btn-primary{ background:var(--plum); color:#fff; }
         .btn-ghost{ background:transparent; color:var(--plum); }
-        .account{ display:flex; align-items:center; gap:10px; }
-        .avatar{
-            position:relative; overflow:hidden; width:36px; height:36px; flex:0 0 36px; border-radius:50%; background:var(--plum);
-            color:#fff; display:flex; align-items:center; justify-content:center;
-            font-size:13px; font-weight:600;
-        }
-        .avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover}
-        .account-name{ font-size:13px; font-weight:600; color:var(--ink); }
         .logout-form button{
             background:none; border:none; color:var(--muted); font-size:12px;
             text-decoration:underline; padding:0;
@@ -281,30 +273,6 @@
             .grid{ grid-template-columns:repeat(2,1fr); }
             .search{ display:none; }
         }
-
-        /* ---------- account dropdown ---------- */
-        .account-menu-wrap { position:relative; }
-        .account-trigger { display:flex; align-items:center; gap:10px; border:0; background:transparent; padding:0; color:inherit; cursor:pointer; text-align:left; }
-        .account-trigger:focus-visible { outline:2px solid var(--orange); outline-offset:4px; border-radius:8px; }
-        .account-chevron { width:13px; height:13px; color:var(--muted); transition:transform .18s ease; }
-        .account-menu-wrap.open .account-chevron { transform:rotate(180deg); }
-        .account-dropdown { display:none; position:absolute; top:calc(100% + 12px); right:0; width:258px; padding:8px; background:var(--cream); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 34px rgba(61,27,61,.16); z-index:50; }
-        .account-menu-wrap.open .account-dropdown { display:block; }
-        .account-dropdown-head { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--line); margin-bottom:6px; }
-        .account-dropdown-head .avatar { flex:0 0 auto; width:42px; height:42px; font-size:15px; }
-        .account-dropdown-name { color:var(--ink); font-size:13px; font-weight:600; }
-        .account-mode { display:flex; align-items:center; gap:5px; margin-top:3px; color:var(--muted); font-size:11px; }
-        .buyer-badge { padding:2px 7px; border-radius:999px; background:#f3d8de; color:var(--plum); font-size:10px; font-weight:700; }
-        .account-menu-link, .account-menu-button { width:100%; display:flex; align-items:center; gap:10px; padding:10px; border:0; border-radius:10px; background:transparent; color:var(--ink); font:inherit; font-size:13px; text-align:left; text-decoration:none; cursor:pointer; }
-        .account-menu-link:hover, .account-menu-button:hover { background:var(--blush-1); color:var(--plum); }
-        .account-menu-note { width:100%; display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background:transparent; color:var(--muted); font-size:13px; cursor:default; }
-        .account-menu-button.switch-seller { border:1px solid var(--plum); color:var(--plum); margin:4px 0; }
-        .account-menu-button.switch-seller:hover { background:var(--plum); color:#fff; }
-        .account-menu-icon { width:18px; display:inline-flex; align-items:center; justify-content:center; color:currentColor; }
-        .account-menu-icon svg { width:16px; height:16px; }
-        .account-menu-divider { height:1px; margin:6px 2px; background:var(--line); }
-        .account-menu-button.logout-menu { color:var(--muted); }
-        @media (max-width:900px) { .account-dropdown { right:-4px; } }
 
         /* ---------- hidden vertical collection menu ---------- */
         .flow-menu-trigger { width:38px; height:38px; border:1px solid var(--line); border-radius:50%; background:var(--cream); color:var(--plum); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:all .18s ease; }

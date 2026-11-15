@@ -36,6 +36,22 @@ class ShopCategoryFiltersTest extends TestCase
         $this->get('/')->assertOk()->assertSee('Timeless Elegance')->assertSee('flowMenuDrawer');
     }
 
+    public function test_shared_header_markup_matches_on_home_shop_and_parent_category(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'buyer']));
+        $headers = [];
+        foreach (['/', '/shop', '/shop?category=men'] as $path) {
+            $response = $this->get($path)->assertOk();
+            preg_match('/<header class="topbar">.*?<\/header>/s', $response->getContent(), $match);
+            $this->assertNotEmpty($match, 'Expected the shared storefront header on '.$path);
+            $headers[] = $match[0];
+        }
+        $this->assertSame($headers[0], $headers[1]);
+        $this->assertSame($headers[1], $headers[2]);
+        $this->assertStringContainsString('class="account-text"', $headers[0]);
+        $this->assertStringNotContainsString('buyer-badge', $headers[0]);
+    }
+
     public function test_filters_combine_and_invalid_price_input_is_rejected(): void
     {
         $seller = User::factory()->create(['role' => 'seller']);
