@@ -242,7 +242,7 @@
                                 @if (!empty($o->order_number))
                                     {{ $o->order_number }}
                                 @else
-                                    #{{ $o->order_id }}
+                                    #{{ $o->id }}
                                 @endif
                             </div>
 
@@ -313,14 +313,14 @@
                         </td>
 
                         <td style="display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
-                            <a href="{{ route('seller.orders.show', $o->order_id) }}"
+                            <a href="{{ route('seller.orders.show', $o->id) }}"
                                class="edit-stock-btn"
                                style="text-decoration:none;display:inline-block;">
                                 View
                             </a>
 
                             @if (!empty($o->return_request_id))
-                                <a href="{{ route('seller.orders.show', $o->order_id) }}#return-section"
+                                <a href="{{ route('seller.orders.show', $o->id) }}#return-section"
                                    class="edit-stock-btn"
                                    style="text-decoration:none;display:inline-block;background:{{ $o->return_request_status === 'pending' ? 'var(--coral)' : 'var(--text-muted)' }};">
                                     {{ $o->return_request_status === 'pending' ? 'Review Return' : 'Return Info' }}
@@ -328,7 +328,7 @@
                             @endif
 
                             @if (!in_array($status, ['packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'], true))
-                                <form action="{{ route('seller.orders.pack', $o->order_id) }}"
+                                <form action="{{ route('seller.orders.pack', $o->id) }}"
                                       method="POST"
                                       style="display:inline;">
                                     @csrf
