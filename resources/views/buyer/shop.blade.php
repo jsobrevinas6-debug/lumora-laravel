@@ -766,7 +766,9 @@
                     $reviewCount = (int) ($product->reviews_count ?? 0);
                 @endphp
                 <article class="homepage-product-card">
-                    @php($isSaved = in_array((int) $product->id, $savedProductIds ?? [], true))
+                    @php
+                        $isSaved = in_array((int) $product->id, $savedProductIds ?? [], true);
+                    @endphp
                     <button type="button" class="wish {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $product) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$product->name.' from' : 'Add '.$product->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                     <div class="homepage-product-image"><img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div>
@@ -917,7 +919,9 @@
                     @foreach ($group['items'] as $item)
                         <div class="product-card">
                             @if (is_object($item) && isset($item->id))
-                                @php($isSaved = in_array((int) $item->id, $savedProductIds ?? [], true))
+                                @php
+                                    $isSaved = in_array((int) $item->id, $savedProductIds ?? [], true);
+                                @endphp
                                 <button type="button" class="wishlist-btn {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $item->id }}" data-product-name="{{ $item->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $item) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$item->name.' from' : 'Add '.$item->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}">
                                     <svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                                 </button>
