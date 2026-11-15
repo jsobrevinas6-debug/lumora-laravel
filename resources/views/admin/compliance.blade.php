@@ -71,9 +71,10 @@
                             <button type="button" class="btn btn-outline" onclick="openWarnModal({{ $p->seller_id }}, {{ $p->product_id }}, '{{ addslashes($p->seller_name) }}')">Warn Seller</button>
 
                             @if ($p->seller_status !== 'suspended')
-                                <a href="{{ route('admin.users.action', [$p->seller_id, 'suspend']) }}"
-                                   class="btn btn-danger"
-                                   onclick="return confirm('Suspend this seller\'s account?')">Suspend</a>
+                                <button type="button" class="btn btn-danger"
+                                        data-suspend-url="{{ route('admin.users.suspend', $p->seller_id) }}"
+                                        data-seller-name="{{ $p->seller_name }}"
+                                        onclick="openSuspendModal(this)">Suspend</button>
                             @endif
                         </td>
                     </tr>
@@ -82,6 +83,30 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+
+    <div id="suspend-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow:auto;padding:24px;">
+        <div style="background:#fff;max-width:480px;margin:50px auto;padding:24px;border-radius:12px;position:relative;">
+            <button type="button" onclick="closeSuspendModal()" aria-label="Close suspend form" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>
+            <h3 style="margin:0 30px 8px 0;">Suspend <span id="suspend-seller-name"></span></h3>
+            <p style="margin:0;color:var(--text-muted);font-size:.9rem;">This will restrict the seller's account and notify them.</p>
+            <form method="POST" id="suspend-form" action="" style="margin-top:14px;">
+                @csrf
+                <input type="hidden" name="reason" value="policy_violation">
+                <label for="suspend-message" style="display:block;font-size:.85rem;font-weight:600;">Message to the seller</label>
+                <textarea id="suspend-message" name="message" required maxlength="2000" placeholder="Explain the compliance issue" style="width:100%;min-height:100px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;margin-top:6px;"></textarea>
+                <label for="suspend-duration" style="display:block;margin-top:12px;font-size:.85rem;font-weight:600;">Duration</label>
+                <select id="suspend-duration" name="duration" required style="width:100%;height:42px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;margin-top:6px;">
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="indefinite">Until reactivated</option>
+                </select>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+                    <button type="button" class="btn btn-outline" onclick="closeSuspendModal()">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Suspend seller</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Warn Seller Modal -->
@@ -123,6 +148,19 @@
     </style>
 
     <script>
+        function openSuspendModal(button) {
+            const overlay = document.getElementById('suspend-modal-overlay');
+            const form = document.getElementById('suspend-form');
+            form.action = button.dataset.suspendUrl;
+            document.getElementById('suspend-seller-name').textContent = button.dataset.sellerName;
+            document.getElementById('suspend-message').value = '';
+            document.getElementById('suspend-duration').value = '7';
+            overlay.style.display = 'block';
+            document.getElementById('suspend-message').focus();
+        }
+        function closeSuspendModal() {
+            document.getElementById('suspend-modal-overlay').style.display = 'none';
+        }
         function openWarnModal(sellerId, productId, sellerName) {
             document.getElementById('warn-seller-name').textContent = sellerName;
             document.getElementById('warn-product-id').value = productId;
