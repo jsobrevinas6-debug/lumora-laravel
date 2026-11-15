@@ -39,17 +39,30 @@ class RiderProfile extends Model
         $areaIds = $areaIds ? collect($areaIds)->filter()->values() : DestinationArea::forBranch($branch)->pluck('id');
         $branchLower = mb_strtolower(trim($branch));
 
-        return $query->where(function ($rq) use ($branch, $branchLower, $areaIds) {
+        return $query->where(function ($rq) use ($branchLower, $areaIds) {
             if ($areaIds->isNotEmpty()) {
+                // 1. Rider explicitly covers at least one Barangay delivery area in this branch
                 $rq->whereHas('areas', fn ($aq) => $aq->whereIn('destination_areas.id', $areaIds));
             }
-            $rq->orWhereHas('user', fn ($uq) => $uq->whereRaw('LOWER(branch) = ?', [$branchLower]))
-               ->orWhereHas('hub', function ($hq) use ($branchLower) {
-                   $hq->whereRaw('LOWER(branch) = ?', [$branchLower])
-                      ->orWhereRaw('LOWER(city) = ?', [$branchLower])
-                      ->orWhereRaw('LOWER(name) = ?', [$branchLower . ' hub']);
-               })
-               ->orWhereHas('parcels', fn ($pq) => $pq->forBranch($branch));
+
+            // 2. Or rider has NO areas assigned in another branch, and their user.branch or hub matches this branch
+            $rq->orWhere(function ($sub) use ($branchLower, $areaIds) {
+                $sub->whereDoesntHave('areas', function ($aq) use ($branchLower, $areaIds) {
+                    $aq->whereNotNull('destination_areas.branch')
+                       ->whereRaw("TRIM(destination_areas.branch) != ''")
+                       ->whereRaw('LOWER(TRIM(destination_areas.branch)) != ?', [$branchLower]);
+                    if ($areaIds->isNotEmpty()) {
+                        $aq->whereNotIn('destination_areas.id', $areaIds);
+                    }
+                })->where(function ($hq) use ($branchLower) {
+                    $hq->whereHas('user', fn ($uq) => $uq->whereRaw('LOWER(TRIM(branch)) = ?', [$branchLower]))
+                       ->orWhereHas('hub', function ($hubQ) use ($branchLower) {
+                           $hubQ->whereRaw('LOWER(TRIM(branch)) = ?', [$branchLower])
+                                ->orWhereRaw('LOWER(TRIM(city)) = ?', [$branchLower])
+                                ->orWhereRaw('LOWER(TRIM(name)) = ?', [$branchLower . ' hub']);
+                       });
+                });
+            });
         });
     }
 

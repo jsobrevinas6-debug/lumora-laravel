@@ -20,6 +20,7 @@ class SortingCenterController extends Controller
     public function index(Request $request)
     {
         \App\Services\LagunaHubProvisioner::ensureProvisioned();
+        \App\Services\LagunaHubProvisioner::reconcileRiderHubsFromAreas();
 
         if ($request->user()?->isMasterAdmin()) {
             return redirect()->route('admin.dashboard');

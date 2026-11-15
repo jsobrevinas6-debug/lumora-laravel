@@ -441,9 +441,15 @@ class ScannerApiController extends Controller
                 && (($parcel->metadata['transfer_state'] ?? '') === 'in_transit_to_hub'
                     || (! empty($parcel->branch) && strcasecmp(trim($parcel->branch), trim($branch)) !== 0));
 
+            $assignedRiderIsOffline = $oldStatus === 'assigned'
+                && $parcel->rider
+                && ! in_array($parcel->rider->availability, ['online', 'available'], true);
+
             $pendingRiderAutoAssign = ! $needsLinehaulToAnotherHub
-                && in_array($oldStatus, ['scanned', 'sorted'], true)
-                && empty($parcel->assigned_rider_id)
+                && (
+                    (in_array($oldStatus, ['scanned', 'sorted'], true) && empty($parcel->assigned_rider_id))
+                    || $assignedRiderIsOffline
+                )
                 && \App\Services\LagunaHubProvisioner::resolveRiderForArea($area, $destinationBranch ?: $branch) !== null;
 
             $pendingLinehaulDispatch = $needsLinehaulToAnotherHub

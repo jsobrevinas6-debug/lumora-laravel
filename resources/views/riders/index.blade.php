@@ -51,9 +51,9 @@
                 <article class="metric-card coral-wash">
                     <div class="metric-top">
                         <span class="metric-label">Online on Duty</span>
-                        <span class="metric-icon" style="color: #E2703A;">{{ $counts['online'] ?? 0 }}</span>
+                        <span class="metric-icon" id="riders-online-count-badge" style="color: #E2703A;">{{ $counts['online'] ?? 0 }}</span>
                     </div>
-                    <div class="metric-value">{{ $counts['online'] ?? 0 }}</div>
+                    <div class="metric-value" id="riders-online-count-value">{{ $counts['online'] ?? 0 }}</div>
                     <div class="metric-trend positive">Ready for assignments</div>
                 </article>
 
@@ -183,7 +183,7 @@
                                         @endif
 
                                         <!-- Availability Dot -->
-                                        <div style="margin-top: 4px;">
+                                        <div style="margin-top: 4px;" data-rider-availability="{{ $rider->id }}">
                                             @if($rider->availability === 'online')
                                                 <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #1E6B37;">
                                                     <span style="width: 7px; height: 7px; border-radius: 50%; background: #1E6B37; display: inline-block;"></span> Online
@@ -353,6 +353,47 @@ function openRejectModal(riderId, riderName) {
 function closeRejectModal() {
     document.getElementById('rejectModal').style.display = 'none';
 }
+
+(function pollRiderAvailability() {
+    function renderAvailabilityBadge(avail) {
+        if (avail === 'online') {
+            return '<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #1E6B37;">' +
+                '<span style="width: 7px; height: 7px; border-radius: 50%; background: #1E6B37; display: inline-block;"></span> Online</span>';
+        }
+        if (avail === 'available') {
+            return '<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #2B5C8F;">' +
+                '<span style="width: 7px; height: 7px; border-radius: 50%; background: #2B5C8F; display: inline-block;"></span> Available</span>';
+        }
+        return '<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: #8A7B7E;">' +
+            '<span style="width: 7px; height: 7px; border-radius: 50%; background: #8A7B7E; display: inline-block;"></span> Offline</span>';
+    }
+
+    setInterval(function () {
+        if (document.hidden) return;
+        var url = new URL(window.location.href);
+        url.searchParams.set('format', 'json');
+        fetch(url.toString(), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data || data.status !== 'success') return;
+                if (data.counts && typeof data.counts.online !== 'undefined') {
+                    var badge = document.getElementById('riders-online-count-badge');
+                    var val = document.getElementById('riders-online-count-value');
+                    if (badge) badge.textContent = data.counts.online;
+                    if (val) val.textContent = data.counts.online;
+                }
+                if (Array.isArray(data.riders)) {
+                    data.riders.forEach(function (r) {
+                        var el = document.querySelector('[data-rider-availability="' + r.id + '"]');
+                        if (el) {
+                            el.innerHTML = renderAvailabilityBadge(r.availability);
+                        }
+                    });
+                }
+            })
+            .catch(function () {});
+    }, 3500);
+})();
 </script>
 </body>
 </html>

@@ -105,6 +105,11 @@ class RiderApiController extends Controller
         $user->tokens()->where('name', 'flutter-rider-app')->delete();
         $token = $user->createToken('flutter-rider-app')->plainTextToken;
 
+        // Automatically set rider ONLINE upon logging into the Rider App and sync with Cloud
+        $profile->update(['availability' => 'online']);
+        $this->mirrorAvailabilityToCloud($request, $user, true);
+        $this->autoAssignWaitingParcelsToOnlineRider($profile);
+
         $profile = $profile?->load('areas');
         $areas = $profile ? $profile->areas->map(fn ($a) => [
             'id' => $a->id,
@@ -522,7 +527,7 @@ class RiderApiController extends Controller
         if ($user && ! $user->riderProfile) {
             RiderProfile::firstOrCreate(
                 ['user_id' => $user->id],
-                ['registration_status' => 'approved', 'availability' => 'online']
+                ['registration_status' => 'approved', 'availability' => 'offline']
             );
             $user->load('riderProfile');
         }
@@ -594,11 +599,140 @@ class RiderApiController extends Controller
             'availability' => $isOnline ? 'online' : 'offline',
         ]);
 
+        if ($user) {
+            $this->mirrorAvailabilityToCloud($request, $user, $isOnline);
+        }
+
+        if ($isOnline) {
+            $this->autoAssignWaitingParcelsToOnlineRider($profile);
+        } else {
+            $this->reassignUnacceptedParcelsFromOfflineRider($profile);
+        }
+
         return response()->json([
             'status' => 'success',
             'availability' => $profile->availability,
             'is_online' => $isOnline,
         ]);
+    }
+
+    /**
+     * Mirror rider online/offline status from Local Server to Cloud Logistics (https://logistics.lumora.party)
+     * so the web /riders dashboard always reflects the live app state.
+     */
+    private function mirrorAvailabilityToCloud(Request $request, User $user, bool $isOnline): void
+    {
+        if ($request->header('X-From-Local-Mirror') === '1') {
+            return;
+        }
+
+        $host = strtolower((string) $request->getHost());
+        if (str_contains($host, 'lumora.party')) {
+            return;
+        }
+
+        $cloudLogisticsUrl = rtrim((string) env('LUMORA_CLOUD_LOGISTICS_URL', 'https://logistics.lumora.party'), '/');
+
+        try {
+            Http::timeout(3)
+                ->acceptJson()
+                ->withHeaders([
+                    'X-From-Local-Mirror' => '1',
+                    'X-Rider-Email' => $user->email,
+                    'X-Rider-Name' => $user->name,
+                ])
+                ->post("{$cloudLogisticsUrl}/api/v1/rider/availability", [
+                    'available' => $isOnline,
+                    'availability' => $isOnline ? 'online' : 'offline',
+                    'rider_email' => $user->email,
+                    'rider_name' => $user->name,
+                ]);
+        } catch (\Throwable $e) {
+            // Non-blocking
+        }
+    }
+
+    /**
+     * When a rider goes ONLINE, automatically assign any waiting unassigned scanned/sorted parcels
+     * in their hub/barangay area to them.
+     */
+    private function autoAssignWaitingParcelsToOnlineRider(RiderProfile $profile): void
+    {
+        try {
+            if ($profile->registration_status !== 'approved' || ! in_array($profile->availability, ['online', 'available'], true)) {
+                return;
+            }
+
+            $profile->loadMissing(['user', 'hub', 'areas']);
+            $branch = $profile->user?->branch ?: ($profile->hub?->branch ?: $profile->areas->whereNotNull('branch')->first()?->branch);
+            $areaIds = $profile->areas->pluck('id')->filter()->values();
+
+            $waitingQuery = Parcel::query()
+                ->whereNull('assigned_rider_id')
+                ->whereIn('status', ['scanned', 'sorted']);
+
+            if ($areaIds->isNotEmpty()) {
+                $waitingQuery->where(function ($q) use ($areaIds, $branch) {
+                    $q->whereIn('destination_area_id', $areaIds);
+                    if ($branch) {
+                        $q->orWhere(function ($sq) use ($branch) {
+                            $sq->whereNull('destination_area_id')->forBranch($branch);
+                        });
+                    }
+                });
+            } elseif ($branch) {
+                $waitingQuery->forBranch($branch);
+            } else {
+                return;
+            }
+
+            $waitingParcels = $waitingQuery->get();
+            foreach ($waitingParcels as $parcel) {
+                $bestRider = \App\Services\LagunaHubProvisioner::resolveRiderForArea($parcel->area, $parcel->branch ?: $branch);
+                if ($bestRider && (int) $bestRider->id === (int) $profile->id) {
+                    $parcel->update([
+                        'assigned_rider_id' => $profile->id,
+                        'status' => 'assigned',
+                        'sorted_at' => $parcel->sorted_at ?: now(),
+                        'assigned_at' => now(),
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking
+        }
+    }
+
+    /**
+     * When a rider goes OFFLINE, any parcel still in 'assigned' status (not yet accepted/picked up)
+     * is automatically reassigned to an ONLINE rider in the same area/hub if one is available.
+     */
+    private function reassignUnacceptedParcelsFromOfflineRider(RiderProfile $profile): void
+    {
+        try {
+            $unacceptedParcels = Parcel::with('area')
+                ->where('assigned_rider_id', $profile->id)
+                ->where('status', 'assigned')
+                ->get();
+
+            foreach ($unacceptedParcels as $parcel) {
+                $meta = is_array($parcel->metadata) ? $parcel->metadata : [];
+                $isReturnPickup = ! empty($meta['is_return_refund']) || ($meta['return_status'] ?? '') === 'rider_pickup_assigned';
+                if ($isReturnPickup) {
+                    continue; // Keep buyer return pickups with the original delivering rider
+                }
+
+                $onlineRider = \App\Services\LagunaHubProvisioner::resolveRiderForArea($parcel->area, $parcel->branch);
+                if ($onlineRider && (int) $onlineRider->id !== (int) $profile->id) {
+                    $parcel->update([
+                        'assigned_rider_id' => $onlineRider->id,
+                        'assigned_at' => now(),
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking
+        }
     }
 
     /**
@@ -1090,10 +1224,17 @@ class RiderApiController extends Controller
     }
 
     /**
-     * Logout and revoke active token.
+     * Logout and revoke active token, setting the rider's availability to offline.
      */
     public function logout(Request $request): JsonResponse
     {
+        $user = $this->resolveRiderUser($request);
+        if ($user?->riderProfile) {
+            $user->riderProfile->update(['availability' => 'offline']);
+            $this->mirrorAvailabilityToCloud($request, $user, false);
+            $this->reassignUnacceptedParcelsFromOfflineRider($user->riderProfile);
+        }
+
         $request->user('sanctum')?->currentAccessToken()?->delete();
 
         return response()->json([

@@ -819,57 +819,74 @@ class LagunaHubProvisioner
     }
 
     /**
-     * Find the approved RiderProfile assigned to a specific Barangay DestinationArea.
-     * Prioritizes online/available riders, primary area assignments, and lower active parcel load.
+     * Find the approved & ONLINE RiderProfile assigned to a specific Barangay DestinationArea.
+     * Never auto-assigns to offline riders. If the area's primary rider is offline, falls back
+     * to another online approved rider in the same hub/branch with the lowest active parcel load.
      */
     public static function resolveRiderForArea(?DestinationArea $area, ?string $branch = null): ?\App\Models\RiderProfile
     {
-        if (! $area) {
+        if (! $area && ! $branch) {
             return null;
         }
 
-        $targetBranch = $area->branch ?: $branch;
+        $targetBranch = $area?->branch ?: $branch;
 
-        $riders = \App\Models\RiderProfile::with(['user', 'areaAssignments'])
-            ->where('registration_status', 'approved')
-            ->whereHas('areaAssignments', function ($q) use ($area) {
-                $q->where('destination_area_id', $area->id)
-                  ->where('is_active', true);
-            })
-            ->withCount([
-                'parcels as active_parcels_count' => function ($pq) {
-                    $pq->whereIn('status', ['assigned', 'rider_received', 'in_transit', 'out_for_delivery']);
-                },
-            ])
-            ->get();
+        $activeLoadCount = [
+            'parcels as active_parcels_count' => function ($pq) {
+                $pq->whereIn('status', ['assigned', 'rider_received', 'in_transit', 'out_for_delivery']);
+            },
+        ];
+
+        $riders = collect();
+
+        if ($area) {
+            $riders = \App\Models\RiderProfile::with(['user', 'hub', 'areaAssignments'])
+                ->where('registration_status', 'approved')
+                ->whereIn('availability', ['online', 'available'])
+                ->whereHas('areaAssignments', function ($q) use ($area) {
+                    $q->where('destination_area_id', $area->id)
+                      ->where('is_active', true);
+                })
+                ->withCount($activeLoadCount)
+                ->get();
+
+            if ($targetBranch && $riders->isNotEmpty()) {
+                $branchFiltered = $riders->filter(function (\App\Models\RiderProfile $r) use ($targetBranch) {
+                    $userBranch = $r->user?->branch;
+                    $hubBranch = $r->hub?->branch ?: $r->hub?->city;
+                    if (! $userBranch && ! $hubBranch) {
+                        return true;
+                    }
+                    return ($userBranch && strcasecmp(trim($userBranch), trim($targetBranch)) === 0)
+                        || ($hubBranch && strcasecmp(trim($hubBranch), trim($targetBranch)) === 0);
+                });
+
+                if ($branchFiltered->isNotEmpty()) {
+                    $riders = $branchFiltered;
+                }
+            }
+        }
+
+        // Fallback: if the rider(s) assigned to this specific barangay are offline, auto-assign to any ONLINE rider in the same branch hub
+        if ($riders->isEmpty() && $targetBranch) {
+            $riders = \App\Models\RiderProfile::with(['user', 'hub', 'areaAssignments'])
+                ->where('registration_status', 'approved')
+                ->whereIn('availability', ['online', 'available'])
+                ->forBranch($targetBranch)
+                ->withCount($activeLoadCount)
+                ->get();
+        }
 
         if ($riders->isEmpty()) {
             return null;
         }
 
-        // Filter to riders belonging to the target branch if applicable
-        if ($targetBranch) {
-            $branchFiltered = $riders->filter(function (\App\Models\RiderProfile $r) use ($targetBranch) {
-                $userBranch = $r->user?->branch;
-                $hubBranch = $r->hub?->branch ?: $r->hub?->city;
-                if (! $userBranch && ! $hubBranch) {
-                    return true;
-                }
-                return ($userBranch && strcasecmp(trim($userBranch), trim($targetBranch)) === 0)
-                    || ($hubBranch && strcasecmp(trim($hubBranch), trim($targetBranch)) === 0);
-            });
-
-            if ($branchFiltered->isNotEmpty()) {
-                $riders = $branchFiltered;
-            }
-        }
-
         return $riders->sortBy(function (\App\Models\RiderProfile $r) use ($area) {
-            $isOnline = in_array($r->availability, ['online', 'available'], true) ? 0 : 1;
-            $assignment = $r->areaAssignments->firstWhere('destination_area_id', $area->id);
+            $assignment = $area ? $r->areaAssignments->firstWhere('destination_area_id', $area->id) : null;
+            $coversArea = $assignment ? 0 : 1;
             $isPrimary = ($assignment && $assignment->is_primary) ? 0 : 1;
             $load = (int) ($r->active_parcels_count ?? 0);
-            return sprintf('%d-%d-%05d-%08d', $isOnline, $isPrimary, $load, $r->id);
+            return sprintf('%d-%d-%05d-%08d', $coversArea, $isPrimary, $load, $r->id);
         })->first();
     }
 
@@ -1097,5 +1114,44 @@ class LagunaHubProvisioner
             ->orWhere('city', $matchedBranch)
             ->orWhere('name', "{$matchedBranch} Hub")
             ->first();
+    }
+
+    /**
+     * Reconcile each rider's user.branch and rider_profile.hub_id with their assigned Barangay delivery areas
+     * so riders whose areas belong to another hub (e.g. Pagsanjan) never leak into a different hub (e.g. Pila).
+     */
+    public static function reconcileRiderHubsFromAreas(): void
+    {
+        try {
+            $riders = \App\Models\RiderProfile::with(['user', 'hub', 'areas'])->get();
+            foreach ($riders as $rider) {
+                $areaBranches = $rider->areas
+                    ->pluck('branch')
+                    ->map(fn ($b) => trim((string) $b))
+                    ->filter(fn ($b) => $b !== '')
+                    ->unique(fn ($b) => mb_strtolower($b))
+                    ->values();
+
+                if ($areaBranches->count() === 1) {
+                    $trueBranch = $areaBranches->first();
+                    $currentUserBranch = trim((string) ($rider->user?->branch ?? ''));
+                    $currentHubBranch = trim((string) ($rider->hub?->branch ?? ''));
+
+                    if ($currentUserBranch === '' || strcasecmp($currentUserBranch, $trueBranch) !== 0 || strcasecmp($currentHubBranch, $trueBranch) !== 0) {
+                        if ($rider->user && strcasecmp($currentUserBranch, $trueBranch) !== 0) {
+                            $rider->user->update(['branch' => $trueBranch]);
+                        }
+                        $trueHub = Hub::whereRaw('LOWER(TRIM(branch)) = ?', [mb_strtolower($trueBranch)])
+                            ->orWhereRaw('LOWER(TRIM(city)) = ?', [mb_strtolower($trueBranch)])
+                            ->first();
+                        if ($trueHub && (int) $rider->hub_id !== (int) $trueHub->id) {
+                            $rider->update(['hub_id' => $trueHub->id]);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking
+        }
     }
 }

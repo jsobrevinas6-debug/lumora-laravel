@@ -121,6 +121,7 @@ class RiderController extends Controller
     public function index(Request $request)
     {
         \App\Services\LagunaHubProvisioner::ensureProvisioned();
+        \App\Services\LagunaHubProvisioner::reconcileRiderHubsFromAreas();
 
         if ($request->user()?->isMasterAdmin()) {
             return redirect()->route('admin.riders');
@@ -134,7 +135,15 @@ class RiderController extends Controller
             ->get();
         $areaIds = $areas->pluck('id');
 
-        $query = RiderProfile::with(['user', 'areas', 'hub'])->latest();
+        $query = RiderProfile::with([
+            'user',
+            'hub',
+            'areas' => function ($aq) use ($branch) {
+                if ($branch) {
+                    $aq->forBranch($branch);
+                }
+            },
+        ])->latest();
 
         if ($branch) {
             $query->forBranch($branch, $areaIds);
@@ -176,6 +185,20 @@ class RiderController extends Controller
             'pending' => (clone $baseCount)->where('registration_status', 'pending')->count(),
             'archived' => (clone $baseCount)->where('registration_status', 'archived')->count(),
         ];
+
+        if ($request->wantsJson() || $request->query('format') === 'json') {
+            return response()->json([
+                'status' => 'success',
+                'branch' => $branch,
+                'counts' => $counts,
+                'riders' => $riders->getCollection()->map(fn (RiderProfile $r) => [
+                    'id' => $r->id,
+                    'availability' => $r->availability ?? 'offline',
+                    'is_online' => in_array($r->availability, ['online', 'available'], true),
+                    'registration_status' => $r->registration_status,
+                ])->values(),
+            ]);
+        }
 
         return view('riders.index', compact('riders', 'areas', 'counts', 'branch'));
     }
