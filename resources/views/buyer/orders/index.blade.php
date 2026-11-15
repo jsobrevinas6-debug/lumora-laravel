@@ -369,7 +369,9 @@
                                 <div class="order-product">
                                     <div class="product-preview" aria-label="{{ $previewItems->count() }} product thumbnails">
                                         @foreach ($previewItems as $item)
-                                            @php($product = $item->product)
+                                            @php
+                                                $product = $item->product;
+                                            @endphp
                                             <div class="product-thumb" title="{{ $product?->name ?? 'Product unavailable' }}">
                                                 @if ($product)<img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">@else<span>L</span>@endif
                                             </div>
@@ -396,7 +398,9 @@
                             @if ($activeProgress)
                                 <div class="order-progress" role="list" aria-label="Order progress">
                                     @foreach (['Placed', 'Packed', 'Shipped', 'Delivered'] as $stepIndex => $step)
-                                        @php($stepNumber = $stepIndex + 1)
+                                        @php
+                                            $stepNumber = $stepIndex + 1;
+                                        @endphp
                                         <div class="progress-step {{ $stepNumber < $progress ? 'complete' : ($stepNumber === $progress ? 'current' : '') }}" role="listitem" @if($stepNumber === $progress) aria-current="step" @endif>
                                             <span class="progress-dot">{{ $stepNumber < $progress ? '✓' : $stepNumber }}</span><span>{{ $step }}</span>
                                         </div>
