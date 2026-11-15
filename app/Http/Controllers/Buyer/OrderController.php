@@ -171,10 +171,10 @@ class OrderController extends Controller
 
             foreach ($request->file('evidence', []) as $file) {
                 $returnRequest->evidence()->create([
-                    'file_path' => $file->store('return_request_evidence', [
-                        'disk' => \App\Support\ReturnEvidenceFiles::diskName(),
-                        'visibility' => 'private',
-                    ]),
+                    'file_path' => $file->store(
+                        'return_request_evidence',
+                        \App\Support\ReturnEvidenceFiles::diskName(),
+                    ),
                     'mime_type' => $file->getMimeType(),
                 ]);
             }
