@@ -1,6 +1,6 @@
     <div class="flow-menu-backdrop" id="flowMenuBackdrop"></div>
     <aside class="flow-menu-drawer" id="flowMenuDrawer" aria-hidden="true">
-        <x-logo :href="route('shop.index')" aria-label="Lumora shop" class="mb-5" />
+        <x-logo :href="route('home')" aria-label="Lumora home" class="mb-5" />
         <div class="flow-menu-head">
             <h2>Shop by collection</h2>
             <button type="button" class="flow-menu-close" id="flowMenuClose" aria-label="Close collections menu">&times;</button>
@@ -28,7 +28,7 @@
             <button type="button" class="flow-menu-trigger left-menu-trigger" id="flowMenuTriggerLeft" aria-label="Open shop by collection" aria-expanded="false" aria-controls="flowMenuDrawer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
-            <x-logo :href="route('shop.index')" aria-label="Lumora shop" class="storefront-brand" />
+            <x-logo :href="route('home')" aria-label="Lumora home" class="storefront-brand" />
 
             <form action="{{ route('shop.index') }}" method="GET" class="search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
