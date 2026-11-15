@@ -71,7 +71,6 @@
         a:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
         button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
         .site-header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px max(24px, calc((100% - 1180px) / 2)); background: var(--card); border-bottom: 1px solid var(--border); }
-        .wordmark { color: var(--accent-strong); font: 600 28px/1 Fraunces, Georgia, serif; letter-spacing: .19em; }
         .header-nav { display: flex; align-items: center; gap: 8px; }
         .header-nav a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 15px; border-radius: 999px; color: var(--body); font-size: 14px; font-weight: 600; }
         .header-nav a:hover { color: var(--accent-strong); background: var(--hover); }
@@ -162,7 +161,6 @@
         .site-footer { padding: 22px 16px 30px; color: var(--muted); font-size: 12px; text-align: center; }
         @media (max-width: 760px) {
             .site-header { min-height: 68px; padding: 10px 18px; gap: 10px; }
-            .wordmark { font-size: 23px; letter-spacing: .13em; }
             .header-nav { gap: 0; }
             .header-nav a { min-height: 44px; padding: 0 9px; font-size: 12px; }
             .page { width: min(100% - 32px, 560px); padding-top: 34px; }
@@ -210,7 +208,7 @@
 </head>
 <body>
     <header class="site-header">
-        <a class="wordmark" href="{{ route('shop.index') }}" aria-label="Lumora home">LUMORA</a>
+        <x-logo :href="route('shop.index')" aria-label="Lumora home" />
         <nav class="header-nav" aria-label="Main navigation">
             <a href="{{ route('shop.index') }}">Shop</a>
             <a class="active" href="{{ route('buyer.orders.index') }}" aria-current="page">My orders</a>
