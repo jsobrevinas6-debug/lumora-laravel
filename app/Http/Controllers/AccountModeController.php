@@ -27,7 +27,7 @@ class AccountModeController extends Controller
         $request->session()->put('account_mode', 'buyer');
 
         return redirect()
-            ->route('shop.index')
+            ->route('home')
             ->with('success', 'You are now shopping as a buyer.');
     }
 
