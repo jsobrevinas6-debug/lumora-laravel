@@ -29,7 +29,7 @@
         You'll receive an email once your application has been approved — then you can start listing products.
         In the meantime, feel free to browse and shop as a regular buyer.
     </p>
-    <a href="{{ route('shop.index') }}" class="btn">Continue to Lumora</a>
+    <a href="{{ route('home') }}" class="btn">Continue to Lumora</a>
 </div>
 </body>
 </html>
