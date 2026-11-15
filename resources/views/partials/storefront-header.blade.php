@@ -55,13 +55,18 @@
                             </div>
                             <div class="notification-list">
                                 @forelse ($headerNotifications as $notification)
-                                    @php $notificationMessage = data_get($notification->data, 'message', 'You have a new update from Lumora.'); @endphp
+                                    @php
+                                        $notificationTitle = data_get($notification->data, 'title');
+                                        $notificationBody = data_get($notification->data, 'body');
+                                        $notificationMessage = data_get($notification->data, 'message', 'You have a new update from Lumora.');
+                                    @endphp
                                     <div class="notification-item {{ $notification->read_at ? '' : 'unread' }}">
                                         @unless ($notification->read_at)<span class="notification-unread-dot" aria-label="Unread"></span>@endunless
                                         <form method="POST" action="{{ route('buyer.notifications.read', $notification->id) }}">
                                             @csrf
                                             <button type="submit" class="notification-open">
-                                                <span class="notification-message">{{ $notificationMessage }}</span>
+                                                @if ($notificationTitle)<strong class="notification-message">{{ $notificationTitle }}</strong>@endif
+                                                <span class="notification-message">{{ $notificationBody ?: $notificationMessage }}</span>
                                                 <span class="notification-time">{{ $notification->created_at->diffForHumans() }}</span>
                                             </button>
                                         </form>

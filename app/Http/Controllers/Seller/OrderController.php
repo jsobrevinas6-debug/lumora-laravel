@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Notifications\PayoutRequestStatusNotification;
 use App\Notifications\ProductApprovalRejectedNotification;
+use App\Notifications\AnnouncementPublishedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -386,6 +387,22 @@ class OrderController extends Controller
             ->whereNull('read_at')
             ->count();
 
+        $announcementNotifications = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', AnnouncementPublishedNotification::class)
+            ->whereNull('read_at')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        $announcementNotificationCount = DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $sellerId)
+            ->where('type', AnnouncementPublishedNotification::class)
+            ->whereNull('read_at')
+            ->count();
+
         $pendingReturnsCount = 0;
         $returnRequests = collect();
         if (\Illuminate\Support\Facades\Schema::hasTable('return_requests')) {
@@ -416,7 +433,7 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'count' => $count + $payoutNotificationCount + $productApprovalNotificationCount + $pendingReturnsCount,
+            'count' => $count + $payoutNotificationCount + $productApprovalNotificationCount + $announcementNotificationCount + $pendingReturnsCount,
             'orders_count' => $count,
             'returns_count' => $pendingReturnsCount,
             'returns' => $returnRequests,
@@ -444,7 +461,32 @@ class OrderController extends Controller
                     'created_at' => $notification->created_at,
                 ];
             })->values(),
+            'announcements' => $announcementNotifications->map(function ($notification) {
+                $data = json_decode($notification->data, true) ?: [];
+
+                return [
+                    'id' => $notification->id,
+                    'title' => $data['title'] ?? 'Platform announcement',
+                    'body' => $data['body'] ?? ($data['message'] ?? 'A new platform announcement is available.'),
+                    'created_at' => $notification->created_at,
+                ];
+            })->values(),
         ]);
+    }
+
+    public function markAnnouncementNotificationsRead(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['required', 'uuid']]);
+
+        DB::table('notifications')
+            ->whereIn('id', $validated['ids'])
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', Auth::id())
+            ->where('type', AnnouncementPublishedNotification::class)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['success' => true]);
     }
 
     public function markProductApprovalNotificationsRead(\Illuminate\Http\Request $request)

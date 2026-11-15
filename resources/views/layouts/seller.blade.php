@@ -264,7 +264,8 @@ function loadOrderNotifications() {
             const returnNotifications = data.returns || [];
             const payoutNotifications = data.payouts || [];
             const productApprovalNotifications = data.product_approvals || [];
-            if (data.orders.length === 0 && payoutNotifications.length === 0 && productApprovalNotifications.length === 0 && returnNotifications.length === 0) {
+            const announcementNotifications = data.announcements || [];
+            if (data.orders.length === 0 && payoutNotifications.length === 0 && productApprovalNotifications.length === 0 && announcementNotifications.length === 0 && returnNotifications.length === 0) {
                 list.innerHTML = '<div class="bell-dropdown-empty">No new notifications.</div>';
                 return;
             }
@@ -298,6 +299,13 @@ function loadOrderNotifications() {
                 </a>
             `).join('');
 
+            const announcementItems = announcementNotifications.map(notification => `
+                <a href="{{ route('seller.dashboard') }}" class="bell-dropdown-item" data-announcement-notification="${escapeHtml(notification.id)}">
+                    <div class="order-id">${escapeHtml(notification.title)}</div>
+                    <div class="order-meta">${escapeHtml(notification.body)}</div>
+                </a>
+            `).join('');
+
             const orderItems = data.orders.map(o => `
                 <a href="/seller/orders/${o.order_id}" class="bell-dropdown-item">
                     <div class="order-id">Order #${o.order_id} — ${o.buyer_name}</div>
@@ -307,12 +315,31 @@ function loadOrderNotifications() {
                 </a>
             `).join('');
 
-            list.innerHTML = returnItems + productApprovalItems + payoutItems + orderItems;
+            list.innerHTML = announcementItems + returnItems + productApprovalItems + payoutItems + orderItems;
         })
         .catch(() => {});
 }
 
 document.addEventListener('click', async function (event) {
+    const announcementLink = event.target.closest('[data-announcement-notification]');
+    if (announcementLink) {
+        event.preventDefault();
+        try {
+            await fetch('{{ route('seller.notifications.announcements.read') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ ids: [announcementLink.dataset.announcementNotification] }),
+            });
+        } finally {
+            window.location.href = announcementLink.href;
+        }
+        return;
+    }
+
     const productApprovalLink = event.target.closest('[data-product-approval-notification]');
     if (productApprovalLink) {
         event.preventDefault();

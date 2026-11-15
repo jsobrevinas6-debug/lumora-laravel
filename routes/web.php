@@ -163,6 +163,7 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
     Route::get('/orders/notifications', [OrderController::class, 'notifications'])->name('orders.notifications');
     Route::post('/notifications/payouts/read', [OrderController::class, 'markPayoutNotificationsRead'])->name('notifications.payouts.read');
     Route::post('/notifications/products/read', [OrderController::class, 'markProductApprovalNotificationsRead'])->name('notifications.products.read');
+    Route::post('/notifications/announcements/read', [OrderController::class, 'markAnnouncementNotificationsRead'])->name('notifications.announcements.read');
     Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{id}/pack', [OrderController::class, 'markPacked'])->name('orders.pack');
     Route::get('/orders/{id}/waybill', [OrderController::class, 'waybill'])->name('orders.waybill');

@@ -10,6 +10,7 @@ use App\Models\ReturnRequest;
 use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
 use App\Notifications\ProductApprovalRejectedNotification;
+use App\Notifications\AnnouncementPublishedNotification;
 use App\Services\ReturnRefundService;
 use App\Support\CategoryCatalog;
 use App\Support\ReturnEvidenceFiles;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -1334,13 +1336,17 @@ class DashboardController extends Controller
             'audience' => ['required', 'in:all,sellers,buyers'],
         ]);
 
-        DB::table('announcements')->insert([
-            ...$validated,
-            'posted_by' => $request->user()->id,
-            'is_published' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::transaction(function () use ($request, $validated) {
+            $announcementId = DB::table('announcements')->insertGetId([
+                ...$validated,
+                'posted_by' => $request->user()->id,
+                'is_published' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->notifyAnnouncementRecipients($announcementId, $validated['title'], $validated['body'], $validated['audience']);
+        });
 
         return redirect()->route('admin.settings.index')->with('flash_success', 'Announcement published.');
     }
@@ -1350,12 +1356,33 @@ class DashboardController extends Controller
         $announcement = DB::table('announcements')->where('id', $id)->first();
         abort_unless($announcement, 404);
 
-        DB::table('announcements')->where('id', $id)->update([
-            'is_published' => ! (bool) $announcement->is_published,
-            'updated_at' => now(),
-        ]);
+        $willPublish = ! (bool) $announcement->is_published;
+        DB::transaction(function () use ($id, $announcement, $willPublish) {
+            DB::table('announcements')->where('id', $id)->update([
+                'is_published' => $willPublish,
+                'updated_at' => now(),
+            ]);
+
+            if ($willPublish) {
+                $this->notifyAnnouncementRecipients($id, $announcement->title, $announcement->body, $announcement->audience);
+            }
+        });
 
         return redirect()->route('admin.settings.index')->with('flash_success', 'Announcement status updated.');
+    }
+
+    private function notifyAnnouncementRecipients(int $announcementId, string $title, string $body, string $audience): void
+    {
+        $recipientRoles = match ($audience) {
+            'buyers' => ['buyer'],
+            'sellers' => ['seller'],
+            default => ['buyer', 'seller'],
+        };
+
+        Notification::send(
+            User::query()->whereIn('role', $recipientRoles)->get(),
+            new AnnouncementPublishedNotification($announcementId, $title, $body),
+        );
     }
 
     public function updatePolicy(Request $request, int $id)
