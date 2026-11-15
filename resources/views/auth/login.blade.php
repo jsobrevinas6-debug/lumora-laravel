@@ -249,6 +249,9 @@
 
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
+                        @if (is_string(request('redirect_to')) && str_starts_with(request('redirect_to'), '/') && ! str_starts_with(request('redirect_to'), '//'))
+                            <input type="hidden" name="redirect_to" value="{{ request('redirect_to') }}">
+                        @endif
                         <div class="form-group">
                             <label for="email">Email address</label>
                             <div class="input-wrap">

@@ -43,6 +43,7 @@
     <div class="profile-topbar-inner">
         <a href="{{ route('shop.index') }}" class="profile-logo" aria-label="Lumora shop"><span class="profile-logo-brand">LUM<span>O</span>RA</span><span class="profile-logo-tagline">Beauty lives here</span></a>
         <div class="topbar-actions">
+            <a href="{{ route('buyer.wishlist.index') }}" class="topbar-action" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></a>
             <a href="{{ route('buyer.cart') }}" class="topbar-action" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.1 2.1h3l2.7 12.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H6"/></svg>@if ($cartCount > 0)<span class="topbar-badge">{{ $cartCount }}</span>@endif</a>
         </div>
     </div>

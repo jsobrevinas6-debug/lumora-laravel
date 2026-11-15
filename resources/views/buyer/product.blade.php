@@ -268,7 +268,8 @@
         <div class="topbar-inner">
             <x-logo :href="route('shop.index')" aria-label="Lumora shop" />
             <input class="search" type="search" placeholder="Search skincare, makeup, fragrance..." aria-label="Search products">
-            <button class="top-action" type="button" aria-label="Add to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
+            @php($isProductSaved = in_array((int) $product->id, $savedProductIds ?? [], true))
+            <a class="top-action" href="{{ auth()->check() ? route('buyer.wishlist.index') : route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></a>
             <a class="top-action" href="{{ route('buyer.cart') }}" aria-label="View cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span class="cart-badge" data-cart-count>{{ session('lumora_cart') ? collect(session('lumora_cart'))->sum('quantity') : 0 }}</span></a>
         </div>
     </header>
@@ -398,6 +399,7 @@
                     <input type="hidden" name="quantity" id="buy-now-quantity" value="1">
                     <button type="submit" class="button wishlist buy-now" id="buyNowButton" @disabled($stock < 1)>Buy now</button>
                 </form>
+                <button class="save-product-wishlist {{ $isProductSaved ? 'is-saved' : '' }}" type="button" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-saved="{{ $isProductSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $product) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isProductSaved ? 'Remove '.$product->name.' from' : 'Add '.$product->name.' to' }} wishlist" aria-pressed="{{ $isProductSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isProductSaved ? 'currentColor' : 'none' }}" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>{{ $isProductSaved ? 'Saved to Wishlist' : 'Save to Wishlist' }}</button>
             </div>
 
             <aside class="service-stack" aria-label="Shopping services">

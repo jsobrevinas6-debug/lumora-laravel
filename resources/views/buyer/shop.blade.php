@@ -446,6 +446,7 @@
         .homepage-product-image .fallback{ color:rgba(61,27,61,.45); font-family:'Playfair Display',serif; font-size:34px; }
         .homepage-product-card .wish{ position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; display:grid; place-items:center; border:0; border-radius:50%; background:rgba(255,255,255,.9); color:var(--plum); font-size:18px; }
         .homepage-product-card .wish svg{ width:16px; height:16px; }
+        .homepage-product-card .wish.is-saved{ color:var(--plum); }
         .homepage-product-card .sale{ position:absolute; top:10px; left:10px; padding:5px 8px; border-radius:4px; background:var(--rose); color:white; font-size:10px; font-weight:800; }
         .homepage-product-info{ padding:13px 14px 16px; }
         .homepage-product-info .seller{ color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
@@ -765,7 +766,8 @@
                     $reviewCount = (int) ($product->reviews_count ?? 0);
                 @endphp
                 <article class="homepage-product-card">
-                    <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
+                    @php($isSaved = in_array((int) $product->id, $savedProductIds ?? [], true))
+                    <button type="button" class="wish {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $product) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$product->name.' from' : 'Add '.$product->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                     <div class="homepage-product-image"><img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></div>
                     <div class="homepage-product-info">
@@ -914,9 +916,12 @@
                 <div class="grid">
                     @foreach ($group['items'] as $item)
                         <div class="product-card">
-                            <button class="wishlist-btn" aria-label="Add to wishlist">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-                            </button>
+                            @if (is_object($item) && isset($item->id))
+                                @php($isSaved = in_array((int) $item->id, $savedProductIds ?? [], true))
+                                <button type="button" class="wishlist-btn {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $item->id }}" data-product-name="{{ $item->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $item) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$item->name.' from' : 'Add '.$item->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}">
+                                    <svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                                </button>
+                            @endif
                             <div class="product-thumb" style="background:linear-gradient(135deg,#5A2E5A,#3D1B3D)">
                                 @if(is_object($item))
                                     <img src="{{ $item->image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ $item->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">

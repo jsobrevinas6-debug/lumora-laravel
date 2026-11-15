@@ -35,7 +35,7 @@
             <input type="search" name="q" placeholder="Search Lumora" aria-label="Search products">
         </form>
         <nav class="header-actions" aria-label="Account and shopping">
-            <a class="icon-link" href="{{ auth()->check() ? route('profile.edit') . '#wishlist' : route('login') }}" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></a>
+            <a class="icon-link" href="{{ auth()->check() ? route('buyer.wishlist.index') : route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></a>
             <a class="icon-link" href="{{ route('buyer.cart') }}" aria-label="Cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8a2 2 0 0 0 2-1.6L21 7H6"/></svg>@if($cartCount)<span class="cart-count">{{ $cartCount }}</span>@endif</a>
         </nav>
     </div>

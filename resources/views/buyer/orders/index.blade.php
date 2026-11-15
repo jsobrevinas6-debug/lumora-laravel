@@ -257,7 +257,7 @@
             <input type="search" name="search" placeholder="Search Lumora" aria-label="Search Lumora">
         </form>
         <div class="topbar-actions">
-            <a href="{{ route('profile.edit') }}#wishlist" class="topbar-action" aria-label="Wishlist">
+            <a href="{{ route('buyer.wishlist.index') }}" class="topbar-action" aria-label="Wishlist">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
             </a>
             <a href="{{ route('buyer.cart') }}" class="topbar-action" aria-label="Cart">

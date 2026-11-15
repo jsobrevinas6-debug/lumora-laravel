@@ -201,6 +201,17 @@ Route::post('/cart/add/{product}', [CartController::class, 'add'])
 Route::post('/account/wishlist/{product}/toggle', [\App\Http\Controllers\Buyer\WishlistController::class, 'toggle'])
     ->middleware('auth')->name('buyer.wishlist.toggle');
 
+Route::middleware('auth')->group(function () {
+    Route::get('/account/wishlist', [\App\Http\Controllers\Buyer\WishlistController::class, 'index'])
+        ->name('buyer.wishlist.index');
+    Route::get('/api/wishlist', [\App\Http\Controllers\Buyer\WishlistController::class, 'apiIndex'])
+        ->name('buyer.wishlist.api.index');
+    Route::post('/api/wishlist', [\App\Http\Controllers\Buyer\WishlistController::class, 'add'])
+        ->name('buyer.wishlist.api.add');
+    Route::delete('/api/wishlist/{productId}', [\App\Http\Controllers\Buyer\WishlistController::class, 'remove'])
+        ->whereNumber('productId')->name('buyer.wishlist.api.remove');
+});
+
 
 
 Route::middleware(['auth'])->group(function () {

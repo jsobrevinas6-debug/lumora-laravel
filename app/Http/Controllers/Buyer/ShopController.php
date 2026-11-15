@@ -84,6 +84,12 @@ class ShopController extends Controller
                 ->get()
             : collect();
 
+        $savedProductIds = auth()->check()
+            ? DB::table('saved_products')->where('user_id', auth()->id())
+                ->whereIn('product_id', collect([$product->id])->merge($relatedProducts->pluck('id'))->merge($moreFromSeller->pluck('id')))
+                ->pluck('product_id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
         return view('buyer.product', [
             'product' => $product,
             'relatedProducts' => $relatedProducts,
@@ -94,6 +100,7 @@ class ShopController extends Controller
             'userReview' => $userReview,
             'canReview' => (bool) $deliveredOrder,
             'categoryTitle' => CategoryCatalog::label((string) ($product->category ?? '')),
+            'savedProductIds' => $savedProductIds,
         ]);
     }
 
@@ -178,6 +185,9 @@ class ShopController extends Controller
         }
 
         $products = $productsQuery->paginate(12)->withQueryString();
+        $savedProductIds = auth()->check()
+            ? DB::table('saved_products')->where('user_id', auth()->id())->whereIn('product_id', $products->getCollection()->pluck('id'))->pluck('product_id')->map(fn ($id) => (int) $id)->all()
+            : [];
 
         $reviewsBase = ProductReview::query()
             ->whereHas('product', function ($query) use ($seller) {
@@ -219,6 +229,7 @@ class ShopController extends Controller
             'businessCategory' => $seller->approvedSellerApplication?->category ?: $seller->sellerApplication?->category,
             'ratingBreakdown' => $ratingBreakdown,
             'recentReviews' => $recentReviews,
+            'savedProductIds' => $savedProductIds,
         ]);
     }
 
@@ -284,11 +295,16 @@ class ShopController extends Controller
             } else {
                 $homeProducts->orderByDesc('created_at');
             }
+            $homeProductCollection = $homeProducts->get();
+            $savedProductIds = auth()->check()
+                ? DB::table('saved_products')->where('user_id', auth()->id())->whereIn('product_id', $homeProductCollection->pluck('id'))->pluck('product_id')->map(fn ($id) => (int) $id)->all()
+                : [];
             return view('buyer.shop', [
-                'products' => $homeProducts->get(),
+                'products' => $homeProductCollection,
                 'categoryCounts' => $homeCategoryCounts,
                 'categoryTree' => CategoryCatalog::tree(),
                 'searchQuery' => $search,
+                'savedProductIds' => $savedProductIds,
             ]);
         }
 

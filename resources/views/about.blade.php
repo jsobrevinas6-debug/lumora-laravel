@@ -25,7 +25,7 @@
             </form>
 
             <nav class="ml-auto flex items-center gap-3" aria-label="Primary">
-                <a href="#" aria-label="Wishlist" class="grid h-[38px] w-[38px] place-items-center rounded-full border border-[#EBDDD8] bg-[#FFFDFB] text-[#3D1B3D] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#3D1B3D] hover:text-white">
+                <a href="{{ auth()->check() ? route('buyer.wishlist.index') : route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="Wishlist" class="grid h-[38px] w-[38px] place-items-center rounded-full border border-[#EBDDD8] bg-[#FFFDFB] text-[#3D1B3D] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#3D1B3D] hover:text-white">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-[18px] w-[18px]" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                 </a>
                 @auth

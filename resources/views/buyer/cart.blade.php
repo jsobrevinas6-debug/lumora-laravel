@@ -7,6 +7,10 @@
         ->orderByDesc('created_at')
         ->limit(8)
         ->get();
+    $wishlistProductIds = auth()->check()
+        ? \Illuminate\Support\Facades\DB::table('saved_products')->where('user_id', auth()->id())
+            ->whereIn('product_id', collect($cartProductIds)->merge($recommendedProducts->pluck('id')))->pluck('product_id')->map(fn ($id) => (int) $id)->all()
+        : [];
     $cartPaymentOption = in_array($cartPaymentOption ?? 'cod', ['cod', 'wallet'], true) ? $cartPaymentOption : 'cod';
     $walletLabels = [
         'gcash' => 'GCash',
@@ -156,6 +160,8 @@
         .product-card:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-4px)}
         .wish{position:absolute;top:12px;right:12px;z-index:2;width:34px;height:34px;border:1px solid var(--border);border-radius:999px;background:rgba(255,253,252,.92);color:var(--primary);font-size:18px;transition:transform .2s ease,color .2s ease,border-color .2s ease}
         .wish:hover{border-color:var(--accent);color:var(--accent);transform:rotate(-8deg) scale(1.04)}
+        .wish.is-saved{color:var(--primary)}
+        .wishlist-header-link{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;color:var(--primary)}.wishlist-header-link svg{width:18px;height:18px}
         .product-card .sale{position:absolute;top:12px;left:12px;z-index:2;background:var(--card)}
         .product-image{height:230px;display:grid;place-items:center;overflow:hidden;background:var(--background)}
         .product-image img{width:100%;height:100%;object-fit:cover;transition:transform .2s ease}
@@ -194,6 +200,7 @@
             </div>
             <nav class="topbar-links" aria-label="Cart navigation">
                 <a class="topbar-link" href="{{ route('shop.index') }}">Continue shopping</a>
+                <a class="wishlist-header-link" href="{{ route('buyer.wishlist.index') }}" aria-label="Wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></a>
                 <a class="topbar-link cart-link" href="{{ route('buyer.cart') }}" aria-current="page">
                     Cart
                     <span class="cart-count">{{ $cartItems->sum('quantity') }}</span>
@@ -372,7 +379,8 @@
                             $discountLabel = rtrim(rtrim(number_format($discountPercent, 1), '0'), '.');
                         @endphp
                         <article class="product-card">
-                            <button type="button" class="wish" aria-label="Add {{ $product->name }} to wishlist">&#9825;</button>
+                            @php($isSaved = in_array((int) $product->id, $wishlistProductIds, true))
+                            <button type="button" class="wish {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $product) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$product->name.' from' : 'Add '.$product->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                             @if($discountPercent > 0)<span class="sale">{{ $discountLabel }}% OFF</span>@endif
                             <a class="product-image" href="{{ route('shop.product', ['id' => $product->id]) }}" aria-label="View {{ $product->name }}">
                                 <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';">

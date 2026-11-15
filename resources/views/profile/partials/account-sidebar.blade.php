@@ -11,11 +11,13 @@
         $active = 'messages';
     } elseif (request()->routeIs('buyer.following.*')) {
         $active = 'following';
+    } elseif (request()->routeIs('buyer.wishlist.*')) {
+        $active = 'wishlist';
     }
 
     $onProfilePage = $active === 'profile';
     $profileHref = $onProfilePage ? '#profile' : route('profile.edit');
-    $wishlistHref = $onProfilePage ? '#wishlist' : route('profile.edit') . '#wishlist';
+    $wishlistHref = route('buyer.wishlist.index');
     $shippingHref = $onProfilePage ? '#shipping-address' : route('profile.edit') . '#shipping-address';
     $settingsHref = $onProfilePage ? '#account-settings' : route('profile.edit') . '#account-settings';
 @endphp
@@ -48,7 +50,7 @@
                 <x-buyer-profile.nav-item :href="route('buyer.following.index')" label="Following" :active="$active === 'following'">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-5h6v5"/></svg></x-slot>
                 </x-buyer-profile.nav-item>
-                <x-buyer-profile.nav-item :href="$wishlistHref" label="Wishlist">
+                <x-buyer-profile.nav-item :href="$wishlistHref" label="Wishlist" :active="$active === 'wishlist'">
                     <x-slot name="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></x-slot>
                 </x-buyer-profile.nav-item>
                 <x-buyer-profile.nav-item :href="$shippingHref" label="Shipping Address">

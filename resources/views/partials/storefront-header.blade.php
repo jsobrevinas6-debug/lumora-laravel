@@ -77,8 +77,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
                     </a>
                 @endauth
-                <a href="{{ auth()->check() ? route('profile.edit').'#wishlist' : route('login') }}" class="icon-btn" aria-label="Wishlist">
+                @php($wishlistCount = auth()->check() ? \Illuminate\Support\Facades\DB::table('saved_products')->where('user_id', auth()->id())->count() : 0)
+                <a href="{{ auth()->check() ? route('buyer.wishlist.index') : route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" class="icon-btn" aria-label="Wishlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                    <span class="badge" data-wishlist-count @if ($wishlistCount < 1) hidden @endif>{{ $wishlistCount }}</span>
                 </a>
                 @auth
                     <a href="{{ route('buyer.cart') }}" class="icon-btn" aria-label="Cart">

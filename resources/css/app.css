@@ -1,5 +1,6 @@
 @import './storefront-header.css';
 @import './shop-category.css';
+@import './account-wishlist.css';
 
 .legal-document h2 {
     margin: 24px 0 8px;

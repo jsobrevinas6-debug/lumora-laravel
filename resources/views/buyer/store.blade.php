@@ -115,6 +115,7 @@
         .product-image img { width:100%; height:100%; display:block; object-fit:cover; object-position:center; }
         .wish { position:absolute; top:12px; right:12px; width:36px; height:36px; display:grid; place-items:center; padding:0; line-height:0; border:1px solid rgba(234,227,221,.9); border-radius:50%; background:rgba(255,253,252,.92); color:var(--plum); }
         .wish svg { width:16px; height:16px; display:block; position:static; transform:none; margin:0; }
+        .wish.is-saved { color:var(--plum); }
         .sale { position:absolute; top:12px; left:12px; padding:5px 8px; border-radius:999px; background:var(--plum); color:white; font-size:10px; font-weight:900; }
         .product-body { padding:14px 15px; }
         .product-category { margin-bottom:5px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -234,7 +235,7 @@
                 <input type="text" name="q" placeholder="Search skincare, makeup, fragrance..." value="{{ request('q') }}">
             </form>
             <div class="nav-actions">
-                <a href="{{ route('profile.edit') }}#wishlist" class="icon-btn" aria-label="Wishlist">
+                <a href="{{ auth()->check() ? route('buyer.wishlist.index') : route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" class="icon-btn" aria-label="Wishlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
                 </a>
                 @auth
@@ -457,7 +458,8 @@
                                     $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - ($discountPercent / 100)) : $originalPrice;
                                 @endphp
                                 <article class="product-card">
-                                    <button type="button" class="wish" aria-label="Add {{ $storeProduct->name }} to wishlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
+                                    @php($isSaved = in_array((int) $storeProduct->id, $savedProductIds ?? [], true))
+                                    <button type="button" class="wish {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $storeProduct->id }}" data-product-name="{{ $storeProduct->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $storeProduct) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$storeProduct->name.' from' : 'Add '.$storeProduct->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                                     <a class="product-image" href="{{ route('shop.product', ['id' => $storeProduct->id]) }}"><img src="{{ $storeProduct->image_url }}" alt="{{ $storeProduct->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></a>
                                     <div class="product-body">
