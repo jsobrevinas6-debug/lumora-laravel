@@ -1317,4 +1317,65 @@ class DashboardController extends Controller
 
         return back()->with('flash_success', 'Voucher removed.');
     }
+
+    public function settings()
+    {
+        $announcements = DB::table('announcements')->orderByDesc('created_at')->get();
+        $policies = DB::table('platform_policies')->orderBy('title')->get();
+
+        return view('admin.settings', compact('announcements', 'policies'));
+    }
+
+    public function storeAnnouncement(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:10000'],
+            'audience' => ['required', 'in:all,sellers,buyers'],
+        ]);
+
+        DB::table('announcements')->insert([
+            ...$validated,
+            'posted_by' => $request->user()->id,
+            'is_published' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->route('admin.settings.index')->with('flash_success', 'Announcement published.');
+    }
+
+    public function toggleAnnouncement(int $id)
+    {
+        $announcement = DB::table('announcements')->where('id', $id)->first();
+        abort_unless($announcement, 404);
+
+        DB::table('announcements')->where('id', $id)->update([
+            'is_published' => ! (bool) $announcement->is_published,
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->route('admin.settings.index')->with('flash_success', 'Announcement status updated.');
+    }
+
+    public function updatePolicy(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'content' => ['required', 'string', 'max:100000'],
+        ]);
+
+        DB::transaction(function () use ($request, $id, $validated) {
+            $policy = DB::table('platform_policies')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($policy, 404);
+
+            DB::table('platform_policies')->where('id', $id)->update([
+                'content' => $validated['content'],
+                'version' => (int) $policy->version + 1,
+                'updated_by' => $request->user()->id,
+                'updated_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('admin.settings.index')->with('flash_success', 'Policy updated and versioned.');
+    }
 }
