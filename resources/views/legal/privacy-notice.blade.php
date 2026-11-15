@@ -1,9 +1,11 @@
-@extends('layouts.app')
+@extends('layouts.legal')
+
+@section('title', 'Data Privacy Notice')
 
 @section('content')
-<main class="mx-auto max-w-3xl px-6 py-12 text-[#351128]">
-    <h1 class="mb-4 font-serif text-3xl">Data Privacy Notice</h1>
-    <p class="leading-7">Lumora uses your name and birthday to create your account and confirm your age; your email and phone number to verify your identity and send order updates; your address to deliver orders and calculate shipping; and your password to secure your account.</p>
-    <p class="mt-4 leading-7">This placeholder should be replaced with Lumora's complete privacy notice, including retention, sharing, and contact details, before launch.</p>
+<main class="legal-page">
+    <a class="legal-back" href="{{ route('register') }}">&larr; Back to sign up</a>
+    <h1>Data Privacy Notice</h1>
+    <article class="legal-document">@include('legal.content.privacy-notice')</article>
 </main>
 @endsection

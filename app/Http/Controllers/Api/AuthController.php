@@ -93,6 +93,7 @@ class AuthController extends Controller
             'postal_code' => ['nullable', 'string', 'max:10'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8'],
+            'terms_accepted' => ['accepted'],
             'device_name' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -127,6 +128,8 @@ class AuthController extends Controller
                 ->exists();
         }
 
+        $consentAcceptedAt = now();
+
         $userAttributes = [
             'name' => $fullName,
             'first_name' => $firstName ?: $fullName,
@@ -147,6 +150,10 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'buyer',
             'status' => 'active',
+            'terms_accepted_at' => $consentAcceptedAt,
+            'terms_version' => config('legal.terms_version'),
+            'privacy_notice_acknowledged_at' => $consentAcceptedAt,
+            'privacy_notice_version' => config('legal.privacy_notice_version'),
             'approval_status' => 'approved',
         ];
 

@@ -1,5 +1,41 @@
 @import './storefront-header.css';
 
+.legal-document h2 {
+    margin: 24px 0 8px;
+    color: #351128;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.legal-document p {
+    margin: 0 0 14px;
+}
+
+.legal-document a {
+    color: #4a1233;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.legal-draft-notice {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border: 1px solid #d9a66f;
+    border-radius: 10px;
+    background: #fff6e9;
+    color: #583a23;
+    font-size: .82rem;
+    line-height: 1.5;
+}
+
+.legal-draft-notice strong {
+    color: #8a4d20;
+    letter-spacing: .04em;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

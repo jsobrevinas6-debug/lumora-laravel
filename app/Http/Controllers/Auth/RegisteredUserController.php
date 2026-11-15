@@ -98,6 +98,8 @@ class RegisteredUserController extends Controller
 
         $email = $validated['email'];
 
+        $consentAcceptedAt = now();
+
         $userAttributes = [
             'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
             'first_name' => $validated['first_name'],
@@ -118,8 +120,10 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'buyer',
             'status' => 'active',
-            'terms_accepted_at' => now(),
+            'terms_accepted_at' => $consentAcceptedAt,
             'terms_version' => config('legal.terms_version'),
+            'privacy_notice_acknowledged_at' => $consentAcceptedAt,
+            'privacy_notice_version' => config('legal.privacy_notice_version'),
             'seller_terms_accepted_at' => $signupType === 'seller' ? now() : null,
             'marketing_opt_in' => $request->boolean('marketing_opt_in'),
             'approval_status' => 'approved',

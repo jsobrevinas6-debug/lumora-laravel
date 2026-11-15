@@ -83,6 +83,18 @@
         .agreement-details summary::after { content:""; display:inline-block; width:7px; height:7px; margin:0 0 2px 7px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg); transition:transform .15s; }
         .agreement-details ul { margin:6px 0 0 18px; }
         .agreement-details p { margin:6px 0 0; }
+        .legal-modal { width:min(760px,calc(100% - 28px)); max-width:none; max-height:min(82vh,820px); margin:auto; padding:0; overflow:hidden; border:1px solid var(--border); border-radius:18px; color:var(--plum); background:var(--paper); box-shadow:0 24px 80px rgba(53,17,40,.24); }
+        .legal-modal::backdrop { background:rgba(35,18,32,.58); backdrop-filter:blur(3px); }
+        .legal-modal-head { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:20px 24px; border-bottom:1px solid var(--border); }
+        .legal-modal-head h2 { margin:0; color:var(--plum); font:600 1.35rem 'Playfair Display',serif; }
+        .legal-modal-close { display:grid; width:36px; height:36px; flex:0 0 36px; place-items:center; border:1px solid var(--border); border-radius:50%; background:#fff; color:var(--plum); font-size:22px; cursor:pointer; }
+        .legal-modal-body { max-height:calc(min(82vh,820px) - 77px); overflow:auto; padding:22px 26px 28px; color:var(--text-dark); font-size:.88rem; line-height:1.7; overscroll-behavior:contain; }
+        .legal-document h2 { margin:24px 0 8px; color:var(--plum); font:600 1.15rem 'Playfair Display',serif; }
+        .legal-document p { margin:0 0 14px; }
+        .legal-document a { color:#4a1233; text-decoration:underline; text-underline-offset:2px; }
+        .legal-draft-notice { display:grid; gap:4px; margin:0 0 18px; padding:12px 14px; border:1px solid #d9a66f; border-radius:10px; background:#fff6e9; color:#583a23; font-size:.82rem; line-height:1.5; }
+        .legal-draft-notice strong { color:#8a4d20; letter-spacing:.04em; }
+        @media (max-width: 520px) { .legal-modal-head { padding:16px 18px; } .legal-modal-body { max-height:calc(min(82vh,820px) - 68px); padding:18px; font-size:.82rem; } }
         .marketing-check { margin:10px 0 0; }
         .optional-tag { margin-left:5px; color:var(--text-muted); font-size:.68rem; font-weight:600; }
         .required-note { margin-top:9px; color:var(--text-muted); font-size:.7rem; }
@@ -227,7 +239,7 @@
                 <label class="agreement-check" for="termsAccepted">
                     <input id="termsAccepted" type="checkbox" name="terms_accepted" value="1" aria-required="true" aria-describedby="termsError" @checked(old('terms_accepted'))>
                     <span class="checkmark" aria-hidden="true"></span>
-                    <span class="agreement-copy">I agree to the <a class="legal-link" href="{{ route('legal.user-agreement') }}" target="_blank" rel="noopener">Lumora User Agreement</a> and acknowledge the <a class="legal-link" href="{{ route('legal.privacy-notice') }}" target="_blank" rel="noopener">Data Privacy Notice</a> for the personal information I provide during registration.</span>
+                    <span class="agreement-copy">I agree to the <a class="legal-link" href="{{ route('legal.user-agreement') }}" data-legal-modal="userAgreementModal">Lumora User Agreement</a> and acknowledge the <a class="legal-link" href="{{ route('legal.privacy-notice') }}" data-legal-modal="privacyNoticeModal">Data Privacy Notice</a> for the personal information I provide during registration.</span>
                 </label>
                 <span class="field-error" id="termsError" role="alert" @if (! $errors->has('terms_accepted')) hidden @endif>{{ $errors->first('terms_accepted') ?: 'Please accept the agreement to create your account.' }}</span>
                 <div id="sellerTermsRow" @if (old('signup_type') !== 'seller') hidden @endif>
@@ -246,7 +258,7 @@
                         <li>Address: deliver orders and calculate shipping.</li>
                         <li>Password: stored securely and never shared.</li>
                     </ul>
-                    <p><a class="legal-link" href="{{ route('legal.privacy-notice') }}" target="_blank" rel="noopener">Read the full Data Privacy Notice &rarr;</a></p>
+                    <p><a class="legal-link" href="{{ route('legal.privacy-notice') }}" data-legal-modal="privacyNoticeModal">Read the full Data Privacy Notice &rarr;</a></p>
                 </details>
             </div>
             <label class="agreement-check marketing-check" for="marketingOptIn">
@@ -265,6 +277,21 @@
     </section>
 </section>
 </main>
+
+<dialog class="legal-modal" id="userAgreementModal" aria-labelledby="userAgreementTitle">
+    <div class="legal-modal-head">
+        <h2 id="userAgreementTitle">Lumora User Agreement</h2>
+        <button type="button" class="legal-modal-close" aria-label="Close User Agreement">&times;</button>
+    </div>
+    <div class="legal-modal-body legal-document">@include('legal.content.user-agreement')</div>
+</dialog>
+<dialog class="legal-modal" id="privacyNoticeModal" aria-labelledby="privacyNoticeTitle">
+    <div class="legal-modal-head">
+        <h2 id="privacyNoticeTitle">Data Privacy Notice</h2>
+        <button type="button" class="legal-modal-close" aria-label="Close Data Privacy Notice">&times;</button>
+    </div>
+    <div class="legal-modal-body legal-document">@include('legal.content.privacy-notice')</div>
+</dialog>
 
 <!-- Seller Info Modal -->
 <div id="sellerModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(43,24,38,.55);z-index:999;align-items:center;justify-content:center;padding:20px;">
@@ -549,6 +576,30 @@ function closeSellerModal() {
     document.getElementById('id_document').required = false;
     document.getElementById('business_permit').required = false;
 }
+
+document.querySelectorAll('[data-legal-modal]').forEach((link) => {
+    link.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const dialog = document.getElementById(link.dataset.legalModal);
+        if (dialog && !dialog.open) {
+            dialog.dataset.previousBodyOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            dialog.showModal();
+        }
+    });
+});
+
+document.querySelectorAll('.legal-modal').forEach((dialog) => {
+    dialog.querySelector('.legal-modal-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+        dialog.querySelector('.legal-modal-body').scrollTop = 0;
+        document.body.style.overflow = dialog.dataset.previousBodyOverflow || '';
+    });
+});
 </script>
 </body>
 </html>
