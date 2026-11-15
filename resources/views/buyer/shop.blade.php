@@ -807,7 +807,7 @@
         </div>
         <div class="deals-strip">
             @foreach ([
-                ['name'=>'Rose Clay Mask','now'=>'&#8369;349','was'=>'&#8369;499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
+                ['name'=>'Velvet Glow Serum','now'=>'&#8369;349','was'=>'&#8369;499','disc'=>'30% off','color'=>'linear-gradient(135deg,#D46A6A,#8A3D3D)'],
                 ['name'=>'Silk Lip Tint','now'=>'&#8369;199','was'=>'&#8369;280','disc'=>'29% off','color'=>'linear-gradient(135deg,#E2703A,#B4502A)'],
                 ['name'=>'Amber Eau de Parfum','now'=>'&#8369;899','was'=>'&#8369;1,299','disc'=>'31% off','color'=>'linear-gradient(135deg,#7A5A9E,#3D1B3D)'],
                 ['name'=>'Gold Hoop Earrings','now'=>'&#8369;450','was'=>'&#8369;620','disc'=>'27% off','color'=>'linear-gradient(135deg,#C9972B,#8A6314)'],
