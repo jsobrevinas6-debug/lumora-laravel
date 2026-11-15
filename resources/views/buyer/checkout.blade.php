@@ -740,14 +740,14 @@
             <div><h2 id="addressModalTitle">Add delivery address</h2><p>Save an address for this and future orders.</p></div>
             <button type="button" class="address-modal-close" data-close-address-modal aria-label="Close address form">&times;</button>
         </div>
-        <form id="addressForm" method="POST" action="{{ route('buyer.addresses.store') }}" data-address-base="{{ url('/account/addresses') }}" data-regions-url="{{ route('address.regions') }}">
+        <form id="addressForm" method="POST" action="{{ route('buyer.addresses.store') }}" data-address-base="{{ url('/account/addresses') }}" data-regions-url="{{ route('address.regions') }}" data-provinces-url="{{ url('/address/provinces') }}" data-municipalities-url="{{ url('/address/municipalities') }}">
             @csrf
             <input type="hidden" name="_method" id="addressFormMethod" value="POST">
             <div class="address-form-grid">
                 <div class="address-form-field"><label for="addressFullName">Full Name</label><input id="addressFullName" name="full_name" autocomplete="name" value="{{ $buyer->name }}" required maxlength="255"></div>
                 <div class="address-form-field"><label for="addressPhone">Phone Number</label><input id="addressPhone" name="phone_number" autocomplete="tel" value="{{ $formattedPhone }}" required maxlength="25" inputmode="tel"></div>
                 <div class="address-form-field"><label for="addressRegion">Region</label><select id="addressRegion" name="region" required><option value="">Select region</option></select><input type="hidden" name="region_code" id="addressRegionCode"></div>
-                <div class="address-form-field"><label for="addressProvince">Province</label><select id="addressProvince" name="province" required disabled><option value="">Select province</option></select><input type="hidden" name="province_code" id="addressProvinceCode"></div>
+                <div class="address-form-field"><label for="addressProvince">Province</label><select id="addressProvince" name="province" disabled><option value="">Select province</option></select><input type="hidden" name="province_code" id="addressProvinceCode"></div>
                 <div class="address-form-field"><label for="addressCity">City / Municipality</label><select id="addressCity" name="city_municipality" required disabled><option value="">Select city / municipality</option></select><input type="hidden" name="city_municipality_code" id="addressCityCode"></div>
                 <div class="address-form-field"><label for="addressBarangay">Barangay</label><select id="addressBarangay" name="barangay" required disabled><option value="">Select barangay</option></select><input type="hidden" name="barangay_code" id="addressBarangayCode"></div>
                 <div class="address-form-field full"><label for="addressStreet">Street Address / House Number</label><input id="addressStreet" name="street_address" autocomplete="street-address" required maxlength="255"></div>
@@ -772,6 +772,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addressBase = form.dataset.addressBase;
     const regionsUrl = form.dataset.regionsUrl;
+    const provincesUrl = form.dataset.provincesUrl;
+    const municipalitiesUrl = form.dataset.municipalitiesUrl;
     const addressSelect = document.getElementById('deliveryAddressSelect');
     const addressId = document.getElementById('checkoutAddressId');
     const addressRow = document.getElementById('selectedAddressRow');
@@ -839,11 +841,12 @@ document.addEventListener('DOMContentLoaded', () => {
         select.replaceChildren(new Option(placeholder, ''));
         select.disabled = true;
         const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        if (!response.ok) throw new Error('Address regions could not be loaded. Please try again.');
+        if (!response.ok) throw new Error('Address options could not be loaded. Please try again.');
         const payload = await response.json();
-        (payload.data || []).forEach((item) => {
-            const code = String(item.code ?? item.psgc_code ?? item.id ?? '');
-            const name = String(item.name ?? item.regionName ?? '');
+        const items = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : []);
+        items.forEach((item) => {
+            const code = String(item.code ?? item.psgc_code ?? item.psgcCode ?? item.regionCode ?? item.id ?? '');
+            const name = String(item.name ?? item.regionName ?? item.provinceName ?? item.cityName ?? '');
             if (!code || !name) return;
             const option = new Option(name, name);
             option.dataset.code = code;
@@ -854,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selected = [...select.options].find((option) => option.dataset.code === String(selectedCode));
             if (selected) select.value = selected.value;
         }
-        return select.selectedOptions[0]?.dataset.code || '';
+        return { code: select.selectedOptions[0]?.dataset.code || '', count: select.options.length - 1 };
     };
 
     const resetChildren = (from) => {
@@ -874,36 +877,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const provinces = field('province');
     const cities = field('city_municipality');
     const barangays = field('barangay');
-    const loadProvinces = async (regionCode, selected = '') => {
+    const lookupError = (error) => {
+        errorBox.textContent = `${error.message} Check your connection and try again.`;
+        errorBox.hidden = false;
+    };
+    const loadCitiesForRegion = async (regionCode, selected = '') => {
+        resetChildren('city_municipality');
+        setField('province_code', '');
+        const result = await populateSelect(cities, `${regionsUrl}/${encodeURIComponent(regionCode)}/cities-municipalities`, 'Select city / municipality', selected);
+        setField('city_municipality_code', result.code);
+    };
+    const loadProvinces = async (regionCode, selected = '', selectedCity = '') => {
         resetChildren('province');
         setField('region_code', regionCode);
-        if (regionCode) await populateSelect(provinces, `${regionsUrl}/${encodeURIComponent(regionCode)}/provinces`, 'Select province', selected);
-        setField('province_code', provinces.selectedOptions[0]?.dataset.code || '');
+        provinces.required = Boolean(regionCode);
+        if (!regionCode) return;
+        const result = await populateSelect(provinces, `${regionsUrl}/${encodeURIComponent(regionCode)}/provinces`, 'Select province', selected);
+        if (result.count === 0) {
+            provinces.replaceChildren(new Option('Not applicable for this region', ''));
+            provinces.disabled = true;
+            provinces.required = false;
+            await loadCitiesForRegion(regionCode, selectedCity);
+        }
+        setField('province_code', result.code);
     };
     const loadCities = async (provinceCode, selected = '') => {
         resetChildren('city_municipality');
         setField('province_code', provinceCode);
-        if (provinceCode) await populateSelect(cities, `/address/provinces/${encodeURIComponent(provinceCode)}/municipalities`, 'Select city / municipality', selected);
-        setField('city_municipality_code', cities.selectedOptions[0]?.dataset.code || '');
+        if (provinceCode) {
+            const result = await populateSelect(cities, `${provincesUrl}/${encodeURIComponent(provinceCode)}/municipalities`, 'Select city / municipality', selected);
+            setField('city_municipality_code', result.code);
+        }
     };
     const loadBarangays = async (cityCode, selected = '') => {
         resetChildren('barangay');
         setField('city_municipality_code', cityCode);
-        if (cityCode) await populateSelect(barangays, `/address/municipalities/${encodeURIComponent(cityCode)}/barangays`, 'Select barangay', selected);
-        setField('barangay_code', barangays.selectedOptions[0]?.dataset.code || '');
+        if (cityCode) {
+            const result = await populateSelect(barangays, `${municipalitiesUrl}/${encodeURIComponent(cityCode)}/barangays`, 'Select barangay', selected);
+            setField('barangay_code', result.code);
+        }
     };
 
     regions.addEventListener('change', async () => {
+        errorBox.hidden = true;
         try { await loadProvinces(regions.selectedOptions[0]?.dataset.code || ''); setField('region', regions.selectedOptions[0]?.textContent || ''); }
-        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+        catch (error) { lookupError(error); }
     });
     provinces.addEventListener('change', async () => {
+        errorBox.hidden = true;
         try { await loadCities(provinces.selectedOptions[0]?.dataset.code || ''); setField('province', provinces.selectedOptions[0]?.textContent || ''); }
-        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+        catch (error) { lookupError(error); }
     });
     cities.addEventListener('change', async () => {
+        errorBox.hidden = true;
         try { await loadBarangays(cities.selectedOptions[0]?.dataset.code || ''); setField('city_municipality', cities.selectedOptions[0]?.textContent || ''); }
-        catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+        catch (error) { lookupError(error); }
     });
     barangays.addEventListener('change', () => {
         setField('barangay_code', barangays.selectedOptions[0]?.dataset.code || '');
@@ -925,23 +953,26 @@ document.addEventListener('DOMContentLoaded', () => {
         ['full_name', 'phone_number', 'street_address', 'postal_code', 'label'].forEach((name) => setField(name, address?.[name] ?? (name === 'label' ? 'home' : field(name).defaultValue)));
         document.getElementById('addressDefault').checked = Boolean(address?.is_default);
         try {
-            await populateSelect(regions, regionsUrl, 'Select region', address?.region_code || '');
+            const result = await populateSelect(regions, regionsUrl, 'Select region', address?.region_code || '');
+            if (result.count === 0) throw new Error('Region options could not be loaded.');
             setField('region', regions.selectedOptions[0]?.textContent === 'Select region' ? '' : (regions.selectedOptions[0]?.textContent || address?.region || ''));
             if (address?.region_code) {
-                await loadProvinces(address.region_code, address.province_code || '');
+                await loadProvinces(address.region_code, address.province_code || '', address.city_municipality_code || '');
                 setField('province', provinces.selectedOptions[0]?.textContent || address.province || '');
                 if (address.province_code) {
                     await loadCities(address.province_code, address.city_municipality_code || '');
                     setField('city_municipality', cities.selectedOptions[0]?.textContent || address.city_municipality || '');
-                    if (address.city_municipality_code) {
-                        await loadBarangays(address.city_municipality_code, address.barangay_code || '');
-                        setField('barangay', barangays.selectedOptions[0]?.textContent || address.barangay || '');
-                    }
+                } else if (address.city_municipality_code) {
+                    await loadCitiesForRegion(address.region_code, address.city_municipality_code);
+                    setField('city_municipality', cities.selectedOptions[0]?.textContent || address.city_municipality || '');
+                }
+                if (address.city_municipality_code) {
+                    await loadBarangays(address.city_municipality_code, address.barangay_code || '');
+                    setField('barangay', barangays.selectedOptions[0]?.textContent || address.barangay || '');
                 }
             }
         } catch (error) {
-            errorBox.textContent = `${error.message} Refresh the page and try again.`;
-            errorBox.hidden = false;
+            lookupError(error);
         }
         modal.classList.add('is-open');
         modal.setAttribute('aria-hidden', 'false');

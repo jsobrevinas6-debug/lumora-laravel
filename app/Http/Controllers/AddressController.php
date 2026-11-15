@@ -22,6 +22,13 @@ class AddressController extends Controller
         ]);
     }
 
+    public function citiesForRegion(string $regionCode): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->cachedList("psgc_region_cities_{$regionCode}", "{$this->base}/regions/{$regionCode}/cities-municipalities"),
+        ]);
+    }
+
     public function provinces(): JsonResponse
     {
         return response()->json([

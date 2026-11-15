@@ -347,6 +347,7 @@ Route::post('/register/verify-code', [\App\Http\Controllers\Auth\EmailVerificati
 // Address lookups
 Route::get('/address/regions', [\App\Http\Controllers\AddressController::class, 'regions'])->name('address.regions');
 Route::get('/address/regions/{regionCode}/provinces', [\App\Http\Controllers\AddressController::class, 'provincesForRegion'])->where('regionCode', '[A-Za-z0-9_-]+')->name('address.regions.provinces');
+Route::get('/address/regions/{regionCode}/cities-municipalities', [\App\Http\Controllers\AddressController::class, 'citiesForRegion'])->where('regionCode', '[A-Za-z0-9_-]+')->name('address.regions.cities');
 Route::get('/address/provinces', [\App\Http\Controllers\AddressController::class, 'provinces'])->name('address.provinces');
 Route::get('/address/provinces/{code}/municipalities', [\App\Http\Controllers\AddressController::class, 'municipalities'])->name('address.municipalities');
 Route::get('/address/municipalities/{code}/barangays', [\App\Http\Controllers\AddressController::class, 'barangays'])->name('address.barangays');
