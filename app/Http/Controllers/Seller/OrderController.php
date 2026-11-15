@@ -29,8 +29,9 @@ class OrderController extends Controller
         $search = trim((string) $request->query('search', ''));
         $query = (clone $base)->join('users as u','u.id','=','o.user_id')->leftJoinSub($summary,'s','s.order_id','=','o.id')
             ->select('o.*','u.name as buyer_name','u.province','u.municipality','u.contact_number',DB::raw('COALESCE(s.seller_subtotal,0) seller_subtotal'),DB::raw('COALESCE(s.item_count,0) item_count'),DB::raw('COALESCE(s.unpacked_count,0) unpacked_count'),DB::raw('COALESCE(s.unseen_count,0) unseen_count'));
-        $statusMap = ['pending'=>['pending','processing'],'packed'=>['packed'],'shipped'=>['shipped','out_for_delivery'],'delivered'=>['delivered'],'cancelled'=>['cancelled'],'returns'=>['returned'],'refund'=>['refunded']];
+        $statusMap = ['pending'=>['pending','processing'],'packed'=>['packed'],'shipped'=>['shipped','out_for_delivery'],'delivered'=>['delivered'],'cancelled'=>['cancelled'],'returns'=>['returned']];
         if (isset($statusMap[$currentStatus]) && $currentStatus !== 'returns') $query->whereIn('o.status',$statusMap[$currentStatus]);
+        if ($currentStatus==='refund') $query->where('o.payment_status','refunded');
         if ($currentStatus==='returns') $query->where(function($q){$q->where('o.status','returned')->orWhereExists(fn($r)=>$r->selectRaw('1')->from('return_requests')->whereColumn('return_requests.order_id','o.id'));});
         if ($search!=='') $query->where(function($q)use($search){$q->where('o.order_number','like',"%{$search}%")->orWhere('u.name','like',"%{$search}%")->orWhereExists(function($sub)use($search){$sub->selectRaw('1')->from('order_items as si')->join('products as sp','sp.id','=','si.product_id')->whereColumn('si.order_id','o.id')->where('sp.name','like',"%{$search}%");});});
         if ($request->filled('date_range')) $query->where('o.created_at','>=',now()->subDays($request->date_range==='30'?30:7));

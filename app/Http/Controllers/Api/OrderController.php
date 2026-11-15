@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\User;
+use App\Services\ReturnRefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,12 +26,7 @@ class OrderController extends Controller
         $user = $this->resolveBuyerUser($request);
         $buyerIds = $this->resolveBuyerUserIds($user, $request);
 
-        $query = Order::query()->with([
-            'user',
-            'seller',
-            'items.product',
-            'statusHistories',
-        ]);
+        $query = Order::query()->with($this->orderRelations());
 
         if (! empty($buyerIds)) {
             $query->whereIn('user_id', $buyerIds);
@@ -62,6 +58,9 @@ class OrderController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
+            'items.*.variant_id' => ['nullable', 'integer'],
+            'items.*.variant_name' => ['nullable', 'string', 'max:255'],
+            'items.*.variation' => ['nullable', 'string', 'max:255'],
         ]);
 
         $paymentMethod = $this->normalizePaymentMethod($validated['payment_method']);
@@ -77,6 +76,10 @@ class OrderController extends Controller
                 ->get()
                 ->keyBy('id');
 
+            $hasVariantsTable = Schema::hasTable('product_variants');
+            $hasOrderItemVariantCols = Schema::hasColumn('order_items', 'variant_id')
+                && Schema::hasColumn('order_items', 'variant_name');
+
             $lines = collect();
             foreach ($requestedItems as $item) {
                 $product = $products->get((int) $item['product_id']);
@@ -86,7 +89,34 @@ class OrderController extends Controller
                     abort(422, 'One of the selected products is no longer available.');
                 }
 
-                if ($quantity > (int) $product->stock) {
+                $variantId = isset($item['variant_id']) && is_numeric($item['variant_id'])
+                    ? (int) $item['variant_id']
+                    : null;
+                $variantName = trim((string) ($item['variant_name'] ?? ($item['variation'] ?? '')));
+                $matchedVariant = null;
+
+                if ($hasVariantsTable && ($variantId !== null || $variantName !== '')) {
+                    $variantQuery = DB::table('product_variants')
+                        ->where('product_id', $product->id);
+                    if ($variantId !== null) {
+                        $matchedVariant = (clone $variantQuery)->where('id', $variantId)->lockForUpdate()->first();
+                    }
+                    if (! $matchedVariant && $variantName !== '') {
+                        $matchedVariant = (clone $variantQuery)
+                            ->whereRaw('LOWER(name) = ?', [strtolower($variantName)])
+                            ->lockForUpdate()
+                            ->first();
+                    }
+                    if ($matchedVariant) {
+                        $variantId = (int) $matchedVariant->id;
+                        $variantName = (string) $matchedVariant->name;
+                        if ($quantity > (int) $matchedVariant->stock) {
+                            abort(422, "Insufficient stock for {$product->name} ({$variantName}).");
+                        }
+                    }
+                }
+
+                if (! $matchedVariant && $quantity > (int) $product->stock) {
                     abort(422, "Insufficient stock for {$product->name}.");
                 }
 
@@ -96,6 +126,10 @@ class OrderController extends Controller
 
                 $lines->push([
                     'product' => $product,
+                    'variant_id' => $variantId,
+                    'variant_name' => $variantName !== '' ? $variantName : null,
+                    'matched_variant' => $matchedVariant,
+                    'has_order_item_variant_cols' => $hasOrderItemVariantCols,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'line_total' => round($unitPrice * $quantity, 2),
@@ -201,19 +235,36 @@ class OrderController extends Controller
             foreach ($lines as $line) {
                 $product = $line['product'];
 
-                $order->items()->create([
+                $itemData = [
                     'product_id' => $product->id,
                     'seller_id' => $product->seller_id,
                     'quantity' => $line['quantity'],
                     'price' => $line['unit_price'],
                     'subtotal' => $line['line_total'],
-                ]);
+                ];
+                if ($line['has_order_item_variant_cols']) {
+                    $itemData['variant_id'] = $line['variant_id'];
+                    $itemData['variant_name'] = $line['variant_name'];
+                }
 
-                $product->decrement('stock', $line['quantity']);
-                $product->increment('sales_count', $line['quantity']);
+                $order->items()->create($itemData);
+
+                if ($line['matched_variant']) {
+                    DB::table('product_variants')
+                        ->where('id', $line['matched_variant']->id)
+                        ->update([
+                            'stock' => max(0, (int) $line['matched_variant']->stock - $line['quantity']),
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                $newStock = max(0, (int) $product->stock - $line['quantity']);
+                $product->stock = $newStock;
+                $product->sales_count = (int) $product->sales_count + $line['quantity'];
+                $product->save();
             }
 
-            return $order->load(['user', 'seller', 'items.product', 'statusHistories']);
+            return $order->load($this->orderRelations());
         });
 
         return response()->json([
@@ -234,11 +285,18 @@ class OrderController extends Controller
         $reason = trim((string) $request->input('reason', 'Cancelled by buyer'));
 
         DB::transaction(function () use ($buyer, $order, $reason) {
+            ReturnRefundService::markCancelledRefundIfPaid($order);
+
             $order->updateStatus('cancelled', 'Order cancelled by buyer: '.$reason, event: [
                 'changed_by' => $buyer?->id ?? $order->user_id,
             ]);
 
             foreach ($order->items as $item) {
+                if (! empty($item->variant_id) && Schema::hasTable('product_variants')) {
+                    DB::table('product_variants')
+                        ->where('id', (int) $item->variant_id)
+                        ->increment('stock', (int) $item->quantity);
+                }
                 if ($item->product) {
                     $item->product->increment('stock', $item->quantity);
                     $item->product->decrement('sales_count', min((int) $item->product->sales_count, (int) $item->quantity));
@@ -246,7 +304,12 @@ class OrderController extends Controller
             }
         });
 
-        return response()->json(['message' => 'Order cancelled.']);
+        $freshOrder = $order->fresh($this->orderRelations()) ?: $order;
+
+        return response()->json([
+            'message' => 'Order cancelled.',
+            'data' => $this->transformOrder($freshOrder),
+        ]);
     }
 
     public function requestReturn(Request $request, string $orderId): JsonResponse
@@ -254,27 +317,75 @@ class OrderController extends Controller
         $order = $this->findBuyerOrder($request, $orderId);
         $buyer = $this->resolveBuyerUser($request);
 
-        $reason = trim((string) $request->input('reason', 'Return requested'));
-        $solution = trim((string) $request->input('preferred_solution', 'Refund'));
-        $description = trim((string) $request->input('description', ''));
-
-        $order->updateStatus('returned', trim("Return & Refund requested ({$solution}) — {$reason}. {$description}"), event: [
-            'changed_by' => $buyer?->id ?? $order->user_id,
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+            'preferred_solution' => ['nullable', 'string', 'max:64'],
+            'details' => ['nullable', 'string', 'max:2000'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'evidence' => ['nullable', 'array', 'max:5'],
+            'evidence.*' => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov,webm', 'max:51200'],
+            'evidence_photos' => ['nullable', 'array', 'max:5'],
+            'evidence_photos.*' => ['string'],
         ]);
 
-        return response()->json(['message' => 'Return request submitted.']);
+        $detailsText = trim((string) ($validated['details'] ?? $validated['description'] ?? ''));
+        if (mb_strlen($detailsText) < 10) {
+            return response()->json([
+                'message' => 'Please provide at least 10 characters explaining the return/refund reason.',
+            ], 422);
+        }
+
+        try {
+            $returnRequest = ReturnRefundService::submitReturnRequest(
+                $order,
+                $buyer,
+                [
+                    'reason' => $validated['reason'] ?? 'other',
+                    'preferred_solution' => $validated['preferred_solution'] ?? 'refund',
+                    'details' => $detailsText,
+                ],
+                $request->file('evidence', []),
+                $validated['evidence_photos'] ?? []
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
+        }
+
+        $freshOrder = $order->fresh($this->orderRelations()) ?: $order;
+
+        return response()->json([
+            'message' => 'Return/refund request submitted for review.',
+            'return_request_id' => $returnRequest->id,
+            'data' => $this->transformOrder($freshOrder),
+        ], 201);
     }
 
     public function escalateDispute(Request $request, string $orderId): JsonResponse
     {
         $order = $this->findBuyerOrder($request, $orderId);
         $buyer = $this->resolveBuyerUser($request);
-        $notes = trim((string) $request->input('dispute_notes', ''));
-        $order->recordStatusUpdate('disputed', trim('Buyer escalated dispute to Admin. '.$notes), event: [
-            'changed_by' => $buyer?->id ?? $order->user_id,
+
+        $validated = $request->validate([
+            'dispute_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        return response()->json(['message' => 'Dispute escalated to Admin.']);
+        try {
+            $returnRequest = ReturnRefundService::escalateDispute(
+                $order,
+                $buyer,
+                $validated['dispute_notes'] ?? null
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
+        }
+
+        $freshOrder = $order->fresh($this->orderRelations()) ?: $order;
+
+        return response()->json([
+            'message' => 'Dispute escalated to Lumora Admin for arbitration.',
+            'return_request_id' => $returnRequest->id,
+            'data' => $this->transformOrder($freshOrder),
+        ]);
     }
 
     public function storeReview(Request $request, Product $product): JsonResponse
@@ -363,7 +474,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order marked as received.',
-            'data' => $this->transformOrder($order->fresh(['user', 'seller', 'items.product', 'statusHistories'])),
+            'data' => $this->transformOrder($order->fresh($this->orderRelations())),
         ]);
     }
 
@@ -381,7 +492,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Your payment receipt was submitted for review.',
-            'data' => $this->transformOrder($order->fresh(['user', 'seller', 'items.product', 'statusHistories'])),
+            'data' => $this->transformOrder($order->fresh($this->orderRelations())),
         ]);
     }
 
@@ -506,7 +617,7 @@ class OrderController extends Controller
                             $q->orWhere('id', (int) $matches[1]);
                         }
                     })
-                    ->with(['items.product', 'statusHistories', 'user', 'seller'])
+                    ->with($this->orderRelations())
                     ->first();
             }
 
@@ -521,7 +632,7 @@ class OrderController extends Controller
                             $q->orWhere('id', (int) $matches[1]);
                         }
                     })
-                    ->with(['items.product', 'statusHistories', 'user', 'seller'])
+                    ->with($this->orderRelations())
                     ->first();
             }
         }
@@ -534,7 +645,7 @@ class OrderController extends Controller
                 ->orderByRaw("CASE WHEN status = 'packed' THEN 0 WHEN status IN ('shipped', 'out_for_delivery', 'processing', 'pending') THEN 1 ELSE 2 END")
                 ->latest('updated_at')
                 ->latest('id')
-                ->with(['items.product', 'statusHistories', 'user', 'seller'])
+                ->with($this->orderRelations())
                 ->first();
         }
 
@@ -544,13 +655,24 @@ class OrderController extends Controller
                 ->orderByRaw("CASE WHEN EXISTS (SELECT 1 FROM users WHERE users.id = orders.user_id AND LOWER(users.name) LIKE '%justin%') THEN 0 ELSE 1 END")
                 ->latest('updated_at')
                 ->latest('id')
-                ->with(['items.product', 'statusHistories', 'user', 'seller'])
+                ->with($this->orderRelations())
                 ->first();
         }
 
         abort_if(! $order, 404, 'Order not found.');
 
         return $order;
+    }
+
+    private function orderRelations(): array
+    {
+        $relations = ['user', 'seller', 'items.product', 'statusHistories'];
+        if (Schema::hasTable('return_requests')) {
+            $relations[] = 'returnRequest.evidence';
+            $relations[] = 'returnRequest.logisticsNotification';
+        }
+
+        return $relations;
     }
 
     private function normalizePaymentMethod(string $raw): string
@@ -590,45 +712,69 @@ class OrderController extends Controller
         ])->filter()->values();
         $address = $addressLines->implode(', ');
 
+        $rr = Schema::hasTable('return_requests') ? $o->returnRequest : null;
         $currentStatus = strtolower((string) ($logisticsSync['app_status'] ?? $o->status));
+        if (in_array(strtolower((string) $o->status), ['cancelled', 'returned'], true)) {
+            $currentStatus = strtolower((string) $o->status);
+        } elseif ($rr?->status === 'approved') {
+            $currentStatus = 'returned';
+        } elseif ($rr?->status === 'pending' && $currentStatus === 'delivered') {
+            $currentStatus = 'return_requested';
+        }
+
         $deliveredHistory = $o->statusHistories->first(fn ($event) => in_array(strtolower((string) ($event->tracking_status ?: $event->status)), ['delivered', 'completed'], true));
         $deliveredDate = $o->delivered_at ?: $deliveredHistory?->created_at;
 
-        $statusHeadline = $logisticsSync['status_headline'] ?? match ($currentStatus) {
-            'pending' => 'Your order is being prepared',
-            'processing' => 'Your order is being prepared',
-            'packed' => 'Order Packed & Ready for Handover',
-            'at_sorting_center' => 'Arrived at Lumora Logistics Hub',
-            'sorted' => 'Sorted by Destination Area',
-            'assigned_to_rider' => 'Assigned to Dedicated Courier',
-            'shipped' => 'Your order is on its way',
-            'out_for_delivery' => 'Your order is out for delivery',
-            'delivered' => 'Delivered'.($deliveredDate ? ' on '.$deliveredDate->timezone('Asia/Manila')->format('M j') : ''),
-            'cancelled' => 'Order cancelled',
-            'returned' => 'Order returned',
-            default => $o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus)),
+        $statusHeadline = match (true) {
+            $currentStatus === 'return_requested' && ($rr?->dispute_status === 'under_arbitration') => 'Return Dispute Under Admin Review',
+            $currentStatus === 'return_requested' => 'Return / Refund Under Review',
+            $currentStatus === 'returned' && (($rr?->refund_status ?? null) === 'refunded' || $o->payment_status === 'refunded') => 'Return Approved & Refunded',
+            $currentStatus === 'returned' => 'Return Approved',
+            $rr?->status === 'denied' && $rr?->dispute_status === 'under_arbitration' => 'Return Denial Disputed — Admin Reviewing',
+            default => ($logisticsSync['status_headline'] ?? match ($currentStatus) {
+                'pending' => 'Your order is being prepared',
+                'processing' => 'Your order is being prepared',
+                'packed' => 'Order Packed & Ready for Handover',
+                'at_sorting_center' => 'Arrived at Lumora Logistics Hub',
+                'sorted' => 'Sorted by Destination Area',
+                'assigned_to_rider' => 'Assigned to Dedicated Courier',
+                'shipped' => 'Your order is on its way',
+                'out_for_delivery' => 'Your order is out for delivery',
+                'delivered' => 'Delivered'.($deliveredDate ? ' on '.$deliveredDate->timezone('Asia/Manila')->format('M j') : ''),
+                'cancelled' => 'Order cancelled',
+                'returned' => 'Order returned',
+                default => $o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus)),
+            }),
         };
 
-        $statusExplanation = $logisticsSync['status_explanation'] ?? match ($currentStatus) {
-            'pending' => 'The seller is getting your order ready.',
-            'processing' => 'Your order is being prepared for handoff to Lumora Logistics.',
-            'packed' => 'Order has been packed by the seller and is ready for handoff to Lumora Logistics.',
-            'at_sorting_center' => 'Parcel has been received and scanned at the Lumora Logistics sorting hub.',
-            'sorted' => 'Parcel has been sorted into its Barangay dispatch channel.',
-            'assigned_to_rider' => 'A dedicated Lumora Logistics rider has been assigned to your parcel.',
-            'shipped' => 'Lumora Logistics is moving your parcel toward its destination.',
-            'out_for_delivery' => 'Your parcel is with the courier and should arrive soon.',
-            'delivered' => 'Your parcel has been delivered to the address on your order.',
-            'cancelled' => 'This order has been cancelled.',
-            'returned' => 'This order has been returned.',
-            default => 'We will keep your order status up to date here.',
+        $refundAmountVal = ($rr?->refund_amount ?? $o->refund_amount ?? $o->total);
+        $statusExplanation = match (true) {
+            $currentStatus === 'return_requested' && ($rr?->dispute_status === 'under_arbitration') => 'Your dispute has been escalated to Lumora Admin for arbitration.',
+            $currentStatus === 'return_requested' => 'Your return/refund claim has been submitted and is awaiting seller review.',
+            $currentStatus === 'returned' && (($rr?->refund_status ?? null) === 'refunded' || $o->payment_status === 'refunded') => 'Your return was approved and a refund of PHP '.number_format((float) $refundAmountVal, 2).' has been recorded.',
+            $currentStatus === 'returned' => 'Your return claim was approved and dispatched for reverse logistics pickup.',
+            $rr?->status === 'denied' && $rr?->dispute_status === 'under_arbitration' => 'You escalated the rejected claim to Lumora Admin for final arbitration.',
+            default => ($logisticsSync['status_explanation'] ?? match ($currentStatus) {
+                'pending' => 'The seller is getting your order ready.',
+                'processing' => 'Your order is being prepared for handoff to Lumora Logistics.',
+                'packed' => 'Order has been packed by the seller and is ready for handoff to Lumora Logistics.',
+                'at_sorting_center' => 'Parcel has been received and scanned at the Lumora Logistics sorting hub.',
+                'sorted' => 'Parcel has been sorted into its Barangay dispatch channel.',
+                'assigned_to_rider' => 'A dedicated Lumora Logistics rider has been assigned to your parcel.',
+                'shipped' => 'Lumora Logistics is moving your parcel toward its destination.',
+                'out_for_delivery' => 'Your parcel is with the courier and should arrive soon.',
+                'delivered' => 'Your parcel has been delivered to the address on your order.',
+                'cancelled' => 'This order has been cancelled.',
+                'returned' => 'This order has been returned.',
+                default => 'We will keep your order status up to date here.',
+            }),
         };
 
         $progressRank = match ($currentStatus) {
             'processing', 'packed', 'at_sorting_center', 'sorted' => 1,
             'assigned_to_rider', 'shipped' => 2,
             'out_for_delivery' => 3,
-            'delivered' => 4,
+            'delivered', 'return_requested' => 4,
             'cancelled', 'returned' => -1,
             default => 0,
         };
@@ -752,6 +898,27 @@ class OrderController extends Controller
             ]);
         }
 
+        $computedStatusLabel = match ($currentStatus) {
+            'return_requested' => $rr?->dispute_status === 'under_arbitration' ? 'Dispute Under Review' : 'Return Requested',
+            'returned' => 'Returned',
+            default => $logisticsSync['status_label'] ?? ($o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus))),
+        };
+
+        $evidenceUrls = $rr
+            ? $rr->evidence->map(function ($ev) use ($rr) {
+                $path = "/api/logistics/returns-evidence/{$rr->id}/{$ev->id}";
+
+                return url($path);
+            })->values()->all()
+            : [];
+
+        $refundAmountOut = $rr?->refund_amount ?? $o->refund_amount;
+        $refundStatusOut = $rr?->refund_status ?? ($o->payment_status === 'refunded' ? 'refunded' : null);
+        $refundedAtOut = $rr?->refunded_at ?? $o->refunded_at;
+        $rejectionReasonOut = ($rr && ($rr->status === 'denied' || $rr->dispute_status === 'resolved_denied'))
+            ? ($rr->admin_note ?: 'Denied after review')
+            : null;
+
         return [
             'id' => $o->order_number ?: (string) $o->id,
             'order_id' => (int) $o->id,
@@ -762,8 +929,8 @@ class OrderController extends Controller
             'created_at' => $o->created_at?->toIso8601String(),
             'status' => $currentStatus,
             'logistics_status' => $logisticsSync['logistics_status'] ?? $currentStatus,
-            'status_label' => $logisticsSync['status_label'] ?? ($o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus))),
-            'statusLabel' => $logisticsSync['status_label'] ?? ($o->status_label ?? ucfirst(str_replace('_', ' ', $currentStatus))),
+            'status_label' => $computedStatusLabel,
+            'statusLabel' => $computedStatusLabel,
             'status_headline' => $statusHeadline,
             'statusHeadline' => $statusHeadline,
             'status_explanation' => $statusExplanation,
@@ -805,9 +972,57 @@ class OrderController extends Controller
             'assignedRiderId' => $driverName !== 'Assigning Courier Rider' ? $driverName : $assignedRider,
             'noteToSeller' => $o->notes,
             'voucherCode' => $o->voucher_code,
+            'return_status' => $rr?->status,
+            'returnStatus' => $rr?->status,
+            'return_reason' => $rr?->reason,
+            'returnReason' => $rr?->reason,
+            'return_details' => $rr?->details,
+            'returnDetails' => $rr?->details,
+            'preferred_solution' => $rr?->preferred_solution,
+            'preferredSolution' => $rr?->preferred_solution,
+            'return_review_note' => $rr?->admin_note,
+            'returnReviewNote' => $rr?->admin_note,
+            'return_rejection_reason' => $rejectionReasonOut,
+            'returnRejectionReason' => $rejectionReasonOut,
+            'is_disputed' => $rr ? ($rr->dispute_status === 'under_arbitration') : false,
+            'isDisputed' => $rr ? ($rr->dispute_status === 'under_arbitration') : false,
+            'return_dispute_status' => $rr?->dispute_status,
+            'returnDisputeStatus' => $rr?->dispute_status,
+            'dispute_notes' => $rr?->dispute_notes,
+            'disputeNotes' => $rr?->dispute_notes,
+            'disputed_at' => $rr?->disputed_at?->toIso8601String(),
+            'disputedAt' => $rr?->disputed_at?->toIso8601String(),
+            'refund_status' => $refundStatusOut,
+            'refundStatus' => $refundStatusOut,
+            'refund_amount' => $refundAmountOut !== null ? (float) $refundAmountOut : null,
+            'refundAmount' => $refundAmountOut !== null ? (float) $refundAmountOut : null,
+            'refunded_at' => $refundedAtOut?->toIso8601String(),
+            'refundedAt' => $refundedAtOut?->toIso8601String(),
+            'return_evidence_photos' => $evidenceUrls,
+            'returnEvidencePhotos' => $evidenceUrls,
+            'return_request' => $rr ? [
+                'id' => (int) $rr->id,
+                'status' => $rr->status,
+                'reason' => $rr->reason,
+                'details' => $rr->details,
+                'preferred_solution' => $rr->preferred_solution,
+                'admin_note' => $rr->admin_note,
+                'dispute_status' => $rr->dispute_status,
+                'dispute_notes' => $rr->dispute_notes,
+                'refund_status' => $refundStatusOut,
+                'refund_amount' => $refundAmountOut !== null ? (float) $refundAmountOut : null,
+                'refunded_at' => $refundedAtOut?->toIso8601String(),
+                'reviewed_at' => $rr->reviewed_at?->toIso8601String(),
+                'evidence' => $evidenceUrls,
+            ] : null,
             'items' => $o->items->map(fn ($it) => [
                 'productId' => (string) $it->product_id,
                 'product_id' => (string) $it->product_id,
+                'variantId' => $it->variant_id !== null ? (int) $it->variant_id : null,
+                'variant_id' => $it->variant_id !== null ? (int) $it->variant_id : null,
+                'variantName' => $it->variant_name,
+                'variant_name' => $it->variant_name,
+                'variation' => $it->variant_name,
                 'productName' => $it->product?->name ?? 'Lumora Item',
                 'name' => $it->product?->name ?? 'Lumora Item',
                 'price' => (float) $it->price,
@@ -826,6 +1041,10 @@ class OrderController extends Controller
      */
     private function syncOrderWithLogistics(Order $o): array
     {
+        if (in_array(strtolower((string) $o->status), ['cancelled', 'returned'], true)) {
+            return [];
+        }
+
         $logisticsBaseUrl = rtrim((string) config('services.logistics.url', env('LOGISTICS_BASE_URL', 'https://logistics.lumora.party')), '/');
         if ($logisticsBaseUrl === '') {
             return [];

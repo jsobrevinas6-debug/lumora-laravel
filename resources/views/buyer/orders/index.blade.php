@@ -314,6 +314,7 @@
                     'packed' => 'To Ship',
                     'shipped' => 'To Receive',
                     'delivered' => 'Completed',
+                    'returned' => 'Returned',
                     'cancelled' => 'Cancelled',
                 ];
             @endphp
@@ -416,9 +417,39 @@
                                     @if ($firstItem?->product_id)<a class="action-outline" href="{{ route('shop.product', $firstItem->product_id) }}#reviews" data-card-action>Write a review</a>@endif
                                     <form method="POST" action="{{ route('buyer.orders.reorder', $order) }}" data-card-action>@csrf<button class="action-primary" type="submit">Buy again</button></form>
                                     @if ($returnRequestsEnabled)
-                                        @if (! $order->returnRequest)<button class="action-outline" type="button" data-return-open="{{ $order->id }}" data-card-action>Return / Refund</button>@else<span class="request-status">Return request {{ ucfirst(str_replace('_', ' ', $order->returnRequest->status)) }}</span>@endif
+                                        @php
+                                            $rr = $order->returnRequest;
+                                            $withinReturnWindow = ! $rr && \App\Services\ReturnRefundService::isWithinReturnWindow($order);
+                                        @endphp
+                                        @if (! $rr)
+                                            @if ($withinReturnWindow)
+                                                <button class="action-outline" type="button" data-return-open="{{ $order->id }}" data-card-action>Return / Refund</button>
+                                            @else
+                                                <span class="request-status" style="color:#66585b;">7-day return window closed</span>
+                                            @endif
+                                        @else
+                                            @if ($rr->dispute_status === 'under_arbitration')
+                                                <span class="request-status">Dispute under Admin arbitration</span>
+                                            @elseif ($rr->status === 'denied')
+                                                <span class="request-status" style="color:#a23e3b;">Return denied{{ $rr->admin_note ? ': ' . \Illuminate\Support\Str::limit($rr->admin_note, 60) : '' }}</span>
+                                            @else
+                                                <span class="request-status">Return request {{ ucfirst(str_replace('_', ' ', $rr->status)) }}</span>
+                                            @endif
+                                            @if (in_array($rr->status, ['pending', 'denied'], true) && $rr->dispute_status !== 'under_arbitration')
+                                                <button class="action-outline" type="button" data-dispute-open="{{ $order->id }}" data-card-action>Escalate Dispute</button>
+                                            @endif
+                                        @endif
                                     @endif
                                 @else
+                                    @if ($status === 'returned' && $returnRequestsEnabled && $order->returnRequest)
+                                        @php $rr = $order->returnRequest; @endphp
+                                        <span class="request-status">
+                                            Return Approved
+                                            @if (($rr->refund_status ?? null) === 'refunded' || $order->payment_status === 'refunded')
+                                                · Refunded PHP {{ number_format((float) ($order->refund_amount ?? $order->total), 2) }}
+                                            @endif
+                                        </span>
+                                    @endif
                                     <a class="action-ghost" href="{{ route('buyer.orders.show', $order) }}" data-card-action>View details</a>
                                 @endif
                             </footer>
@@ -458,7 +489,7 @@
 </main>
 
 @foreach ($orders as $order)
-    @if ($returnRequestsEnabled && $order->status === 'delivered' && ! $order->returnRequest)
+    @if ($returnRequestsEnabled && $order->status === 'delivered' && ! $order->returnRequest && \App\Services\ReturnRefundService::isWithinReturnWindow($order))
         <div class="return-modal" id="return-modal-{{ $order->id }}" hidden>
             <section class="return-dialog" role="dialog" aria-modal="true" aria-labelledby="return-title-{{ $order->id }}">
                 <h2 id="return-title-{{ $order->id }}">Return / Refund Request</h2>
@@ -472,6 +503,11 @@
                         <option value="missing_items">Item or parts are missing</option><option value="not_as_described">Not as described</option>
                         <option value="changed_mind">Changed my mind</option><option value="other">Other</option>
                     </select>
+                    <label for="solution-{{ $order->id }}">Preferred Solution</label>
+                    <select id="solution-{{ $order->id }}" name="preferred_solution" required>
+                        <option value="refund">Full Refund</option>
+                        <option value="exchange">Item Exchange / Replacement</option>
+                    </select>
                     <label for="details-{{ $order->id }}">What happened?</label>
                     <textarea id="details-{{ $order->id }}" name="details" minlength="10" maxlength="2000" required placeholder="Please share details to help us review your request."></textarea>
                     <label for="evidence-{{ $order->id }}">Proof (optional)</label>
@@ -482,12 +518,30 @@
             </section>
         </div>
     @endif
+    @if ($returnRequestsEnabled && $order->returnRequest && in_array($order->returnRequest->status, ['pending', 'denied'], true) && $order->returnRequest->dispute_status !== 'under_arbitration')
+        <div class="return-modal" id="dispute-modal-{{ $order->id }}" hidden>
+            <section class="return-dialog" role="dialog" aria-modal="true" aria-labelledby="dispute-title-{{ $order->id }}">
+                <h2 id="dispute-title-{{ $order->id }}">Escalate Dispute to Lumora Admin</h2>
+                <p>Order {{ $order->order_number }} · Explain why Lumora Admin should review this return/refund decision.</p>
+                <form method="POST" action="{{ route('buyer.orders.dispute', $order) }}">
+                    @csrf
+                    <label for="dispute-notes-{{ $order->id }}">Dispute Notes (optional)</label>
+                    <textarea id="dispute-notes-{{ $order->id }}" name="dispute_notes" maxlength="2000" placeholder="Add context or clarify why the seller review should be overturned."></textarea>
+                    <div class="return-modal-actions"><button class="return-cancel" type="button" data-return-close>Cancel</button><button class="return-submit" type="submit">Escalate Dispute</button></div>
+                </form>
+            </section>
+        </div>
+    @endif
 @endforeach
 
 <script>
 document.querySelectorAll('[data-return-open]').forEach((button) => button.addEventListener('click', () => {
     const modal = document.getElementById(`return-modal-${button.dataset.returnOpen}`);
     if (modal) { modal.hidden = false; modal.querySelector('select')?.focus(); }
+}));
+document.querySelectorAll('[data-dispute-open]').forEach((button) => button.addEventListener('click', () => {
+    const modal = document.getElementById(`dispute-modal-${button.dataset.disputeOpen}`);
+    if (modal) { modal.hidden = false; modal.querySelector('textarea')?.focus(); }
 }));
 document.querySelectorAll('[data-order-card]').forEach((card) => {
     card.addEventListener('click', (event) => {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
+use App\Services\ReturnRefundService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,21 +19,15 @@ class PayoutController extends Controller
     {
         $sellerId = Auth::id();
 
-        // Gross sales (before commission) — same calc as the dashboard
-        $totalSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        // Gross sales (before commission) — strictly settled, non-cancelled, non-returned orders
+        $totalSales = $this->payableOrderItemsQuery($sellerId)
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         // Platform commission taken off the top, and what the seller actually earns
         $platformCommission = $totalSales * self::COMMISSION_RATE;
         $sellerEarnings = $totalSales - $platformCommission;
 
-        $totalOrders = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->where('p.seller_id', $sellerId)
+        $totalOrders = $this->payableOrderItemsQuery($sellerId)
             ->distinct('oi.order_id')
             ->count('oi.order_id');
 
@@ -101,11 +96,7 @@ class PayoutController extends Controller
         ]);
 
         // Recompute available balance server-side — never trust the client
-        $totalSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $totalSales = $this->payableOrderItemsQuery($sellerId)
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         $sellerEarnings = $totalSales * (1 - self::COMMISSION_RATE);
@@ -158,22 +149,14 @@ class PayoutController extends Controller
         [$start, $end] = $this->resolveDateRange($request);
         $sellerId = Auth::id();
 
-        $grossSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $grossSales = $this->payableOrderItemsQuery($sellerId)
             ->whereBetween('o.created_at', [$start, $end])
             ->sum(DB::raw('oi.price * oi.quantity'));
 
         $commission = $grossSales * self::COMMISSION_RATE;
         $netEarnings = $grossSales - $commission;
 
-        $totalOrders = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $totalOrders = $this->payableOrderItemsQuery($sellerId)
             ->whereBetween('o.created_at', [$start, $end])
             ->distinct('oi.order_id')
             ->count('oi.order_id');
@@ -198,30 +181,18 @@ class PayoutController extends Controller
         [$start, $end] = $this->resolveDateRange($request);
         $sellerId = Auth::id();
 
-        $totalSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $totalSales = $this->payableOrderItemsQuery($sellerId)
             ->whereBetween('o.created_at', [$start, $end])
             ->sum(DB::raw('oi.price * oi.quantity'));
 
-        $totalOrders = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $totalOrders = $this->payableOrderItemsQuery($sellerId)
             ->whereBetween('o.created_at', [$start, $end])
             ->distinct('oi.order_id')
             ->count('oi.order_id');
 
         $avgOrderValue = $totalOrders > 0 ? $totalSales / $totalOrders : 0;
 
-        $topProducts = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
+        $topProducts = $this->payableOrderItemsQuery($sellerId)
             ->whereBetween('o.created_at', [$start, $end])
             ->select(
                 'p.name as product_name',
@@ -240,6 +211,17 @@ class PayoutController extends Controller
         ));
 
         return $pdf->download('performance-report-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    private function payableOrderItemsQuery(int $sellerId)
+    {
+        return ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('p.seller_id', $sellerId),
+            'o'
+        );
     }
 
     private function currentShopName(): string

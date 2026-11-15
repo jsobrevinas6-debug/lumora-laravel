@@ -9,7 +9,29 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ReturnRequest extends Model
 {
-    protected $fillable = ['buyer_id', 'reason', 'details', 'status', 'admin_note', 'reviewed_at'];
+    protected $fillable = [
+        'buyer_id',
+        'reason',
+        'preferred_solution',
+        'details',
+        'status',
+        'dispute_status',
+        'disputed_at',
+        'dispute_notes',
+        'admin_note',
+        'reviewed_at',
+        'resolved_by',
+        'refund_amount',
+        'refund_status',
+        'refunded_at',
+    ];
+
+    protected $casts = [
+        'reviewed_at' => 'datetime',
+        'disputed_at' => 'datetime',
+        'refunded_at' => 'datetime',
+        'refund_amount' => 'decimal:2',
+    ];
 
     public function order(): BelongsTo
     {
@@ -19,6 +41,11 @@ class ReturnRequest extends Model
     public function buyer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'buyer_id');
+    }
+
+    public function resolver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
     }
 
     public function evidence(): HasMany

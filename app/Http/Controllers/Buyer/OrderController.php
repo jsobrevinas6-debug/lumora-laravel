@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\ReturnRefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -27,7 +28,7 @@ class OrderController extends Controller
             'highest',
         ];
 
-        $statuses = ['all', 'pending', 'packed', 'shipped', 'delivered', 'cancelled'];
+        $statuses = ['all', 'pending', 'packed', 'shipped', 'delivered', 'returned', 'cancelled'];
 
         $activeStatus = $request->get('status', 'all');
 
@@ -50,6 +51,7 @@ class OrderController extends Controller
         $relations = [
             'items.product:id,name,image,status,stock',
             'items.seller:id,name,role',
+            'statusHistories',
         ];
         if ($returnRequestsEnabled) {
             $relations[] = 'returnRequest';
@@ -107,6 +109,8 @@ class OrderController extends Controller
                 }
             }
 
+            ReturnRefundService::markCancelledRefundIfPaid($lockedOrder);
+
             $lockedOrder->updateStatus('cancelled', 'Cancelled by buyer.', event: [
                 'changed_by' => $request->user()->id,
             ]);
@@ -151,42 +155,38 @@ class OrderController extends Controller
     public function requestReturn(Request $request, Order $order): RedirectResponse
     {
         abort_unless(Schema::hasTable('return_requests'), 503, 'Return requests are temporarily unavailable.');
-        abort_unless($order->user_id === $request->user()->id, 404);
-        abort_unless($order->status === 'delivered', 422, 'Return requests are available for delivered orders only.');
-        abort_if($order->returnRequest()->exists(), 409, 'A return request has already been submitted for this order.');
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
 
         $validated = $request->validate([
             'reason' => ['required', 'in:damaged,wrong_item,missing_items,not_as_described,changed_mind,other'],
+            'preferred_solution' => ['nullable', 'in:refund,exchange'],
             'details' => ['required', 'string', 'min:10', 'max:2000'],
             'evidence' => ['nullable', 'array', 'max:5'],
             'evidence.*' => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov,webm', 'max:51200'],
         ]);
 
-        DB::transaction(function () use ($request, $order, $validated) {
-            $returnRequest = $order->returnRequest()->create([
-                'buyer_id' => $request->user()->id,
-                'reason' => $validated['reason'],
-                'details' => $validated['details'],
-            ]);
-
-            foreach ($request->file('evidence', []) as $file) {
-                $returnRequest->evidence()->create([
-                    'file_path' => $file->store(
-                        'return_request_evidence',
-                        \App\Support\ReturnEvidenceFiles::diskName(),
-                    ),
-                    'mime_type' => $file->getMimeType(),
-                ]);
-            }
-
-            $order->recordStatusUpdate('return_requested', 'Buyer submitted a return/refund request (' . ucwords(str_replace('_', ' ', $validated['reason'])) . '). Awaiting seller review.', event: [
-                'tracking_status' => 'return_requested',
-                'tracking_label' => 'Return Requested',
-                'changed_by' => $request->user()->id,
-            ]);
-        });
+        ReturnRefundService::submitReturnRequest(
+            $order,
+            $request->user(),
+            $validated,
+            $request->file('evidence', [])
+        );
 
         return redirect()->route('buyer.orders.index')->with('success', 'Your return/refund request has been submitted for review.');
+    }
+
+    public function escalateDispute(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless(Schema::hasTable('return_requests'), 503, 'Return requests are temporarily unavailable.');
+        abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
+
+        $validated = $request->validate([
+            'dispute_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        ReturnRefundService::escalateDispute($order, $request->user(), $validated['dispute_notes'] ?? null);
+
+        return redirect()->route('buyer.orders.index')->with('success', 'Your dispute has been escalated to Lumora Admin for arbitration.');
     }
 
     public function create(Request $request): View|RedirectResponse

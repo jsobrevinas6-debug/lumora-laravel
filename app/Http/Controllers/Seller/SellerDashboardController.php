@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
+use App\Services\ReturnRefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,12 +20,13 @@ class SellerDashboardController extends Controller
         $sellerId = Auth::id();
         $lowStockSearch = trim((string) $request->input('low_stock_search', ''));
 
-        $totalSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
-            ->sum(DB::raw('oi.price * oi.quantity'));
+        $totalSales = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('p.seller_id', $sellerId),
+            'o'
+        )->sum(DB::raw('oi.price * oi.quantity'));
 
         $totalOrders = DB::table('order_items as oi')
             ->join('products as p', 'p.id', '=', 'oi.product_id')
@@ -75,12 +77,14 @@ class SellerDashboardController extends Controller
         $start = now()->subDays($days - 1)->startOfDay();
         $end = now()->endOfDay();
 
-        $rows = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('p.seller_id', $sellerId)
-            ->where('o.payment_status', 'paid')
-            ->whereBetween('o.created_at', [$start, $end])
+        $rows = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('p.seller_id', $sellerId)
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )
             ->selectRaw('DATE(o.created_at) as day, SUM(oi.price * oi.quantity) as total')
             ->groupBy('day')
             ->pluck('total', 'day');

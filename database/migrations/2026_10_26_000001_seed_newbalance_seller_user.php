@@ -4,6 +4,7 @@ use App\Models\SellerApplication;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -25,14 +26,18 @@ return new class extends Migration
             ]
         );
 
+        $applicationData = [
+            'business_name' => 'New Balance Store',
+            'status' => 'approved',
+            'reason' => 'Official New Balance seller account.',
+        ];
+        if (Schema::hasColumn('seller_applications', 'category')) {
+            $applicationData['category'] = 'Footwear & Apparel';
+        }
+
         SellerApplication::updateOrCreate(
             ['user_id' => $user->id],
-            [
-                'business_name' => 'New Balance Store',
-                'category' => 'Footwear & Apparel',
-                'status' => 'approved',
-                'reason' => 'Official New Balance seller account.',
-            ]
+            $applicationData
         );
     }
 

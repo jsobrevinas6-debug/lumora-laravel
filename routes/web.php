@@ -306,6 +306,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/orders/{order}/return-request', [BuyerOrderController::class, 'requestReturn'])
     ->name('buyer.orders.return-request');
 
+    Route::post('/orders/{order}/dispute', [BuyerOrderController::class, 'escalateDispute'])
+    ->name('buyer.orders.dispute');
+
 
 });
 
@@ -326,5 +329,80 @@ Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
     ->name('google.callback');
 
 
+
+Route::get('/avatars/{filename}', function (string $filename) {
+    $safeName = basename($filename);
+    if ($safeName === '' || ! preg_match('/^[A-Za-z0-9._-]+$/', $safeName)) {
+        abort(404);
+    }
+
+    $diskPath = public_path('avatars/'.$safeName);
+    if (is_file($diskPath)) {
+        return response()->file($diskPath);
+    }
+
+    if (\Illuminate\Support\Facades\Schema::hasTable('uploaded_files')) {
+        $record = \Illuminate\Support\Facades\DB::table('uploaded_files')
+            ->where('path', 'avatars/'.$safeName)
+            ->first();
+
+        if ($record && ! empty($record->contents)) {
+            $binary = base64_decode($record->contents, true);
+            if ($binary !== false) {
+                $dir = dirname($diskPath);
+                if (! is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                @file_put_contents($diskPath, $binary);
+
+                return response($binary, 200)
+                    ->header('Content-Type', $record->mime_type ?: 'image/jpeg')
+                    ->header('Cache-Control', 'public, max-age=86400');
+            }
+        }
+    }
+
+    abort(404);
+})->where('filename', '[A-Za-z0-9._-]+')->name('avatars.show');
+
+Route::get('/chat-attachments/{filename}', function (string $filename) {
+    $safeName = basename($filename);
+    if ($safeName === '' || ! preg_match('/^[A-Za-z0-9._-]+$/', $safeName)) {
+        abort(404);
+    }
+
+    $storagePath = storage_path('app/public/chat-attachments/'.$safeName);
+    if (is_file($storagePath)) {
+        return response()->file($storagePath);
+    }
+
+    $publicPath = public_path('storage/chat-attachments/'.$safeName);
+    if (is_file($publicPath)) {
+        return response()->file($publicPath);
+    }
+
+    if (\Illuminate\Support\Facades\Schema::hasTable('uploaded_files')) {
+        $record = \Illuminate\Support\Facades\DB::table('uploaded_files')
+            ->where('path', 'chat-attachments/'.$safeName)
+            ->first();
+
+        if ($record && ! empty($record->contents)) {
+            $binary = base64_decode($record->contents, true);
+            if ($binary !== false) {
+                $dir = dirname($storagePath);
+                if (! is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                @file_put_contents($storagePath, $binary);
+
+                return response($binary, 200)
+                    ->header('Content-Type', $record->mime_type ?: 'image/jpeg')
+                    ->header('Cache-Control', 'public, max-age=86400');
+            }
+        }
+    }
+
+    abort(404);
+})->where('filename', '[A-Za-z0-9._-]+')->name('chat-attachments.show');
 
 require __DIR__.'/auth.php';

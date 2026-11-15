@@ -10,6 +10,7 @@ use App\Models\ReturnRequest;
 use App\Models\User;
 use App\Notifications\PayoutRequestStatusNotification;
 use App\Notifications\ProductApprovalRejectedNotification;
+use App\Services\ReturnRefundService;
 use App\Support\CategoryCatalog;
 use App\Support\ReturnEvidenceFiles;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -721,10 +722,11 @@ class DashboardController extends Controller
 
     public function index()
     {
-        $totalSales = DB::table('order_items as oi')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('o.payment_status', 'paid')
-            ->sum(DB::raw('oi.price * oi.quantity'));
+        $totalSales = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id'),
+            'o'
+        )->sum(DB::raw('oi.price * oi.quantity'));
 
         $totalOrders = DB::table('orders')->count();
         $totalProducts = DB::table('products')->count();
@@ -944,14 +946,33 @@ class DashboardController extends Controller
         return redirect()->route('admin.complaints');
     }
 
-    public function returnRequests()
+    public function returnRequests(Request $request)
     {
-        $requests = ReturnRequest::query()
-            ->with(['order.items.product', 'order.statusHistories', 'order.seller', 'buyer', 'evidence', 'logisticsNotification'])
-            ->latest()
-            ->paginate(20);
+        $status = (string) $request->query('status', 'all');
+        $hasDisputeCol = Schema::hasColumn('return_requests', 'dispute_status');
 
-        return view('admin.returns', compact('requests'));
+        $baseQuery = ReturnRequest::query();
+        $tabCounts = [
+            'all' => (clone $baseQuery)->count(),
+            'disputed' => $hasDisputeCol ? (clone $baseQuery)->where('dispute_status', 'under_arbitration')->count() : 0,
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'approved' => (clone $baseQuery)->where('status', 'approved')->count(),
+            'denied' => (clone $baseQuery)->where('status', 'denied')->count(),
+        ];
+
+        $query = ReturnRequest::query()
+            ->with(['order.items.product', 'order.statusHistories', 'order.seller', 'buyer', 'evidence', 'logisticsNotification'])
+            ->latest();
+
+        if (in_array($status, ['pending', 'approved', 'denied'], true)) {
+            $query->where('status', $status);
+        } elseif ($status === 'disputed' && $hasDisputeCol) {
+            $query->where('dispute_status', 'under_arbitration');
+        }
+
+        $requests = $query->paginate(20)->withQueryString();
+
+        return view('admin.returns', compact('requests', 'status', 'tabCounts'));
     }
 
     public function returnEvidence(ReturnRequest $returnRequest, $evidence)
@@ -960,30 +981,32 @@ class DashboardController extends Controller
         return ReturnEvidenceFiles::response($file);
     }
 
-    public function approveReturnRequest(ReturnRequest $returnRequest)
+    public function approveReturnRequest(Request $request, ReturnRequest $returnRequest)
     {
-        DB::transaction(function () use ($returnRequest) {
-            $lockedRequest = ReturnRequest::query()->lockForUpdate()->findOrFail($returnRequest->id);
-            abort_unless($lockedRequest->status === 'pending', 409, 'This request has already been reviewed.');
-            $lockedRequest->update(['status' => 'approved', 'reviewed_at' => now()]);
+        $adminNote = trim((string) $request->input('admin_note', ''));
 
-            // Durable outbox entry for Lumora Logistics to pick up.
-            $lockedRequest->logisticsNotification()->create(['status' => 'pending']);
-            $lockedRequest->buyer->notify(new \App\Notifications\ReturnRequestStatusNotification($lockedRequest, 'approved'));
-        });
+        ReturnRefundService::approveReturnRequest(
+            $returnRequest,
+            (int) auth()->id(),
+            $adminNote !== '' ? $adminNote : null,
+            true,
+            'admin'
+        );
 
-        return redirect()->route('admin.returns.index')->with('flash_success', 'Return approved and queued for Lumora Logistics.');
+        return redirect()->route('admin.returns.index')->with('flash_success', 'Return approved, refund processed (if applicable), and queued for Lumora Logistics.');
     }
 
     public function denyReturnRequest(Request $request, ReturnRequest $returnRequest)
     {
         $validated = $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);
-        DB::transaction(function () use ($returnRequest, $validated) {
-            $lockedRequest = ReturnRequest::query()->lockForUpdate()->findOrFail($returnRequest->id);
-            abort_unless($lockedRequest->status === 'pending', 409, 'This request has already been reviewed.');
-            $lockedRequest->update(['status' => 'denied', 'admin_note' => $validated['admin_note'], 'reviewed_at' => now()]);
-            $lockedRequest->buyer->notify(new \App\Notifications\ReturnRequestStatusNotification($lockedRequest, 'denied', $validated['admin_note']));
-        });
+
+        ReturnRefundService::denyReturnRequest(
+            $returnRequest,
+            (int) auth()->id(),
+            $validated['admin_note'],
+            true,
+            'admin'
+        );
 
         return redirect()->route('admin.returns.index')->with('flash_success', 'Return/refund request denied.');
     }
@@ -996,11 +1019,13 @@ class DashboardController extends Controller
     {
         $commissionRate = 0.10;
 
-        $sellerSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.payment_status', 'paid')
+        $sellerSales = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->join('users as u', 'u.id', '=', 'p.seller_id'),
+            'o'
+        )
             ->select('u.id as seller_id', 'u.name as seller_name', DB::raw('SUM(oi.price * oi.quantity) as gross_sales'))
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('gross_sales')
@@ -1040,10 +1065,11 @@ class DashboardController extends Controller
         $pendingAmount = DB::table('payout_requests')->where('status', 'pending')->sum('amount');
         $approvedAmount = DB::table('payout_requests')->where('status', 'approved')->sum('amount');
         $paidAmount = DB::table('payout_requests')->where('status', 'paid')->sum('amount');
-        $confirmedWalletReceipts = DB::table('orders')
-            ->whereIn('payment_method', ['gcash', 'maya', 'paymaya'])
-            ->where('payment_status', 'paid')
-            ->sum('total');
+        $confirmedWalletReceipts = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('orders as o')
+                ->whereIn('o.payment_method', ['gcash', 'maya', 'paymaya']),
+            'o'
+        )->sum('o.total');
         $estimatedUnallocatedFunds = (float) $confirmedWalletReceipts
             - (float) $pendingAmount
             - (float) $approvedAmount
@@ -1148,25 +1174,29 @@ class DashboardController extends Controller
     {
         [$start, $end] = $this->resolveDateRange($request);
 
-        $totalSales = DB::table('order_items as oi')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('o.payment_status', 'paid')
-            ->whereBetween('o.created_at', [$start, $end])
-            ->sum(DB::raw('oi.price * oi.quantity'));
+        $totalSales = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )->sum(DB::raw('oi.price * oi.quantity'));
 
-        $totalOrders = DB::table('orders')
-            ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$start, $end])
-            ->count();
+        $totalOrders = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('orders as o')
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )->count();
 
         $avgOrderValue = $totalOrders > 0 ? $totalSales / $totalOrders : 0;
 
-        $topProducts = DB::table('order_items as oi')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.payment_status', 'paid')
-            ->whereBetween('o.created_at', [$start, $end])
+        $topProducts = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('users as u', 'u.id', '=', 'p.seller_id')
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )
             ->select(
                 'p.name as product_name',
                 'u.name as seller_name',
@@ -1178,12 +1208,14 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $topSellers = DB::table('order_items as oi')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.payment_status', 'paid')
-            ->whereBetween('o.created_at', [$start, $end])
+        $topSellers = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('users as u', 'u.id', '=', 'p.seller_id')
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )
             ->select(
                 'u.name as seller_name',
                 DB::raw('COUNT(DISTINCT oi.order_id) as orders_count'),
@@ -1206,12 +1238,14 @@ class DashboardController extends Controller
         [$start, $end] = $this->resolveDateRange($request);
         $commissionRate = 0.10;
 
-        $sellerSales = DB::table('order_items as oi')
-            ->join('products as p', 'p.id', '=', 'oi.product_id')
-            ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('users as u', 'u.id', '=', 'p.seller_id')
-            ->where('o.payment_status', 'paid')
-            ->whereBetween('o.created_at', [$start, $end])
+        $sellerSales = ReturnRefundService::applyPayableOrderFilter(
+            DB::table('order_items as oi')
+                ->join('products as p', 'p.id', '=', 'oi.product_id')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->join('users as u', 'u.id', '=', 'p.seller_id')
+                ->whereBetween('o.created_at', [$start, $end]),
+            'o'
+        )
             ->select('u.id as seller_id', 'u.name as seller_name', DB::raw('SUM(oi.price * oi.quantity) as gross_sales'))
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('gross_sales')

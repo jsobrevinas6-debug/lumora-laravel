@@ -8,6 +8,9 @@ use App\Support\CategoryCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Read-only product catalog for the Lumora mobile app.
@@ -36,7 +39,8 @@ class ProductController extends Controller
         if ($search !== '') {
             $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('category', 'like', "%{$search}%");
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -49,9 +53,12 @@ class ProductController extends Controller
         }
 
         $products = $query->orderByDesc('created_at')->paginate($validated['per_page'] ?? 100);
+        $variantsByProduct = $this->loadVariantsByProductId($products->getCollection()->pluck('id'));
 
         return response()->json([
-            'data' => $products->getCollection()->map(fn (Product $p) => $this->transform($p))->values(),
+            'data' => $products->getCollection()
+                ->map(fn (Product $p) => $this->transform($p, $variantsByProduct->get($p->id)))
+                ->values(),
             'meta' => [
                 'current_page' => $products->currentPage(),
                 'last_page' => $products->lastPage(),
@@ -69,7 +76,24 @@ class ProductController extends Controller
             return response()->json(['message' => 'Product not found.'], 404);
         }
 
-        return response()->json(['data' => $this->transform($product)]);
+        $variantsByProduct = $this->loadVariantsByProductId(collect([$product->id]));
+
+        return response()->json([
+            'data' => $this->transform($product, $variantsByProduct->get($product->id)),
+        ]);
+    }
+
+    private function loadVariantsByProductId(Collection $productIds): Collection
+    {
+        if ($productIds->isEmpty() || ! Schema::hasTable('product_variants')) {
+            return collect();
+        }
+
+        return DB::table('product_variants')
+            ->whereIn('product_id', $productIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('product_id');
     }
 
     private function baseQuery(): Builder
@@ -93,7 +117,7 @@ class ProductController extends Controller
         return $category;
     }
 
-    private function transform(Product $p): array
+    private function transform(Product $p, ?Collection $variants = null): array
     {
         $originalPrice = (float) $p->price;
         $discountPercent = (float) ($p->discount_percent ?? 0);
@@ -109,6 +133,15 @@ class ProductController extends Controller
         $sellerLocation = $seller
             ? collect([$seller->municipality, $seller->province])->filter()->implode(', ')
             : '';
+
+        $variantList = collect($variants ?? [])->map(fn ($v) => [
+            'id' => (int) $v->id,
+            'name' => (string) $v->name,
+            'stock' => (int) ($v->stock ?? 0),
+        ])->values()->all();
+
+        $totalVariantStock = collect($variantList)->sum('stock');
+        $effectiveStock = ! empty($variantList) ? (int) $totalVariantStock : (int) $p->stock;
 
         return [
             'id' => $p->id,
@@ -126,8 +159,9 @@ class ProductController extends Controller
             'rating' => $rating,
             'reviews_count' => $reviewsCount,
             'sold_count' => (int) ($p->sales_count ?? 0),
-            'stock' => (int) $p->stock,
+            'stock' => $effectiveStock,
             'variant_type' => $p->variant_type,
+            'variants' => $variantList,
             'image_path' => $p->image_url,
             'images' => $p->image_urls,
             'seller_id' => $p->seller_id,

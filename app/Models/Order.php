@@ -39,16 +39,20 @@ class Order extends Model
         'notes',
         'delivery_notes',
         'checkout_token',
+        'refund_amount',
+        'refunded_at',
     ];
 
     protected $casts = [
         'estimated_delivery' => 'datetime',
         'delivered_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'refunded_at' => 'datetime',
         'subtotal' => 'decimal:2',
         'shipping_fee' => 'decimal:2',
         'discount' => 'decimal:2',
         'total' => 'decimal:2',
+        'refund_amount' => 'decimal:2',
     ];
 
     public function user(): BelongsTo

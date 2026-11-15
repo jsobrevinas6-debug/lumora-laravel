@@ -4,6 +4,7 @@ use App\Models\SellerApplication;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -25,14 +26,18 @@ return new class extends Migration
             ]
         );
 
+        $applicationData = [
+            'business_name' => 'Earrings Store',
+            'status' => 'approved',
+            'reason' => 'Official Earrings seller account.',
+        ];
+        if (Schema::hasColumn('seller_applications', 'category')) {
+            $applicationData['category'] = 'Fashion & Accessories';
+        }
+
         SellerApplication::updateOrCreate(
             ['user_id' => $user->id],
-            [
-                'business_name' => 'Earrings Store',
-                'category' => 'Fashion & Accessories',
-                'status' => 'approved',
-                'reason' => 'Official Earrings seller account.',
-            ]
+            $applicationData
         );
     }
 

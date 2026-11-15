@@ -13,6 +13,8 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'variant_id',
+        'variant_name',
         'seller_id',
         'quantity',
         'price',
@@ -22,6 +24,7 @@ class OrderItem extends Model
     ];
 
     protected $casts = [
+        'variant_id' => 'integer',
         'quantity' => 'integer',
         'price' => 'decimal:2',
         'subtotal' => 'decimal:2',

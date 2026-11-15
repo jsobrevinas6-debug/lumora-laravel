@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
@@ -35,16 +36,34 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::post('/otp/send', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1');
     Route::post('/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
+    Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:10,1');
 
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/avatar', [AuthController::class, 'updateAvatar']);
+        Route::delete('/avatar', [AuthController::class, 'removeAvatar']);
+        Route::put('/profile/password', [AuthController::class, 'updatePassword']);
+        Route::delete('/profile', [AuthController::class, 'deleteProfile']);
+        Route::get('/sessions', [AuthController::class, 'sessions']);
+        Route::delete('/sessions/{id}', [AuthController::class, 'revokeSession']);
     });
 });
 
 // Authenticated user endpoint
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', fn (Request $request) => $request->user());
+
+    // Mobile buyer <-> seller chat & support AI concierge chat
+    Route::get('/buyer/chats', [ChatController::class, 'index']);
+    Route::post('/buyer/chats/start', [ChatController::class, 'start']);
+    Route::get('/buyer/chats/{conversation}', [ChatController::class, 'show'])->whereNumber('conversation');
+    Route::post('/buyer/chats/{conversation}/messages', [ChatController::class, 'store'])->whereNumber('conversation');
+    Route::post('/buyer/chats/{conversation}/read', [ChatController::class, 'markRead'])->whereNumber('conversation');
+
+    Route::get('/support/chat', [ChatController::class, 'supportShow']);
+    Route::post('/support/chat/send', [ChatController::class, 'supportSend']);
 });
 
 // Buyer order & review endpoints (supports Bearer Sanctum token + mobile buyer identity headers)

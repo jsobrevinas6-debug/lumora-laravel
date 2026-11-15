@@ -499,6 +499,14 @@
                 </span>
             </a>
 
+            <a href="{{ route('seller.returns.index', array_merge(request()->except(['status', 'page']), ['status' => 'disputed'])) }}"
+               class="returns-tab-btn {{ $status === 'disputed' ? 'active' : '' }}">
+                <span>Admin Disputes</span>
+                <span class="returns-tab-badge {{ ($tabCounts['disputed'] ?? 0) > 0 && $status !== 'disputed' ? 'badge-alert' : '' }}">
+                    {{ $tabCounts['disputed'] ?? 0 }}
+                </span>
+            </a>
+
             <a href="{{ route('seller.returns.index', array_merge(request()->except(['status', 'page']), ['status' => 'approved'])) }}"
                class="returns-tab-btn {{ $status === 'approved' ? 'active' : '' }}">
                 <span>Approved</span>
@@ -595,16 +603,28 @@
 
                             <!-- Reason & Explanation -->
                             <td>
-                                <span class="reason-badge">
-                                    {{ ucwords(str_replace('_', ' ', $returnRequest->reason)) }}
-                                </span>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px;">
+                                    <span class="reason-badge">
+                                        {{ ucwords(str_replace('_', ' ', $returnRequest->reason)) }}
+                                    </span>
+                                    <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#F3E8FF;color:#6B21A8;">
+                                        {{ ($returnRequest->preferred_solution ?? 'refund') === 'exchange' ? 'Exchange' : 'Refund' }}
+                                    </span>
+                                </div>
                                 <div class="reason-details">
                                     {{ $returnRequest->details ?: 'No detailed explanation provided by buyer.' }}
                                 </div>
 
+                                @if (($returnRequest->dispute_status ?? null) === 'under_arbitration')
+                                    <div class="review-note-box" style="background:#FEF3C7;border-color:#F59E0B;color:#92400E;">
+                                        <strong>Disputed by Buyer (Under Admin Review):</strong>
+                                        {{ $returnRequest->dispute_notes ?: 'Escalated for Lumora Admin arbitration.' }}
+                                    </div>
+                                @endif
+
                                 @if ($returnRequest->admin_note)
                                     <div class="review-note-box">
-                                        <strong>Seller Note:</strong> {{ $returnRequest->admin_note }}
+                                        <strong>Review Note:</strong> {{ $returnRequest->admin_note }}
                                     </div>
                                 @endif
                             </td>
@@ -645,6 +665,16 @@
                                     <span class="status-pill status-rejected" style="font-size:11.5px;padding:3px 10px;">Denied</span>
                                 @else
                                     <span class="status-pill" style="font-size:11.5px;padding:3px 10px;">{{ ucfirst($returnRequest->status) }}</span>
+                                @endif
+                                @if (($returnRequest->dispute_status ?? null) === 'under_arbitration')
+                                    <div style="margin-top:4px;">
+                                        <span class="status-pill" style="font-size:10.5px;padding:2px 8px;background:#FEF3C7;color:#92400E;">Under Admin Review</span>
+                                    </div>
+                                @endif
+                                @if (($returnRequest->refund_status ?? null) === 'refunded' || $returnRequest->order->payment_status === 'refunded')
+                                    <div style="margin-top:4px;font-size:11px;font-weight:700;color:#065F46;">
+                                        Refunded PHP {{ number_format((float) ($returnRequest->refund_amount ?? $returnRequest->order->total), 2) }}
+                                    </div>
                                 @endif
                             </td>
 
