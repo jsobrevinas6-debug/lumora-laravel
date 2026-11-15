@@ -198,6 +198,9 @@ Route::match(['GET', 'POST'], '/cart/checkout', [BuyerOrderController::class, 'c
 Route::post('/cart/add/{product}', [CartController::class, 'add'])
     ->name('buyer.cart.add');
 
+Route::post('/account/wishlist/{product}/toggle', [\App\Http\Controllers\Buyer\WishlistController::class, 'toggle'])
+    ->middleware('auth')->name('buyer.wishlist.toggle');
+
 
 
 Route::middleware(['auth'])->group(function () {

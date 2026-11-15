@@ -117,13 +117,60 @@ final class CategoryCatalog
         return array_column(self::leaves(), 'slug');
     }
 
+    public static function selectableSlugs(): array
+    {
+        $slugs = [];
+        $walk = function (array $nodes) use (&$walk, &$slugs): void {
+            foreach ($nodes as $node) {
+                $slugs[] = $node['slug'];
+                $walk($node['children'] ?? []);
+            }
+        };
+        $walk(self::tree());
+        return $slugs;
+    }
+
+    public static function leafSlugsFor(string $slug): array
+    {
+        $find = function (array $nodes) use (&$find, $slug): ?array {
+            foreach ($nodes as $node) {
+                if ($node['slug'] === $slug) return $node;
+                $found = $find($node['children'] ?? []);
+                if ($found) return $found;
+            }
+            return null;
+        };
+        $node = $find(self::tree());
+        if (! $node) return [];
+        $leaves = [];
+        $walk = function (array $nodes) use (&$walk, &$leaves): void {
+            foreach ($nodes as $item) {
+                if (empty($item['children'])) $leaves[] = $item['slug'];
+                else $walk($item['children']);
+            }
+        };
+        if (empty($node['children'])) return [$slug];
+        $walk($node['children']);
+        return $leaves;
+    }
+
+    public static function path(string $slug): array
+    {
+        $find = function (array $nodes, array $parents = []) use (&$find, $slug): ?array {
+            foreach ($nodes as $node) {
+                $path = [...$parents, ['slug' => $node['slug'], 'label' => $node['label']]];
+                if ($node['slug'] === $slug) return $path;
+                $found = $find($node['children'] ?? [], $path);
+                if ($found) return $found;
+            }
+            return null;
+        };
+        return $find(self::tree()) ?? [];
+    }
+
     public static function label(string $slug): string
     {
-        foreach (self::leaves() as $category) {
-            if ($category['slug'] === $slug) {
-                return $category['label'];
-            }
-        }
+        foreach (self::path($slug) as $category) if ($category['slug'] === $slug) return $category['label'];
 
         return collect(explode('-', $slug))
             ->map(fn (string $word) => ucfirst($word))

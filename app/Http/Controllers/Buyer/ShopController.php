@@ -11,6 +11,7 @@ use App\Support\CategoryCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ShopController extends Controller
@@ -223,27 +224,25 @@ class ShopController extends Controller
 
     public function index(Request $request): View
     {
-        $category = trim((string) $request->query('category', ''));
-
-        if ($category !== '' && !in_array($category, CategoryCatalog::slugs(), true)) {
-            abort(404);
-        }
+        $category = is_string($request->query('category')) ? trim($request->query('category')) : '';
+        if ($category !== '' && ! in_array($category, CategoryCatalog::selectableSlugs(), true)) abort(404);
 
         $validated = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
-            'min_price' => ['nullable', 'numeric', 'min:0'],
-            'max_price' => ['nullable', 'numeric', 'min:0'],
-            'discount' => ['nullable', 'integer', 'in:10,20'],
+            'min_price' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'max_price' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'rating' => ['nullable', 'numeric', 'in:4'],
             'in_stock' => ['nullable', 'boolean'],
             'on_sale' => ['nullable', 'boolean'],
-            'sort' => ['nullable', 'in:newest,latest,popular,top_sales,price_asc,price_desc,discount_desc'],
+            'sort' => ['nullable', 'in:popular,top_sales,newest,price_asc,price_desc,top_rated,best_selling'],
+            'view' => ['nullable', 'in:grid,list'],
         ]);
 
         $minPrice = isset($validated['min_price']) ? (float) $validated['min_price'] : null;
         $maxPrice = isset($validated['max_price']) ? (float) $validated['max_price'] : null;
 
         if ($minPrice !== null && $maxPrice !== null && $minPrice > $maxPrice) {
-            [$minPrice, $maxPrice] = [$maxPrice, $minPrice];
+            throw ValidationException::withMessages(['min_price' => 'Minimum price must not exceed maximum price.']);
         }
 
         $sort = $validated['sort'] ?? 'newest';
@@ -258,72 +257,63 @@ class ShopController extends Controller
             });
         }
 
-        $categoryCounts = (clone $baseQuery)
+        // One grouped aggregate for the whole category tree, independent of other filters.
+        $categoryCounts = Product::approved()
             ->select('category', DB::raw('COUNT(*) as total'))
-            ->whereIn('category', CategoryCatalog::slugs())
             ->groupBy('category')
             ->pluck('total', 'category')
             ->map(fn ($count) => (int) $count)
             ->all();
 
-        if ($category !== '') {
-            $query = (clone $baseQuery)
-                ->withAvg('reviews', 'rating')
-                ->withCount('reviews')
-                ->where('category', $category);
-
-            if ($search !== '') {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%");
-                });
-            }
-            if ($minPrice !== null) $query->where('price', '>=', $minPrice);
-            if ($maxPrice !== null) $query->where('price', '<=', $maxPrice);
-            if ($request->boolean('in_stock')) $query->where('stock', '>', 0);
-            if ($request->boolean('on_sale')) $query->where('discount_percent', '>', 0);
-            if (isset($validated['discount'])) $query->where('discount_percent', '>=', (int) $validated['discount']);
-
-            if ($sort === 'price_asc') {
-                $query->orderBy('price')->orderByDesc('created_at');
+        // Preserve the landing route and its original all-products view.
+        if ($request->routeIs('home')) {
+            $homeCategoryCounts = (clone $baseQuery)
+                ->select('category', DB::raw('COUNT(*) as total'))
+                ->whereIn('category', CategoryCatalog::slugs())
+                ->groupBy('category')->pluck('total', 'category')
+                ->map(fn ($count) => (int) $count)->all();
+            $homeProducts = (clone $baseQuery)->with('seller')->withAvg('reviews', 'rating')->withCount('reviews');
+            if (in_array($sort, ['top_sales', 'best_selling'], true) && Schema::hasColumn('products', 'sales_count')) {
+                $homeProducts->orderByDesc('sales_count')->orderByDesc('created_at');
+            } elseif ($sort === 'popular' || $sort === 'top_rated') {
+                $homeProducts->orderByDesc('reviews_avg_rating')->orderByDesc('created_at');
+            } elseif ($sort === 'price_asc') {
+                $homeProducts->orderBy('price')->orderByDesc('created_at');
             } elseif ($sort === 'price_desc') {
-                $query->orderByDesc('price')->orderByDesc('created_at');
-            } elseif ($sort === 'discount_desc') {
-                $query->orderByDesc('discount_percent')->orderByDesc('created_at');
-            } elseif ($sort === 'popular') {
-                $query->orderByDesc('reviews_avg_rating')->orderByDesc('created_at');
-            } elseif ($sort === 'top_sales' && Schema::hasColumn('products', 'sales_count')) {
-                $query->orderByDesc('sales_count')->orderByDesc('created_at');
+                $homeProducts->orderByDesc('price')->orderByDesc('created_at');
             } else {
-                // Latest is also the safe fallback when popularity/sales data is not available yet.
-                $query->orderByDesc('created_at');
+                $homeProducts->orderByDesc('created_at');
             }
-
-            $products = $query->paginate(12)->withQueryString();
-
-            return view('buyer.category', [
-                'products' => $products,
-                'category' => $category,
-                'categoryTitle' => CategoryCatalog::label($category),
-                'categoryCounts' => $categoryCounts,
-                'filters' => [
-                    'q' => $search,
-                    'min_price' => $minPrice,
-                    'max_price' => $maxPrice,
-                    'discount' => $validated['discount'] ?? null,
-                    'in_stock' => $request->boolean('in_stock'),
-                    'on_sale' => $request->boolean('on_sale'),
-                    'sort' => $sort,
-                ],
+            return view('buyer.shop', [
+                'products' => $homeProducts->get(),
+                'categoryCounts' => $homeCategoryCounts,
+                'categoryTree' => CategoryCatalog::tree(),
+                'searchQuery' => $search,
             ]);
         }
 
         $productsQuery = $baseQuery
+            ->with('seller')
             ->withAvg('reviews', 'rating')
             ->withCount('reviews');
 
+        if ($category !== '') $productsQuery->whereIn('category', CategoryCatalog::leafSlugsFor($category));
+        if ($minPrice !== null) $productsQuery->where('price', '>=', $minPrice);
+        if ($maxPrice !== null) $productsQuery->where('price', '<=', $maxPrice);
+        if ($request->boolean('in_stock')) $productsQuery->where('stock', '>', 0);
+        if ($request->boolean('on_sale')) $productsQuery->where('discount_percent', '>', 0);
+        if (isset($validated['rating'])) {
+            $ratedProductIds = DB::table('product_reviews')
+                ->select('product_id')->selectRaw('AVG(rating) as average_rating')->groupBy('product_id')
+                ->get()->filter(fn ($review) => (float) $review->average_rating >= (float) $validated['rating'])
+                ->pluck('product_id');
+            $productsQuery->whereIn('products.id', $ratedProductIds);
+        }
+
         if ($sort === 'top_sales' && Schema::hasColumn('products', 'sales_count')) {
             $productsQuery->orderByDesc('sales_count')->orderByDesc('created_at');
+        } elseif ($sort === 'top_rated') {
+            $productsQuery->orderByDesc('reviews_avg_rating')->orderByDesc('reviews_count')->orderByDesc('created_at');
         } elseif ($sort === 'popular') {
             $productsQuery->orderByDesc('reviews_avg_rating')->orderByDesc('created_at');
         } elseif ($sort === 'price_asc') {
@@ -334,13 +324,23 @@ class ShopController extends Controller
             $productsQuery->orderByDesc('created_at');
         }
 
-        $products = $productsQuery->get();
+        $products = $productsQuery->paginate(12)->withQueryString();
+        $savedProductIds = auth()->check()
+            ? DB::table('saved_products')->where('user_id', auth()->id())->whereIn('product_id', $products->getCollection()->pluck('id'))->pluck('product_id')->all()
+            : [];
 
-        return view('buyer.shop', [
+        return view('buyer.category', [
             'products' => $products,
+            'category' => $category,
+            'categoryTitle' => $category !== '' ? CategoryCatalog::label($category) : 'All products',
             'categoryCounts' => $categoryCounts,
             'categoryTree' => CategoryCatalog::tree(),
-            'searchQuery' => $search,
+            'savedProductIds' => $savedProductIds,
+            'filters' => [
+                'q' => $search, 'min_price' => $minPrice, 'max_price' => $maxPrice,
+                'rating' => $validated['rating'] ?? null, 'in_stock' => $request->boolean('in_stock'),
+                'on_sale' => $request->boolean('on_sale'), 'sort' => $sort,
+            ],
         ]);
     }
 
