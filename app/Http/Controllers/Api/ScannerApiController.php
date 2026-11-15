@@ -384,6 +384,27 @@ class ScannerApiController extends Controller
                 }
                 $existingMeta = is_array($parcel->metadata) ? $parcel->metadata : [];
                 $incomingMeta = is_array($request->input('metadata')) ? $request->input('metadata') : [];
+
+                // Never allow a cross-server sync to downgrade an already approved/rejected return resolution
+                $existingReturnStatus = strtolower(trim((string) ($existingMeta['return_status'] ?? '')));
+                $existingReturnStage = strtolower(trim((string) ($existingMeta['return_stage'] ?? '')));
+                $existingResolution = strtolower(trim((string) ($existingMeta['return_resolution'] ?? '')));
+                $incomingReturnStatus = strtolower(trim((string) ($incomingMeta['return_status'] ?? '')));
+                if (
+                    (in_array($existingReturnStatus, ['approved', 'rejected'], true)
+                        || $existingReturnStage === 'resolved'
+                        || str_contains($existingResolution, 'approve refund'))
+                    && ! in_array($incomingReturnStatus, ['approved', 'rejected'], true)
+                ) {
+                    unset(
+                        $incomingMeta['return_status'],
+                        $incomingMeta['return_stage'],
+                        $incomingMeta['return_resolution'],
+                        $incomingMeta['return_resolved_by'],
+                        $incomingMeta['return_resolved_at']
+                    );
+                }
+
                 $branchUpdate['status'] = $forceStatus;
                 $branchUpdate['metadata'] = array_merge($existingMeta, $branchUpdate['metadata'] ?? [], $incomingMeta);
                 if (in_array($forceStatus, ['rider_received', 'in_transit', 'out_for_delivery'], true) && ! $parcel->rider_received_at) {
@@ -1265,6 +1286,8 @@ class ScannerApiController extends Controller
             'is_return_refund' => (bool) ($parcel->metadata['is_return_refund'] ?? false),
             'return_status' => $parcel->metadata['return_status'] ?? null,
             'return_stage' => $parcel->metadata['return_stage'] ?? null,
+            'return_resolution' => $parcel->metadata['return_resolution'] ?? null,
+            'return_resolved_by' => $parcel->metadata['return_resolved_by'] ?? null,
             'return_resolved_at' => $parcel->metadata['return_resolved_at'] ?? null,
             'returned_to_hub_at' => $parcel->metadata['returned_to_hub_at'] ?? null,
         ];

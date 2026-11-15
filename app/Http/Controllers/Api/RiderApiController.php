@@ -1389,6 +1389,21 @@ class RiderApiController extends Controller
         $dbStatus = $this->mapToDbStatus($rawStatus);
 
         $metadata = $parcel->metadata ?? [];
+        $existingReturnStatus = strtolower(trim((string) ($metadata['return_status'] ?? '')));
+        $existingReturnStage = strtolower(trim((string) ($metadata['return_stage'] ?? '')));
+        $existingResolution = strtolower(trim((string) ($metadata['return_resolution'] ?? '')));
+        if (
+            in_array($existingReturnStatus, ['approved', 'rejected'], true)
+            || $existingReturnStage === 'resolved'
+            || str_contains($existingResolution, 'approve refund')
+        ) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Parcel {$parcel->parcel_number} return/refund is already resolved.",
+                'data' => $this->transformParcel($parcel->fresh(['area', 'shipment', 'rider.user'])),
+            ]);
+        }
+
         $metadata['last_status_code'] = $rawStatus;
 
         $rawNormalized = strtolower(str_replace(['-', ' '], '_', trim((string) $rawStatus)));
@@ -2102,6 +2117,32 @@ class RiderApiController extends Controller
                 $localParcel->shipment?->updateQuietly(['tracking_number' => $cloudParcelNum]);
             }
 
+            // Check Cloud's return resolution first so Local never overwrites an Approved/Rejected return on Cloud
+            $cloudReturnStatus = strtolower(trim((string) ($cp['return_status'] ?? '')));
+            $cloudReturnStage = strtolower(trim((string) ($cp['return_stage'] ?? '')));
+            $cloudResolution = strtolower(trim((string) ($cp['return_resolution'] ?? '')));
+            $cloudResolvedAt = $cp['return_resolved_at'] ?? null;
+
+            if (
+                in_array($cloudReturnStatus, ['approved', 'rejected'], true)
+                || $cloudReturnStage === 'resolved'
+                || str_contains($cloudResolution, 'approve refund')
+            ) {
+                if ($localParcel) {
+                    $localMeta = is_array($localParcel->metadata) ? $localParcel->metadata : [];
+                    $localMeta['return_status'] = in_array($cloudReturnStatus, ['approved', 'rejected'], true) ? $cloudReturnStatus : 'approved';
+                    $localMeta['return_stage'] = 'resolved';
+                    $localMeta['return_resolution'] = $cp['return_resolution'] ?? ($localMeta['return_resolution'] ?? 'Approve refund');
+                    $localMeta['return_resolved_by'] = $cp['return_resolved_by'] ?? ($localMeta['return_resolved_by'] ?? 'Logistics Admin');
+                    $localMeta['return_resolved_at'] = $cloudResolvedAt ?: ($localMeta['return_resolved_at'] ?? now()->toIso8601String());
+                    $localParcel->updateQuietly([
+                        'status' => in_array($cloudStatus, ['returned', 'cancelled'], true) ? $cloudStatus : $localParcel->status,
+                        'metadata' => $localMeta,
+                    ]);
+                }
+                continue;
+            }
+
             // If local parcel is already resolved/returned or further ahead than cloud, push local status to cloud
             if ($localParcel) {
                 if ($this->isResolvedOrHubDeliveredReturn($localParcel)) {
@@ -2119,8 +2160,6 @@ class RiderApiController extends Controller
             }
 
             // If Cloud parcel is already returned, cancelled, or resolved, mirror that onto local parcel and skip
-            $cloudReturnStatus = strtolower(trim((string) ($cp['return_status'] ?? '')));
-            $cloudResolvedAt = $cp['return_resolved_at'] ?? null;
             if (
                 in_array($cloudStatus, ['returned', 'cancelled'], true)
                 || in_array($cloudReturnStatus, ['returned_to_hub', 'approved', 'rejected', 'resolved', 'completed', 'cancelled', 'under_review'], true)
@@ -2128,7 +2167,9 @@ class RiderApiController extends Controller
             ) {
                 if ($localParcel) {
                     $localMeta = is_array($localParcel->metadata) ? $localParcel->metadata : [];
-                    $localMeta['return_status'] = $cloudReturnStatus !== '' ? $cloudReturnStatus : 'returned_to_hub';
+                    if (! in_array(strtolower((string) ($localMeta['return_status'] ?? '')), ['approved', 'rejected'], true)) {
+                        $localMeta['return_status'] = $cloudReturnStatus !== '' ? $cloudReturnStatus : 'returned_to_hub';
+                    }
                     $localMeta['return_resolved_at'] = $cloudResolvedAt ?: ($localMeta['return_resolved_at'] ?? now()->toIso8601String());
                     $localParcel->updateQuietly([
                         'status' => in_array($cloudStatus, ['returned', 'cancelled'], true) ? $cloudStatus : 'returned',

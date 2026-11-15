@@ -68,22 +68,98 @@ class ExceptionsController extends Controller
     /**
      * Normalize a parcel's return case status into one of:
      * 'pending', 'under_review', 'approved', 'rejected'
+     * Also self-heals metadata if an already-approved/rejected case was overwritten by a stale rider sync.
      */
     public static function resolveReturnStatus(Parcel $parcel): string
     {
         $meta = is_array($parcel->metadata) ? $parcel->metadata : [];
         $explicit = strtolower(trim((string) ($meta['return_status'] ?? '')));
-        if (in_array($explicit, ['pending', 'under_review', 'approved', 'rejected'], true)) {
+        $resolution = strtolower(trim((string) ($meta['return_resolution'] ?? '')));
+        $returnStage = strtolower(trim((string) ($meta['return_stage'] ?? '')));
+
+        // Check audit trail and parcel scans for an existing admin approval/rejection
+        $auditApproved = false;
+        $auditRejected = false;
+        $resolvedTimestamp = $meta['return_resolved_at'] ?? null;
+        $resolvedBy = $meta['return_resolved_by'] ?? null;
+
+        if (is_array($meta['return_audit_trail'] ?? null)) {
+            foreach ($meta['return_audit_trail'] as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+                $entryStatus = strtolower(trim((string) ($entry['status'] ?? '')));
+                $entryAction = strtolower(trim((string) ($entry['action'] ?? '')));
+                if ($entryStatus === 'approved' || str_contains($entryAction, 'approve refund') || str_contains($entryAction, 'cancelled / refunded')) {
+                    $auditApproved = true;
+                    $resolvedTimestamp = $resolvedTimestamp ?: ($entry['timestamp'] ?? null);
+                    $resolvedBy = $resolvedBy ?: ($entry['actor'] ?? 'Logistics Admin');
+                } elseif ($entryStatus === 'rejected' || str_contains($entryAction, 'rejected') || str_contains($entryAction, 're-deliver')) {
+                    $auditRejected = true;
+                    $resolvedTimestamp = $resolvedTimestamp ?: ($entry['timestamp'] ?? null);
+                    $resolvedBy = $resolvedBy ?: ($entry['actor'] ?? 'Logistics Admin');
+                }
+            }
+        }
+
+        $scans = $parcel->relationLoaded('scans') ? $parcel->scans : $parcel->scans()->get();
+        foreach ($scans as $scan) {
+            $noteLower = strtolower((string) ($scan->note ?? ''));
+            if (str_contains($noteLower, 'return/refund [approve refund]') || str_contains($noteLower, 'return/refund [cancelled')) {
+                $auditApproved = true;
+                $resolvedTimestamp = $resolvedTimestamp ?: ($scan->scanned_at?->toIso8601String() ?? $scan->created_at?->toIso8601String());
+            } elseif (str_contains($noteLower, 'return/refund [rejected') || str_contains($noteLower, 'return/refund [re-deliver')) {
+                $auditRejected = true;
+                $resolvedTimestamp = $resolvedTimestamp ?: ($scan->scanned_at?->toIso8601String() ?? $scan->created_at?->toIso8601String());
+            }
+        }
+
+        if (
+            $explicit === 'approved'
+            || $auditApproved
+            || $returnStage === 'resolved' && $explicit !== 'rejected' && ! $auditRejected
+            || str_contains($resolution, 'approve refund')
+            || str_contains($resolution, 'approved')
+            || str_contains($resolution, 'refunded')
+        ) {
+            // Self-heal metadata if a stale sync overwrote return_status to returned_to_hub / in_rider_hands
+            if ($explicit !== 'approved' && ($auditApproved || str_contains($resolution, 'approve refund') || $returnStage === 'resolved')) {
+                $meta['return_status'] = 'approved';
+                $meta['return_stage'] = 'resolved';
+                $meta['return_resolution'] = $meta['return_resolution'] ?? 'Approve refund';
+                $meta['return_resolved_by'] = $resolvedBy ?: ($meta['return_resolved_by'] ?? 'Logistics Admin');
+                $meta['return_resolved_at'] = $resolvedTimestamp ?: ($meta['return_resolved_at'] ?? now()->toIso8601String());
+                $parcel->metadata = $meta;
+                $parcel->updateQuietly(['metadata' => $meta]);
+            }
+            return 'approved';
+        }
+
+        if (
+            $explicit === 'rejected'
+            || $auditRejected
+            || str_contains($resolution, 'rejected')
+            || str_contains($resolution, 're-dispatched')
+            || str_contains($resolution, 'resumed')
+        ) {
+            if ($explicit !== 'rejected' && $auditRejected) {
+                $meta['return_status'] = 'rejected';
+                $meta['return_stage'] = 'resolved';
+                $meta['return_resolved_at'] = $resolvedTimestamp ?: ($meta['return_resolved_at'] ?? now()->toIso8601String());
+                $parcel->metadata = $meta;
+                $parcel->updateQuietly(['metadata' => $meta]);
+            }
+            return 'rejected';
+        }
+
+        if (in_array($explicit, ['pending', 'under_review'], true)) {
             return $explicit;
         }
 
-        $resolution = strtolower(trim((string) ($meta['return_resolution'] ?? '')));
-        if (str_contains($resolution, 'approved') || str_contains($resolution, 'refunded')) {
-            return 'approved';
+        if (in_array($explicit, ['returned_to_hub', 'in_rider_hands', 'in_transit_to_hub', 'approved_for_pickup'], true)) {
+            return 'under_review';
         }
-        if (str_contains($resolution, 'rejected') || str_contains($resolution, 're-dispatched') || str_contains($resolution, 'resumed')) {
-            return 'rejected';
-        }
+
         if (str_contains($resolution, 'received at hub') || str_contains($resolution, 'under review') || str_contains($resolution, 'return to hub')) {
             return 'under_review';
         }
@@ -97,10 +173,13 @@ class ExceptionsController extends Controller
     public static function enrichParcelCase(Parcel $parcel): array
     {
         $now = Carbon::now('Asia/Manila');
-        $meta = is_array($parcel->metadata) ? $parcel->metadata : [];
         $returnStatus = self::resolveReturnStatus($parcel);
+        $meta = is_array($parcel->metadata) ? $parcel->metadata : [];
 
         $rawReturnStatus = strtolower(trim((string) ($meta['return_status'] ?? '')));
+        $returnStage = strtolower(trim((string) ($meta['return_stage'] ?? '')));
+        $resolutionLower = strtolower(trim((string) ($meta['return_resolution'] ?? '')));
+
         $statusLabels = [
             'pending' => 'Pending',
             'under_review' => 'Under review',
@@ -133,14 +212,31 @@ class ExceptionsController extends Controller
             }
         }
 
-        $isAwaitingPickup = $rawReturnStatus === 'approved_for_pickup' || ($returnStatus === 'approved' && $parcel->status === 'assigned');
-        $isInRiderHands = in_array($rawReturnStatus, ['in_rider_hands', 'in_transit_to_hub'], true) || ($returnStatus === 'approved' && in_array($parcel->status, ['in_transit', 'returning_to_hub'], true));
-        $isReturnedToHub = $rawReturnStatus === 'returned_to_hub' || $parcel->status === 'returned';
+        // Once a case is approved or rejected by hub admin, always show Approved / Rejected (never overwrite with Returned to Hub)
+        $isFinalResolved = in_array($rawReturnStatus, ['approved', 'rejected'], true)
+            || $returnStage === 'resolved'
+            || str_contains($resolutionLower, 'approve refund')
+            || str_contains($resolutionLower, 'cancelled / refunded')
+            || str_contains($resolutionLower, 'rejected');
 
-        $needsAction = in_array($returnStatus, ['pending', 'under_review'], true);
+        $isAwaitingPickup = ! $isFinalResolved && $rawReturnStatus === 'approved_for_pickup';
+        $isInRiderHands = ! $isFinalResolved && in_array($rawReturnStatus, ['in_rider_hands', 'in_transit_to_hub'], true);
+        $isReturnedToHub = ! $isFinalResolved && $rawReturnStatus === 'returned_to_hub';
+
+        $needsAction = ! $isFinalResolved && in_array($returnStatus, ['pending', 'under_review'], true);
         $diffMinutes = (int) round($now->diffInMinutes($slaDeadline, false));
 
-        if ($isReturnedToHub) {
+        if ($isFinalResolved || in_array($returnStatus, ['approved', 'rejected'], true)) {
+            $statusLabel = $returnStatus === 'rejected' ? 'Rejected' : 'Approved';
+            $slaState = 'resolved';
+            if ($resolvedAt) {
+                $resMins = max(1, (int) round($reportedAt->diffInMinutes($resolvedAt)));
+                $slaText = 'Resolved in ' . self::formatDurationMinutes($resMins);
+            } else {
+                $slaText = 'Resolved';
+            }
+            $resolutionMinutes = $resolvedAt ? max(1, (int) round($reportedAt->diffInMinutes($resolvedAt))) : null;
+        } elseif ($isReturnedToHub) {
             $statusLabel = 'Returned to Hub';
             $slaState = 'resolved';
             $slaText = 'Returned to Hub';
@@ -155,15 +251,6 @@ class ExceptionsController extends Controller
             $slaState = 'on_track';
             $slaText = 'Awaiting rider pickup';
             $resolutionMinutes = null;
-        } elseif (! $needsAction) {
-            $slaState = 'resolved';
-            if ($resolvedAt) {
-                $resMins = max(1, (int) round($reportedAt->diffInMinutes($resolvedAt)));
-                $slaText = 'Resolved in ' . self::formatDurationMinutes($resMins);
-            } else {
-                $slaText = 'Resolved';
-            }
-            $resolutionMinutes = $resolvedAt ? max(1, (int) round($reportedAt->diffInMinutes($resolvedAt))) : null;
         } else {
             $resolutionMinutes = null;
             if ($diffMinutes < 0) {
