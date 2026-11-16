@@ -15,7 +15,7 @@ use Throwable;
 
 class GoogleController extends Controller
 {
-    public function redirect()
+    public function redirect(Request $request)
     {
         $clientId = config('services.google.client_id');
         $clientSecret = config('services.google.client_secret');
@@ -32,6 +32,17 @@ class GoogleController extends Controller
                 ->route('login')
                 ->withErrors(['email' => 'Google sign-in is not configured yet. Please try again later.']);
         }
+
+        // Only keep a post-login destination when one was deliberately passed in.
+        // Always clear any stale "intended" URL (for example, a category page the
+        // guest was on earlier) so Google login lands on the landing page instead.
+        $target = $request->query('redirect_to');
+        if (is_string($target) && str_starts_with($target, '/') && ! str_starts_with($target, '//')) {
+            $request->session()->put('google_redirect_to', $target);
+        } else {
+            $request->session()->forget('google_redirect_to');
+        }
+        $request->session()->forget('url.intended');
 
         return Socialite::driver('google')
             ->redirectUrl($redirectUri)
@@ -92,7 +103,7 @@ class GoogleController extends Controller
             Auth::login($user, true);
             $request->session()->regenerate();
 
-            return redirect()->intended(route('shop.index'));
+            return redirect($request->session()->pull('google_redirect_to', route('home')));
         }
 
         $fullName = trim((string) ($googleUser->getName() ?: $googleUser->getNickname() ?: 'Lumora Buyer'));
@@ -119,6 +130,6 @@ class GoogleController extends Controller
         Auth::login($user, true);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('shop.index'));
+        return redirect($request->session()->pull('google_redirect_to', route('home')));
     }
 }
