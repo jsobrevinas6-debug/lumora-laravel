@@ -456,9 +456,9 @@
                                     $discountPercent = (float) ($storeProduct->discount_percent ?? 0);
                                     $originalPrice = (float) $storeProduct->price;
                                     $finalPrice = $discountPercent > 0 ? $originalPrice * (1 - ($discountPercent / 100)) : $originalPrice;
+                                    $isSaved = in_array((int) $storeProduct->id, $savedProductIds ?? [], true);
                                 @endphp
                                 <article class="product-card">
-                                    @php($isSaved = in_array((int) $storeProduct->id, $savedProductIds ?? [], true))
                                     <button type="button" class="wish {{ $isSaved ? 'is-saved' : '' }}" data-wishlist-toggle data-auth="{{ auth()->check() ? '1' : '0' }}" data-product-id="{{ $storeProduct->id }}" data-product-name="{{ $storeProduct->name }}" data-saved="{{ $isSaved ? '1' : '0' }}" data-add-url="{{ route('buyer.wishlist.api.add') }}" data-toggle-url="{{ route('buyer.wishlist.toggle', $storeProduct) }}" data-login-url="{{ route('login', ['redirect_to' => route('buyer.wishlist.index')]) }}" aria-label="{{ $isSaved ? 'Remove '.$storeProduct->name.' from' : 'Add '.$storeProduct->name.' to' }} wishlist" aria-pressed="{{ $isSaved ? 'true' : 'false' }}"><svg viewBox="0 0 24 24" fill="{{ $isSaved ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg></button>
                                     @if ($discountPercent > 0)<span class="sale">{{ rtrim(rtrim(number_format($discountPercent, 1), '0'), '.') }}% OFF</span>@endif
                                     <a class="product-image" href="{{ route('shop.product', ['id' => $storeProduct->id]) }}"><img src="{{ $storeProduct->image_url }}" alt="{{ $storeProduct->name }}" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.png') }}';"></a>
